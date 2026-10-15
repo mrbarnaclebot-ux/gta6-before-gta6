@@ -1,6 +1,6 @@
 import { buildingsFor, type Building } from './lots'
 import { greenery, type Spot } from './greenery'
-import { rng } from './rng'
+import { pick, rng } from './rng'
 
 /*
  * Seeded city plan: pure data, no three.js. The renderer and physics both read
@@ -156,11 +156,10 @@ export function generateCity(seed = 7, size = 1000): CityLayout {
   }
   const plain = gridBlocks(xRoads, zRoads, canal, size)
   const parkable = plain.filter((b) => !b.canalSide && b.district !== 'beachfront')
-  const parks = new Set(
-    Array.from({ length: Math.round(size / 350) }, () => pickIndex(r, parkable)),
-  )
+  // Duplicate picks collapse, so this makes at most round(size / 350) parks.
+  const parks = new Set(Array.from({ length: Math.round(size / 350) }, () => pick(r, parkable)))
   const blocks: Block[] = plain.map((b) => {
-    const park = parks.has(parkable.indexOf(b))
+    const park = parks.has(b)
     const lots = park ? { buildings: [], gardens: [] } : buildingsFor(b.lot, b.district, r)
     return { ...b, park, ...lots }
   })
@@ -173,8 +172,4 @@ export function generateCity(seed = 7, size = 1000): CityLayout {
     ...greenery({ ...layout, land }, r),
     spawn: { x: beachRoad + ROAD_HALF + 3, z: 40 },
   }
-}
-
-function pickIndex<T>(r: () => number, items: T[]): number {
-  return Math.floor(r() * items.length)
 }
