@@ -86,7 +86,7 @@ export async function buildCity(
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
   buildSand(ctx, layout)
   const water = buildWater(ctx, layout, light)
-  await plantVegetation(ctx, layout, load)
+  const palms = await plantVegetation(ctx, layout, load)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
   const underwater = buildUnderwater(
     ctx.scene,
@@ -105,6 +105,7 @@ export async function buildCity(
     },
     update(dt, camera) {
       night(light.night, camera.position)
+      palms(camera.position)
       water.update(dt)
       underwater.update(camera, dt, light.day)
     },

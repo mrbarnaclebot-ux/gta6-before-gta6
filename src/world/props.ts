@@ -39,7 +39,9 @@ export function placeProps(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMate
     emissive: 0x2a2620,
     roughness: 0.2,
   })
-  instanceParts(ctx, streetlight(lens), c.lights, { scale: () => 1, ground: () => CURB_H })
+  // One batch for the whole city: drawing all 800 (about 120k triangles) beats 25 chunk draw calls per pass.
+  const place = { scale: () => 1, ground: () => CURB_H }
+  instanceParts(ctx, streetlight(lens), c.lights, place, Infinity)
   for (const s of c.lights) {
     const pole = RAPIER.ColliderDesc.cylinder(POLE_H / 2, 0.15)
     ctx.physics.createCollider(pole.setTranslation(s.x, CURB_H + POLE_H / 2, s.z))

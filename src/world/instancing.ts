@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { Spot } from '../city/layout'
 import type { WorldCtx } from './blocks'
-import { groupByChunk } from './chunks'
+import { CHUNK, groupByChunk } from './chunks'
 
 export interface Part {
   geometry: THREE.BufferGeometry
@@ -42,70 +42,37 @@ export const DETAIL_LAYER = 1
 
 const tmp = new THREE.Object3D()
 
-type Placement = { scale: (s: Spot) => number; ground: (s: Spot) => number; detail?: boolean }
+type Placement = { scale: (s: Spot) => number; ground: (s: Spot) => number }
 
-/** One InstancedMesh per part for these spots, positioned relative to `origin`. */
-function instanced(
-  parts: Part[],
-  spots: Spot[],
-  place: Placement,
-  origin: THREE.Vector3,
-  castShadow: boolean,
-) {
+/** One InstancedMesh per part for these spots. */
+function instanced(parts: Part[], spots: Spot[], place: Placement) {
   return parts.map((part) => {
     const mesh = new THREE.InstancedMesh(part.geometry, part.material, spots.length)
     spots.forEach((s, i) => {
-      tmp.position.set(s.x - origin.x, place.ground(s), s.z - origin.z)
+      tmp.position.set(s.x, place.ground(s), s.z)
       tmp.rotation.set(0, s.r, 0)
       tmp.scale.setScalar(place.scale(s))
       tmp.updateMatrix()
       mesh.setMatrixAt(i, tmp.matrix)
     })
     mesh.computeBoundingSphere()
-    mesh.castShadow = castShadow
-    if (place.detail) mesh.layers.set(DETAIL_LAYER)
-    mesh.receiveShadow = true
+    mesh.castShadow = mesh.receiveShadow = true
     return mesh
   })
 }
 
-/** Places a model at every spot: one InstancedMesh per part per chunk. */
+/**
+ * Places a model at every spot: one InstancedMesh per part per `chunk`-sized square,
+ * so whole chunks can be frustum-culled. Pass Infinity for one batch over the whole city.
+ */
 export function instanceParts(
   ctx: WorldCtx,
   parts: Part[],
   spots: Spot[],
   place: Placement,
-  castShadow = true,
+  chunk = CHUNK,
 ): void {
-  const origin = new THREE.Vector3()
-  for (const group of groupByChunk(spots).values()) {
-    ctx.scene.add(...instanced(parts, group, place, origin, castShadow))
-  }
-}
-
-// Small cells, so the detailed model only draws near the camera.
-const LOD_CELL = 100
-
-/**
- * Like instanceParts, with a cheaper model for cells whose center is farther than `far`.
- * Cells are 100 m, so anything within about 40 m of the camera is always detailed.
- */
-export function instanceLod(
-  ctx: WorldCtx,
-  near: Part[],
-  distant: Part[],
-  spots: Spot[],
-  place: Placement & { far: number },
-): void {
-  for (const group of groupByChunk(spots, LOD_CELL).values()) {
-    const lod = new THREE.LOD()
-    group.forEach((s) => lod.position.add(new THREE.Vector3(s.x, 0, s.z)))
-    lod.position.divideScalar(group.length)
-    lod.addLevel(new THREE.Group().add(...instanced(near, group, place, lod.position, true)), 0)
-    lod.addLevel(
-      new THREE.Group().add(...instanced(distant, group, place, lod.position, true)),
-      place.far,
-    )
-    ctx.scene.add(lod)
+  for (const group of groupByChunk(spots, chunk).values()) {
+    ctx.scene.add(...instanced(parts, group, place))
   }
 }

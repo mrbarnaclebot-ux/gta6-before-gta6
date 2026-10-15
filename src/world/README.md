@@ -11,12 +11,12 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `sand.ts` beach and seabed mesh plus heightfield collider and the offshore boundary walls
 - `water.ts` reflective sea and canal water with depth-based color
 - `underwater.ts` the surface seen from below; hides the reflective top while the camera is under
-- `vegetation.ts` the generated palm (near and far versions, by 100 m cell) and scanned ferns; `palm-model.ts` procedural palms if the glb fails
-- `props.ts` streetlights
+- `vegetation.ts` the generated palm (near and far versions, chosen per tree by distance in `lod-instances.ts`) and scanned ferns; `palm-model.ts` procedural palms if the glb fails
+- `props.ts` streetlights, one instanced batch for the whole city
 - `street-glow.ts` lamp light pools and the few real lights near the camera at night
 - `neon.ts` neon tubes and their color wash on art-deco and tower facades at night
 - `night-windows.ts` lit-window emissive maps for the facades
 - `hospital-signs.ts` lightbox signs at the respawn points
-- `instancing.ts`, `chunks.ts` instancing and frustum-culling helpers
+- `instancing.ts`, `chunks.ts` instancing and frustum-culling helpers; `lod-instances.ts` near/far models chosen per spot by distance
 - `blocks.ts` shared geometry and collider helpers
 - `materials.ts` Poly Haven PBR texture sets
