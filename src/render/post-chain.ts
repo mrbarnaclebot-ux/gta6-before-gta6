@@ -30,6 +30,7 @@ export interface Chain {
   dof?: DistanceBlurEffect
   blur?: MotionBlurEffect
   flare?: LensFlareEffect
+  rays?: SunRays
 }
 
 interface Ctx {
@@ -42,8 +43,18 @@ interface Ctx {
 // Built once: the LUT costs a few ms of math, and it never changes.
 let lut: THREE.Texture | null = null
 
-function godRays(c: Ctx): GodRaysEffect {
-  return new GodRaysEffect(c.camera, c.sun.disc, {
+/** God rays that skip their three passes (and hide) while the sun cannot shine into view. */
+export class SunRays extends GodRaysEffect {
+  active = true
+
+  override update(r: THREE.WebGLRenderer, input: THREE.WebGLRenderTarget, dt?: number): void {
+    this.blendMode.opacity.value = this.active ? 1 : 0
+    if (this.active) super.update(r, input, dt)
+  }
+}
+
+function godRays(c: Ctx): SunRays {
+  return new SunRays(c.camera, c.sun.disc, {
     blendFunction: BlendFunction.SCREEN,
     samples: 32,
     density: 0.86,
@@ -64,7 +75,7 @@ function mainEffects(c: Ctx, g: Graphics, out: Chain): Effect[] {
     // Focus follows the player or the crosshair (see Renderer.frame).
     fx.push((out.dof = new DistanceBlurEffect(c.camera)))
   }
-  if (g.godRays) fx.push(godRays(c))
+  if (g.godRays) fx.push((out.rays = godRays(c)))
   if (g.bloom) {
     const radius = 0.7
     fx.push(

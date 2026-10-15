@@ -80,7 +80,7 @@ export class Renderer {
     this.resize()
   }
 
-  /** Points depth of field, motion blur, and the lens flare at this frame. */
+  /** Points depth of field, motion blur, god rays, and the lens flare at this frame. */
   frame(v: FrameView): void {
     const c = this.chain
     if (!c) return
@@ -92,6 +92,7 @@ export class Renderer {
     }
     if (c.blur) c.blur.intensity = Math.max(BLUR_FOOT, Math.min(1, v.speed / BLUR_TOP_SPEED))
     c.flare?.set(this.sun.uv, this.sun.flare, this.sun.tint)
+    if (c.rays) c.rays.active = this.sun.rays
   }
 
   render(dt: number): void {

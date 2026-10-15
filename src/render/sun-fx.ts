@@ -27,6 +27,8 @@ export class SunFx {
   readonly uv = new THREE.Vector2()
   /** Lens flare strength: 0 when the sun is set, behind the camera, or off screen. */
   flare = 0
+  /** False when god rays would add nothing: the sun is set, behind the camera, or underwater. */
+  rays = false
   readonly tint = new THREE.Color()
 
   update(camera: THREE.PerspectiveCamera, a: Ambient, underwater: boolean): void {
@@ -41,6 +43,7 @@ export class SunFx {
     P.copy(this.disc.position).project(camera)
     this.uv.set(P.x * 0.5 + 0.5, P.y * 0.5 + 0.5)
     const facing = FORWARD.dot(a.sunDir) > 0
+    this.rays = facing && glare > 0
     // Fade out as the sun nears the screen edge instead of popping off.
     const edge = Math.min(1, (1.1 - Math.max(Math.abs(P.x), Math.abs(P.y))) / 0.3)
     this.flare = facing ? glare * Math.max(0, edge) : 0
