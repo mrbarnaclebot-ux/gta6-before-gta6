@@ -1,17 +1,59 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { game, LOAD_TIMEOUT, play, settle, SLOW, visit, type Game } from './helpers'
 
-test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
+/** M opens the full map; a click sets a waypoint with a road route; M closes it. */
+async function mapAndWaypoint(page: Page) {
+  await page.keyboard.press('m')
+  await settle(page, 1)
+  await expect(page.locator('#worldmap')).toBeVisible()
+  expect((await game(page)).mapOpen).toBe(true)
+  const box = (await page.locator('#worldmap-canvas').boundingBox())!
+  await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.35)
+  const way = await page.evaluate(() => (window as unknown as { __game: Game }).__game.waypoint())
+  expect(way).not.toBeNull()
+  expect(way!.route.length).toBeGreaterThanOrEqual(2)
+  await page.screenshot({ path: 'test-results/map.png' })
+  await page.keyboard.press('m')
+  await settle(page, 1)
+  await expect(page.locator('#worldmap')).toBeHidden()
+  expect((await game(page)).mapOpen).toBe(false)
+}
+
+test('main menu: arrow keys, settings, credits', { tag: '@smoke' }, async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Play' })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#pause')).toBeVisible()
+  await expect(page.locator('#pause-title')).toHaveText('Settings')
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#pause')).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('button', { name: 'Credits' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#credits')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('#credits')).toBeHidden()
+})
+
+test('loads, plays, walks, maps, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
   // The default Medium preset in SwiftShader with people and traffic runs near 1 fps.
   test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
-  await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible()
-  await page.getByRole('button', { name: 'Play' }).click()
+  // Play from the keyboard: Enter on the focused Play button.
+  await page.getByRole('button', { name: 'Play' }).press('Enter')
+  await expect(page.locator('#loading')).toBeVisible()
   await page.waitForFunction(() => '__game' in window, null, { timeout: LOAD_TIMEOUT })
   await settle(page)
-  await expect(page.locator('#title')).toBeHidden()
+  await expect(page.locator('#loading')).toBeHidden()
+  await expect(page.locator('#load-bar')).toHaveAttribute('aria-valuenow', '100')
+  await expect(page.locator('#menu')).toBeHidden()
 
   const before = await game(page)
   expect(before.mode).toBe('walking')
@@ -28,6 +70,7 @@ test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ 
   console.log(`moved ${moved.toFixed(2)} m at ${after.fps} fps`)
   expect(moved).toBeGreaterThan(0.5)
   await page.screenshot({ path: 'test-results/smoke.png' })
+  await mapAndWaypoint(page)
 
   await visit(page, 'beach', -1.2, 0.12)
   await page.screenshot({ path: 'test-results/beach.png' })

@@ -16,6 +16,7 @@ export type GameState = {
   dead: boolean
   wanted: number
   paused: boolean
+  mapOpen: boolean
   sensitivity: number
   hours: number
   night: number
@@ -35,6 +36,7 @@ export type Game = {
   hurt: (amount: number) => void
   skipDeath: () => void
   setTime: (hours: number) => void
+  waypoint: () => (Point & { route: { x: number; z: number }[] }) | null
 }
 
 /** SwiftShader on a 2-core CI runner is a few times slower than on a dev machine. */
