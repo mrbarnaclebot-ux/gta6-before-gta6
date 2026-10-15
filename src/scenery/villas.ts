@@ -75,7 +75,8 @@ function villaParts(land: Land, v: Villa, p: Parts): void {
     metricBox(5, 1.2, 0.06).translate(4, 2.0, 8.04),
   )
   p.stone.push(...terraceWall(land, v).map((g) => tinted(g, STONE)))
-  p.stone.push(tinted(metricBox(v.w - 1, 0.3, v.d - 1).translate(0, -0.15, 0), 0xe7e1d4))
+  // Top 4 cm above the pad the terrain is flattened to, so the two never z-fight.
+  p.stone.push(tinted(metricBox(v.w - 1, 0.3, v.d - 1).translate(0, -0.11, 0), 0xe7e1d4))
   p.stone.push(tinted(metricBox(9, 0.4, 4.6).translate(-4, 0.1, -7.5), 0xf0ece4))
   p.pool.push(new THREE.PlaneGeometry(8, 3.8).rotateX(-Math.PI / 2).translate(-4, 0.31, -7.5))
   const place = (list: THREE.BufferGeometry[], from: number) => {
