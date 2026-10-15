@@ -79,7 +79,9 @@ export function surfaceAt(c: CityLayout, x: number, z: number): number {
     b.park ? within(b.lot, x, z) : b.gardens.some((g) => within(g, x, z))
   if (c.blocks.some(lawn)) return PARK_TOP
   const onRoad = c.roads.some((r) =>
-    r.axis === 'x' ? Math.abs(z - r.at) < ROAD_HALF : Math.abs(x - r.at) < ROAD_HALF,
+    r.axis === 'x'
+      ? Math.abs(z - r.at) < ROAD_HALF && x > r.from && x < r.to
+      : Math.abs(x - r.at) < ROAD_HALF && z > r.from && z < r.to,
   )
   return onRoad ? 0 : CURB_H
 }
