@@ -37,12 +37,13 @@ Status: built and verified on branch `phase-06-life`. The Code Reviewer, Designe
 
 - A crime earns at least one star, up to five. The heat added per crime:
   - Gunfire with a witness within 40 m: +0.35.
-  - Shooting a car: +0.25.
+  - Shooting a car: +0.25, once per car. Wrecks report nothing.
   - Hitting a person: +0.6.
   - Killing a person, or running one over: +1.
+  - Each shot counts once: a bullet that hits a person or car is not also counted as gunfire. Six pistol shots into one car now give 2 stars (was 4).
 - With no police yet, "out of sight" means outside the search area around the last crime. The area's radius is 60 m plus 40 m per star.
 - Outside it, the stars blink. After 6 s one star drops, then one more every 8 s.
-- The HUD shows five stars, top right. The minimap shades the search area.
+- The HUD shows five stars on a dark pill, top right, so empty stars read against a bright sky. The minimap shades the search area.
 
 ### Minimap (`src/ui/minimap.ts`)
 
@@ -121,7 +122,7 @@ All other controls are unchanged, and the pause menu lists them all.
 - `pnpm test`: 14 files, 56 tests passed.
   - New: `wanted.test.ts` (7 tests), `lanes.test.ts`, `places.test.ts`, and `daynight.test.ts`.
 - `pnpm build`: "built in 313ms". The game chunk is 5.40 MB (2.03 MB gzip).
-- `pnpm test:e2e`: 5 passed (5.1 min). The new test opens `?quality=low` and checks:
+- `pnpm test:e2e`: 5 passed (5.1 min; 4.0 min after the review fixes). The new test (`e2e/life.spec.ts`) opens `?quality=low` and checks:
   - People exist and traffic moves.
   - Shooting the nearest person earns a star, shows `#wanted`, and makes people flee.
   - Damage kills the player and shows `#death`. After `skipDeath()` the player is back at full health with no stars, within 2 m of a hospital.
@@ -136,6 +137,19 @@ All other controls are unchanged, and the pause menu lists them all.
   - Gameplay: `traffic-stops-for-player`, `shot-fired-wanted-flee`, `wasted`, `hospital-respawn`, `pause-menu`
   - Other presets and widths: `low-preset-day`, `low-preset-night`, `mobile-pause` (390x844), `tablet-wasted` (820x1180)
   - SwiftShader: `smoke-night-swiftshader.png`, `smoke-pause-swiftshader.png`
+
+## Review fixes
+
+- `src/style.css` (537 lines) is split by concern: `src/style.css` keeps the base and title screen (144), and `src/ui/hud.css` (265), `src/ui/death.css` (32), and `src/ui/pause.css` (95) are all imported from `main.ts`. `src/ui` got a README.
+- Dead code removed from `Life`: the unused `targets` getter and the write-only `revivedAt` field. The e2e test already checks the respawn point against the nearest hospital.
+- Traffic and `Life.obstacles()` reuse scratch obstacle arrays instead of building new ones every frame.
+- `traffic()` in the test hook now returns a stable `id` per car, and the e2e test matches cars by id, so a despawn between samples cannot shift indices.
+- The e2e suite is split: shared helpers (including `play(url)`) in `e2e/helpers.ts`, Phase 6 in `e2e/life.spec.ts` as one step function per feature. Every e2e function is now under 40 lines, and the two spec files run in parallel workers.
+- A pedestrian that stops fleeing restarts its walk timer, so it does not stop to chat right away.
+- `Shooter.lastShot` doc now says the shot starts from the feet, which is what it records.
+- `ponytail:` notes for the swallowed click when the browser refuses a pointer re-lock (`input.ts`) and for the 24 MB minimap base canvas (`minimap.ts`).
+- Re-verified: lint clean, 56 unit tests, build OK, `pnpm test:e2e` 5 passed (4.0 min). A Metal-GPU drive at 1920x1080 High shot one traffic car six times (0 to 2 stars), with no page errors. Screenshots: `review-fix-wanted-1920`, `review-fix-wanted-390`, `review-fix-night-1920`.
+- Not changed: draw calls (about 900 to 2,400) stay with the Phase 7 perf pass, and `aimAt` plus hip-fire at close range stays fragile for scripted tests.
 
 ## Known gaps
 
@@ -156,7 +170,7 @@ All other controls are unchanged, and the pause menu lists them all.
 - Hospitals are a sign in front of an ordinary building.
 - Performance: traffic uses the full concept car model.
   - At about 2,400 draw calls in wide views, a mid laptop will likely drop below 60 fps on High. The Phase 7 perf pass should add LODs or a lighter traffic model.
-  - The e2e suite now takes about 5 minutes in SwiftShader.
+  - The e2e suite now takes about 4 minutes in SwiftShader.
 - No new assets were needed and none were missing.
   - Lit windows, neon, light pools, and the hospital sign are procedural on purpose, since there are no CC0 equivalents in `public/assets`.
   - No paid generation was used.
