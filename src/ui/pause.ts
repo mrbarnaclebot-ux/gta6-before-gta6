@@ -85,9 +85,13 @@ export class PauseMenu {
     this.openedAt = performance.now()
     $('pause-title').textContent = this.playing ? 'Paused' : 'Settings'
     this.resume.textContent = this.playing ? 'Resume' : 'Back'
-    if (tab) this.select($<HTMLButtonElement>(`tab-btn-${tab}`))
+    if (tab) this.selectTab(tab)
     this.root.hidden = false
     this.resume.focus()
+  }
+
+  selectTab(tab: Tab): void {
+    this.select($<HTMLButtonElement>(`tab-btn-${tab}`))
   }
 
   hide(fromClick: boolean): void {
