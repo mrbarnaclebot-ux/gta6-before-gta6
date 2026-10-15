@@ -1,6 +1,6 @@
 // Frame-rate and load probe: node scripts/perf.mjs <url> <screenshot-dir> [high|low] [deviceScaleFactor]
 // macOS only: it forces Chrome onto the real GPU through ANGLE's Metal backend.
-// UNCAPPED=1 turns off vsync so A/B runs show headroom above 60 fps.
+// UNCAPPED=1 turns off vsync so A/B runs show headroom above 60 fps. ONLY=forest,beach samples just those.
 import { chromium } from '@playwright/test'
 const URL = process.argv[2]
 const OUT = process.argv[3]
@@ -29,7 +29,7 @@ cdp.on('Network.loadingFinished', (e) => {
   bytes += e.encodedDataLength
 })
 const t0 = Date.now()
-await page.goto(`${URL}?quality=${quality}&debug`, { waitUntil: 'load' })
+await page.goto(`${URL}?quality=${quality}&debug${process.env.EXTRA || ''}`, { waitUntil: 'load' })
 const tTitle = Date.now() - t0
 const gpu = await page.evaluate(() => {
   const g = document.createElement('canvas').getContext('webgl2')
@@ -60,36 +60,44 @@ async function sample(label, secs = 5) {
   await page.screenshot({ path: `${OUT}/${quality}-dsf${process.argv[5] || 1}-${label}.png` })
   return { label, fps: +fps.toFixed(1), drawCalls: f1[2] }
 }
+const only = process.env.ONLY?.split(',')
+const wanted = (name) => !only || only.includes(name)
 const res = []
-res.push(await sample('spawn'))
+if (wanted('spawn')) res.push(await sample('spawn'))
 // Yaw 0 looks north (-z), pi/2 west toward the city from the beach, -pi/2 east.
-for (const [name, yaw] of [
+for (const [name, yaw, at] of [
   ['downtown', 0],
   ['beach', Math.PI / 2],
   ['canal', 0],
   ['hillside', -Math.PI / 2],
   ['flyover', Math.PI],
   ['residential', 2.4],
+  ['forest', 0.5],
+  // The forest from the Hillside lookout, looking west over the woods.
+  ['forest-hill', 1.2, 'hillside'],
 ]) {
+  if (!wanted(name)) continue
   await g(
-    ([n, y]) => {
+    ([n, y, at]) => {
       const G = window.__game
-      const a = G.landmarks()[n]
+      const a = G.landmarks()[at || n]
       G.teleport(a.x, a.y + 0.3, a.z)
       G.setCameraYaw(y)
       G.setCameraPitch(0.15)
     },
-    [name, yaw],
+    [name, yaw, at],
   )
   res.push(await sample(name))
 }
-await g(() => {
-  const G = window.__game
-  const a = G.landmarks().downtown
-  G.teleport(a.x, a.y + 0.3, a.z)
-  G.setTime(21.5)
-})
-res.push(await sample('downtown-night'))
+if (wanted('downtown-night')) {
+  await g(() => {
+    const G = window.__game
+    const a = G.landmarks().downtown
+    G.teleport(a.x, a.y + 0.3, a.z)
+    G.setTime(21.5)
+  })
+  res.push(await sample('downtown-night'))
+}
 console.log(
   JSON.stringify(
     {
