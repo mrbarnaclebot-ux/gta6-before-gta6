@@ -33,6 +33,10 @@ export class Look {
   private readonly focus = new THREE.Vector3()
   private readonly chest = new THREE.Vector3()
   private readonly dir = new THREE.Vector3()
+  private readonly eye = new THREE.Vector3()
+  private readonly ray = new RAPIER.Ray(this.eye, this.dir)
+  // Rebuilding the shadow maps and relinking every lit material is a hitch; skip it when unchanged.
+  private shadowSetup = ''
 
   constructor(
     private readonly w: World,
@@ -51,7 +55,9 @@ export class Look {
     w.camera.far = reach.far
     w.renderer.apply(g)
     w.sky.setOutput(w.renderer.post, reach.fog)
-    w.shadows.configure(g.shadows, reach.shadows)
+    const shadows = `${g.shadows}:${reach.shadows}`
+    if (shadows !== this.shadowSetup) w.shadows.configure(g.shadows, reach.shadows)
+    this.shadowSetup = shadows
     w.city.setDetail(reach.plants, MIRROR[g.reflections])
     w.driving.drawRange = reach.cars
     this.dynamic.reset(g.renderScale)
@@ -77,9 +83,9 @@ export class Look {
     chest.copy(w.driving.position).setY(chest.y + CHEST)
     if (aim < 0.05) return focus.copy(chest)
     w.camera.getWorldDirection(this.dir)
-    const eye = w.camera.position
+    const eye = this.eye.copy(w.camera.position)
     const hit = w.physics.castRay(
-      new RAPIER.Ray(eye, this.dir),
+      this.ray,
       AIM_RANGE,
       true,
       RAPIER.QueryFilterFlags.EXCLUDE_SENSORS,
