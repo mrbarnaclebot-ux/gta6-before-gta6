@@ -20,7 +20,9 @@ export function keepCardNormals<T extends THREE.Material>(m: T): T {
       KEEP_NORMAL,
     )
   }
-  m.customProgramCacheKey = () => 'card-normals'
+  // Keep the earlier patch's key in, or two differently patched materials would share a program.
+  const key = m.customProgramCacheKey()
+  m.customProgramCacheKey = () => `${key}|card-normals`
   return m
 }
 
