@@ -72,7 +72,8 @@ export class Minimap {
   private readonly dpr = Math.min(devicePixelRatio || 1, 2)
   private zoom = ZOOM_FOOT
   /** What the last frame drew, so a still player costs no redraw. */
-  private readonly last = new Float64Array(6)
+  private readonly last = new Float64Array(8).fill(NaN)
+  private readonly now = new Float64Array(8)
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -107,8 +108,18 @@ export class Minimap {
   }
 
   private unchanged(m: MapMarks): boolean {
-    const now = [m.x, m.z, m.yaw, m.heading, this.zoom, m.search?.blink ? m.search.r : -1]
-    const same = now.every((v, i) => v === this.last[i])
+    const s = m.search?.blink ? m.search : null
+    const now = this.now
+    now[0] = m.x
+    now[1] = m.z
+    now[2] = m.yaw
+    now[3] = m.heading
+    now[4] = this.zoom
+    now[5] = s ? s.r : -1
+    now[6] = s ? s.x : 0
+    now[7] = s ? s.z : 0
+    let same = true
+    for (let i = 0; i < now.length; i++) if (now[i] !== this.last[i]) same = false
     this.last.set(now)
     return same
   }
