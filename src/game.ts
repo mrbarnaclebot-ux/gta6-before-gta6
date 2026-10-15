@@ -10,28 +10,29 @@ import { Sky } from './render/sky'
 import { loadQuality, saveQuality, type Quality } from './settings'
 import { exposeTestHook } from './test-hook'
 import { Hud } from './ui/hud'
-import { buildTestbed } from './world/testbed'
+import { buildCity } from './world/city'
+import { DETAIL_LAYER } from './world/instancing'
 
-const SPAWN = new THREE.Vector3(0, 0.1, 12)
 const MAX_FRAME = 0.1
 
 async function buildScene(canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
+  camera.layers.enable(DETAIL_LAYER)
   const renderer = new Renderer(canvas, scene, camera)
   const sky = new Sky(scene)
   const physics = await createPhysics()
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
-  const [avatar] = await Promise.all([
+  const [avatar, city] = await Promise.all([
     Avatar.load(load),
+    buildCity({ scene, physics }, load, sky.sunDir),
     sky.load(),
-    buildTestbed({ scene, physics }, load),
   ])
   scene.add(avatar.root)
-  const player = new Player(physics, avatar, SPAWN)
+  const player = new Player(physics, avatar, city.spawn)
   const follow = new FollowCamera(camera, physics, player.collider)
-  return { scene, camera, renderer, sky, physics, player, follow }
+  return { scene, camera, renderer, sky, physics, player, follow, city }
 }
 
 type World = Awaited<ReturnType<typeof buildScene>>
@@ -52,6 +53,7 @@ function runLoop(w: World, input: Input, onFrame: () => void): void {
     w.player.update(dt, acc / FIXED_STEP)
     w.follow.update(dt, input.consumeLook(), w.player.position)
     w.sky.follow(w.player.position)
+    w.city.update(dt)
     w.renderer.render(dt)
     onFrame()
   })
@@ -79,6 +81,13 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
     follow: w.follow,
     input,
     setQuality,
-    extra: () => ({ fps: Math.round(hud.fps), frames, quality }),
+    landmarks: w.city.landmarks,
+    extra: () => ({
+      fps: Math.round(hud.fps),
+      frames,
+      quality,
+      drawCalls: w.renderer.gl.info.render.calls,
+      triangles: w.renderer.gl.info.render.triangles,
+    }),
   })
 }

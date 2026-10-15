@@ -39,6 +39,8 @@ export class Renderer {
     this.gl.toneMappingExposure = EXPOSURE
     this.gl.shadowMap.enabled = true
     this.gl.shadowMap.type = THREE.PCFShadowMap
+    // Count draw calls across the whole frame (shadows, water reflection, post), not just the last pass.
+    this.gl.info.autoReset = false
     window.addEventListener('resize', () => this.resize())
   }
 
@@ -51,6 +53,7 @@ export class Renderer {
   }
 
   render(dt: number): void {
+    this.gl.info.reset()
     if (this.composer) this.composer.render(dt)
     else this.gl.render(this.scene, this.camera)
   }

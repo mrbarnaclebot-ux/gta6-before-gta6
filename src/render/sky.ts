@@ -4,22 +4,25 @@ import type { Quality } from '../settings'
 import { horizonColor, sunDirection } from './sky-analysis'
 
 const HDRI_URL = '/assets/hdri/day_kloofendal_2k.hdr'
-const SUN_DISTANCE = 120
+// Far enough up the sun ray that 200 m towers sit inside the shadow camera's depth range.
+const SUN_DISTANCE = 400
 const SHADOW_EXTENT = 70
 
 /** Daylight: HDRI sky and image-based lighting, a matching shadow-casting sun, and haze. */
 export class Sky {
   readonly sun = new THREE.DirectionalLight(0xffe6c8, 4)
-  private readonly sunDir = new THREE.Vector3(0.4, 0.8, 0.3).normalize()
+  /** Filled in by load(); shared by reference with the water shader. */
+  readonly sunDir = new THREE.Vector3(0.4, 0.8, 0.3).normalize()
 
   constructor(private readonly scene: THREE.Scene) {
     const cam = this.sun.shadow.camera
     cam.left = cam.bottom = -SHADOW_EXTENT
     cam.right = cam.top = SHADOW_EXTENT
     cam.near = 1
-    cam.far = SUN_DISTANCE * 2.5
+    cam.far = SUN_DISTANCE * 2
     this.sun.castShadow = true
-    this.sun.shadow.bias = -0.0003
+    // Depth bias scales with the 800 m depth range: -0.0001 is about 8 cm.
+    this.sun.shadow.bias = -0.0001
     this.sun.shadow.normalBias = 0.03
     scene.add(this.sun, this.sun.target)
   }
@@ -34,11 +37,12 @@ export class Sky {
     }
     const pixels = halfToFloat(data)
     this.sunDir.fromArray(sunDirection(pixels, width, height))
+    const [r, g, b] = horizonColor(pixels, width, height)
+    paintGround(data, width, height, [r * 0.8, g * 0.74, b * 0.64])
     this.scene.background = hdr
     this.scene.environment = hdr
-    this.scene.environmentIntensity = 0.65
-    const [r, g, b] = horizonColor(pixels, width, height)
-    this.scene.fog = new THREE.FogExp2(new THREE.Color(r, g, b).multiplyScalar(0.85), 0.0038)
+    this.scene.environmentIntensity = 0.9
+    this.scene.fog = new THREE.FogExp2(new THREE.Color(r, g, b).multiplyScalar(0.85), 0.0016)
   }
 
   setQuality(q: Quality): void {
@@ -57,6 +61,23 @@ export class Sky {
     const z = Math.round(focus.z / texel) * texel
     this.sun.target.position.set(x, 0, z)
     this.sun.position.set(x, 0, z).addScaledVector(this.sunDir, SUN_DISTANCE)
+  }
+}
+
+/**
+ * A "puresky" HDRI is nearly black below the horizon, which leaves every wall
+ * facing away from the sun unlit. Paint the lower half as sunlit pale ground so
+ * image-based lighting includes the bounce light a bright city really has.
+ */
+function paintGround(data: Uint16Array, width: number, height: number, rgb: number[]): void {
+  const half = rgb.map((v) => THREE.DataUtils.toHalfFloat(v))
+  for (let y = Math.ceil(height / 2); y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4
+      data[i] = half[0]
+      data[i + 1] = half[1]
+      data[i + 2] = half[2]
+    }
   }
 }
 

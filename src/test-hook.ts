@@ -9,7 +9,14 @@ interface HookDeps {
   follow: FollowCamera
   input: Input
   setQuality: (q: Quality) => void
-  extra: () => { fps: number; frames: number; quality: Quality }
+  landmarks: Record<string, { x: number; y: number; z: number }>
+  extra: () => {
+    fps: number
+    frames: number
+    quality: Quality
+    drawCalls: number
+    triangles: number
+  }
 }
 
 /**
@@ -17,7 +24,8 @@ interface HookDeps {
  * tests need because headless browsers cannot pointer-lock or play by hand.
  * state() returns a fresh copy each call so callers cannot mutate the game.
  */
-export function exposeTestHook({ player, follow, input, setQuality, extra }: HookDeps): void {
+export function exposeTestHook(deps: HookDeps): void {
+  const { player, follow, input, setQuality, extra } = deps
   const api = {
     state: () => ({
       position: { x: player.position.x, y: player.position.y, z: player.position.z },
@@ -30,8 +38,10 @@ export function exposeTestHook({ player, follow, input, setQuality, extra }: Hoo
       ...extra(),
     }),
     setQuality,
+    landmarks: () => structuredClone(deps.landmarks),
     teleport: (x: number, y: number, z: number) => player.teleport(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
+    setCameraPitch: (pitch: number) => (follow.pitch = pitch),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }
