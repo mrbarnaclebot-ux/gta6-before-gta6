@@ -5,7 +5,7 @@ export const UNDER_CITY = -0.6
 export const CANAL_FLOOR = -4
 /** Terrain grid spacing. Land edges sit on multiples of 2 m, so 4 m cells keep the sand edge clean. */
 export const CELL = 4
-/** How far the sand and seabed extend past the paved island. */
+/** How far the sand and seabed extend past the paved island on the north, south, and west. */
 export const MARGIN = 160
 // The beach side reaches further out, to where the sea is deep enough that its color
 // no longer changes, so the seabed edge leaves no seam and swimmers get open water.

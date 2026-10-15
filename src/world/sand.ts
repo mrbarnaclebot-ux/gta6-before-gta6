@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
+import { inset, SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
 import { CELL, heightAt, terrainGrid, UNDER_CITY } from '../city/terrain'
 import { RAPIER } from '../physics'
 import { rectCollider, type WorldCtx } from './blocks'
@@ -41,10 +41,13 @@ export function buildSand(ctx: WorldCtx, c: CityLayout): void {
   // Column-major heights (x columns, z rows), the layout Rapier's heightfield expects.
   const heights = new Float32Array((g.nx + 1) * (g.nz + 1))
   const color = new THREE.Color()
+  // Canal edges fall mid-cell, so the vertex just outside would ramp the floor up into a sand
+  // shelf along the seawall. Widening the canal by most of a cell puts that ramp under the bank.
+  const ground = { land: c.land, canal: inset(c.canal, -CELL * 0.6) }
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i)
     const z = pos.getZ(i)
-    const h = heightAt(c, x, z)
+    const h = heightAt(ground, x, z)
     pos.setY(i, h)
     uv.setXY(i, x / 3, z / 3)
     sandColor(h, color).toArray(colors, i * 3)
@@ -69,7 +72,7 @@ export function buildSand(ctx: WorldCtx, c: CityLayout): void {
 
 /**
  * Invisible walls at the seabed edge, so swimmers cannot cross into the void past it.
- * ponytail: hard walls 160 m offshore; extend the seabed or add a soft current when the map grows.
+ * ponytail: hard walls MARGIN offshore (SEA_MARGIN off the beach); extend the seabed or add a soft current when the map grows.
  */
 function boundary(ctx: WorldCtx, r: Rect): void {
   const t = 1
