@@ -4,7 +4,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 /*
  * Procedural wheels: the generated car bodies come without any. A lathed tire with a
  * rounded shoulder and a five-spoke alloy, about 900 triangles, axle along x, rim face
- * toward +x. Two materials, so each wheel is two draw calls.
+ * toward +x. Two materials; all wheels of a car kind share one instanced
+ * batch per material (see wheel-batch.ts).
  */
 
 const SPOKES = 5
@@ -48,17 +49,10 @@ function rimGeometry(radius: number, width: number): THREE.BufferGeometry {
   return mergeGeometries(parts)!
 }
 
-/** One wheel mesh to clone per hub; flip it for the right side so the rim faces out. */
-export function wheelModel(radius: number, width: number): THREE.Object3D {
-  const wheel = new THREE.Group()
-  for (const [geo, mat] of [
-    [tire(radius, width), rubber],
-    [rimGeometry(radius, width), alloy],
-  ] as const) {
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    wheel.add(mesh)
-  }
-  return wheel
+/** Tire and rim geometry with their materials, axle along x and rim face toward +x. */
+export function wheelParts(radius: number, width: number) {
+  return [
+    { geometry: tire(radius, width), material: rubber },
+    { geometry: rimGeometry(radius, width), material: alloy },
+  ]
 }

@@ -44,7 +44,7 @@ async function loadWorld(canvas: HTMLCanvasElement) {
     sky.load(renderer.gl),
   ])
   // Car bodies load after the first frame (see startGame); box bodies stand in till then.
-  const carModels = new CarModels()
+  const carModels = new CarModels(scene)
   return { scene, camera, renderer, sky, physics, figures, city, carModels, load }
 }
 

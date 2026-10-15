@@ -6,6 +6,7 @@ import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from '../vehicle/car-model'
+import { CAR_SPECS } from '../vehicle/car-specs'
 import { CRUISE, lanePoint, nextLeg, yawOf, type Heading, type Waypoint } from './lanes'
 
 const HP = 160
@@ -155,7 +156,7 @@ export class TrafficCar {
 
   private lights(dt: number, night: number, siren: boolean): void {
     const { wheels, lamps, police } = this.visual
-    const spin = (this.speed * dt) / wheels[0].position.y
+    const spin = (this.speed * dt) / CAR_SPECS[this.visual.kind].wheel.radius
     for (const w of wheels) w.rotation.x += spin
     lamps.x = this.dead ? 0 : 6 * night
     lamps.y = this.dead ? 0 : this.braking ? 14 : 1.5 * night

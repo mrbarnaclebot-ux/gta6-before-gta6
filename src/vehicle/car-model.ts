@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { carBodyMaterial } from './car-paint'
 import { bodyBounds, bodyScale, CAR_SPECS, type CarKind, type CarSpec } from './car-specs'
-import { wheelModel } from './wheel-model'
+import { WheelBatch } from './wheel-batch'
 
 export { PAINT_COUNT } from './car-specs'
 export type { CarKind } from './car-specs'
@@ -19,6 +19,7 @@ export interface CarVisual {
   /** Driver's feet in car space. */
   seat: THREE.Vector3
   police: boolean
+  kind: CarKind
 }
 
 export type CarFactory = (variant: number, kind?: CarKind) => CarVisual
@@ -32,13 +33,18 @@ type Made = { visual: CarVisual; kind: CarKind; variant: number; body: THREE.Obj
  */
 export class CarModels {
   private readonly made: Made[] = []
-  private readonly wheels = new Map<CarKind, THREE.Object3D>()
+  private readonly wheels = new Map<CarKind, WheelBatch>()
+
+  constructor(private readonly scene: THREE.Scene) {
+    // Scene renders (main, water mirror) each pick up the wheels where the cars are now.
+    scene.onBeforeRender = () => this.wheels.forEach((b) => b.sync())
+  }
 
   readonly make: CarFactory = (variant, kind = 'sports') => {
     const spec = CAR_SPECS[kind]
     const lamps = new THREE.Vector4(0, 0, 0, spec.roofLamps)
     const root = new THREE.Group()
-    const body = boxBody(spec, variant)
+    const body = boxBody(spec, kind, variant)
     root.add(body)
     const wheels = this.addWheels(root, kind)
     const visual = {
@@ -48,6 +54,7 @@ export class CarModels {
       bounds: bodyBounds(spec),
       seat: spec.seat,
       police: kind === 'police',
+      kind,
     }
     this.made.push({ visual, kind, variant, body })
     return visual
@@ -84,17 +91,20 @@ export class CarModels {
 
   private addWheels(root: THREE.Object3D, kind: CarKind): THREE.Object3D[] {
     const { wheel: w } = CAR_SPECS[kind]
-    if (!this.wheels.has(kind)) this.wheels.set(kind, wheelModel(w.radius, w.width))
-    const model = this.wheels.get(kind)!
+    let batch = this.wheels.get(kind)
+    if (!batch) {
+      batch = new WheelBatch(w.radius, w.width)
+      this.wheels.set(kind, batch)
+      this.scene.add(...batch.meshes)
+    }
     return [w.front, w.front, w.rear, w.rear].map((z, i) => {
       const left = i % 2 === 0
-      const pivot = new THREE.Group()
+      const pivot = new THREE.Object3D()
       pivot.rotation.order = 'YXZ'
       pivot.position.set(left ? w.x : -w.x, w.radius, z)
-      const wheel = model.clone()
+      root.add(pivot)
       // The model's rim faces +x, which is the car's left; turn it round for the right side.
-      if (!left) wheel.rotation.y = Math.PI
-      root.add(pivot.add(wheel))
+      batch.add(pivot, root, !left)
       return pivot
     })
   }
@@ -107,28 +117,30 @@ function findMesh(root: THREE.Object3D): THREE.Mesh {
   return mesh
 }
 
-const boxPaints = new Map<string, THREE.Material>()
+const boxPaints = new Map<number, THREE.Material>()
 const dark = new THREE.MeshStandardMaterial({ color: 0x15181b, roughness: 0.25, metalness: 0.4 })
+// One unit cube scaled per box, so swapping in the real body leaves no geometry to dispose.
+const cube = new THREE.BoxGeometry()
 
 /** Stand-in body until the glb arrives: a lower box and a glassy cabin, in the car's size. */
-function boxBody(spec: CarSpec, variant: number): THREE.Object3D {
-  const police = spec.paints.length === 1
-  const color = police
-    ? 0x111111
-    : [0xe0623a, 0xa90a12, 0x0f9fa3, 0xd9346e, 0xeeebe4, 0x0b0c0e][variant % 6]
-  const key = `${color}`
-  if (!boxPaints.has(key))
-    boxPaints.set(key, new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 }))
+function boxBody(spec: CarSpec, kind: CarKind, variant: number): THREE.Object3D {
+  const color =
+    kind === 'police'
+      ? 0x111111
+      : [0xe0623a, 0xa90a12, 0x0f9fa3, 0xd9346e, 0xeeebe4, 0x0b0c0e][variant % 6]
+  if (!boxPaints.has(color))
+    boxPaints.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 }))
   const b = bodyBounds(spec)
   const size = b.getSize(new THREE.Vector3())
   const group = new THREE.Group()
   const box = (w: number, h: number, d: number, y: number, mat: THREE.Material) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
+    const mesh = new THREE.Mesh(cube, mat)
+    mesh.scale.set(w, h, d)
     mesh.position.y = y
     mesh.castShadow = true
     group.add(mesh)
   }
-  box(size.x * 0.95, size.y * 0.5, size.z, b.min.y + size.y * 0.25, boxPaints.get(key)!)
+  box(size.x * 0.95, size.y * 0.5, size.z, b.min.y + size.y * 0.25, boxPaints.get(color)!)
   box(size.x * 0.8, size.y * 0.45, size.z * 0.45, b.min.y + size.y * 0.72, dark)
   return group
 }
