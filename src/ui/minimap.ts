@@ -71,6 +71,8 @@ export class Minimap {
   private readonly base: ReturnType<typeof paintBase>
   private readonly dpr = Math.min(devicePixelRatio || 1, 2)
   private zoom = ZOOM_FOOT
+  /** What the last frame drew, so a still player costs no redraw. */
+  private readonly last = new Float64Array(6)
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -85,6 +87,7 @@ export class Minimap {
   draw(m: MapMarks, dt: number): void {
     const g = this.g
     this.zoom += ((m.driving ? ZOOM_CAR : ZOOM_FOOT) - this.zoom) * Math.min(1, dt * 2)
+    if (this.unchanged(m)) return
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
     g.clearRect(0, 0, SIZE, SIZE)
     g.save()
@@ -101,6 +104,13 @@ export class Minimap {
     g.restore()
     this.arrow(Math.PI - (m.heading - m.yaw))
     this.north(m.yaw)
+  }
+
+  private unchanged(m: MapMarks): boolean {
+    const now = [m.x, m.z, m.yaw, m.heading, this.zoom, m.search?.blink ? m.search.r : -1]
+    const same = now.every((v, i) => v === this.last[i])
+    this.last.set(now)
+    return same
   }
 
   private searchArea(s: { x: number; z: number; r: number }): void {

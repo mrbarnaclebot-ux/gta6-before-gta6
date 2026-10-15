@@ -75,7 +75,9 @@ export class Shooter {
     const reloading = this.pistol.reloading
     // Only take the click once the cooldown allows it, so a fast double-click still fires twice.
     if (this.pistol.cooldown > 0) return
-    if (!this.queued && !input.consume('fire')) return
+    // Clicks made while a shot waits for the gun are that same shot, not another one.
+    if (this.queued) input.consume('fire')
+    else if (!input.consume('fire')) return
     // Hold the shot until the gun points where the crosshair does.
     this.queued = !this.player.faces(FACING_TOLERANCE) || !avatar.pistol.raised
     if (this.queued || !fire(this.pistol)) return

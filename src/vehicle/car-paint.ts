@@ -52,7 +52,8 @@ export function carBodyMaterial(
   mat.defines = { STANDARD: '', PHYSICAL: '' }
   // A clear coat gives the paint and glass a second, sharp sky reflection.
   mat.clearcoat = 0.7
-  mat.clearcoatRoughness = 0.08
+  // On a light paint a mirror-sharp coat turns lamp highlights into pixel sparkles at night.
+  mat.clearcoatRoughness = paint[2] > 1.2 ? 0.22 : 0.08
   mat.customProgramCacheKey = () => 'car-body'
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uPaint = { value: new THREE.Vector3(...paint) }
