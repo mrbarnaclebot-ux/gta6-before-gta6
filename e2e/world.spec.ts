@@ -31,7 +31,7 @@ test('stands in the residential streets, on the hill, in the forest, and on the 
   ] as const) {
     await visit(page, name, yaw, 0.15)
     await page.screenshot({ path: `test-results/${name}.png` })
-    if (name !== 'forest') await expectGrounded(page, name)
+    await expectGrounded(page, name)
   }
   expect(errors).toEqual([])
 })
