@@ -9,6 +9,7 @@ type GameState = {
   drawCalls: number
   breath: number
   underwater: boolean
+  speed: number
 }
 type Game = {
   state: () => GameState
@@ -109,5 +110,38 @@ test('swims in the ocean and dives under', async ({ page }) => {
   expect(dived.position.y).toBeLessThan(floating.position.y - 0.5)
   expect(dived.underwater).toBe(true)
   await page.screenshot({ path: 'test-results/underwater.png' })
+  expect(errors).toEqual([])
+})
+
+test('gets into a parked car and drives it', async ({ page }) => {
+  // SwiftShader draws a dozen detailed cars at well under 1 fps; Low skips post-processing.
+  test.setTimeout(180_000)
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/?quality=low')
+  // Space on the focused Play button must start the game, not be swallowed as a game key.
+  await page.getByRole('button', { name: 'Play' }).press('Space')
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await settle(page)
+
+  await visit(page, 'car', 0.6, 0.2)
+  await expect(page.locator('#prompt')).toBeVisible()
+  await page.keyboard.press('f')
+  await settle(page, 2)
+  expect((await game(page)).mode).toBe('driving')
+  await expect(page.locator('#speedo')).toBeVisible()
+
+  await page.keyboard.down('w')
+  await settle(page, 12)
+  const driving = await game(page)
+  await page.keyboard.up('w')
+  console.log(`driving at ${driving.speed.toFixed(2)} m/s`)
+  expect(driving.mode).toBe('driving')
+  expect(driving.speed).toBeGreaterThan(0)
+  await page.screenshot({ path: 'test-results/drive.png' })
+
+  await page.keyboard.press('f')
+  await settle(page, 2)
+  expect((await game(page)).mode).toBe('walking')
   expect(errors).toEqual([])
 })
