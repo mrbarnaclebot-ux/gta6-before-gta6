@@ -4,6 +4,7 @@ import { SEA_LEVEL, type CityLayout } from '../city/layout'
 import { heightAt, terrainGrid } from '../city/terrain'
 import type { Ambient } from '../render/sky'
 import type { WorldCtx } from './blocks'
+import { seesAny, wetBoxes } from './wet-areas'
 
 const NORMALS = '/assets/textures/water/waternormals.jpg'
 // Far past the fog distance so the plane edge never shows on the horizon.
@@ -66,7 +67,7 @@ interface WaterLook {
 }
 
 /** One planar-reflection sea with a `size`-pixel mirror, patched with the depth look below. */
-function makeWater(look: WaterLook, size: number): Water {
+function makeWater(look: WaterLook, size: number, wet: THREE.Box3[]): Water {
   const water = new Water(new THREE.PlaneGeometry(EXTENT, EXTENT), {
     textureWidth: size,
     textureHeight: size,
@@ -90,6 +91,12 @@ function makeWater(look: WaterLook, size: number): Water {
   mat.transparent = true
   water.rotation.x = -Math.PI / 2
   water.receiveShadow = true
+  // The plane is always in view, so three would redraw the whole city into the mirror every
+  // frame, even looking inland with no water on screen; that was about a quarter of the beach frame.
+  const mirror = water.onBeforeRender
+  water.onBeforeRender = (...args) => {
+    if (seesAny(args[2], wet)) mirror.apply(water, args)
+  }
   return water
 }
 
@@ -98,6 +105,13 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
   const normals = new THREE.TextureLoader().load(NORMALS)
   normals.wrapS = normals.wrapT = THREE.RepeatWrapping
   const look = { normals, depth: depthTexture(c), light }
+  const g = terrainGrid(c)
+  const wet = wetBoxes((x, z) => heightAt(c, x, z), {
+    x0: g.x0,
+    z0: g.z0,
+    x1: g.x0 + g.width,
+    z1: g.z0 + g.depth,
+  })
   // The sea sits in a group so its mirror size can change without the rest of the city noticing.
   const surface = new THREE.Group()
   surface.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
@@ -119,7 +133,7 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
         water.material.dispose()
         water.geometry.dispose()
       }
-      surface.add((water = makeWater(look, size)))
+      surface.add((water = makeWater(look, size, wet)))
     },
     update(dt: number) {
       if (!water) return
