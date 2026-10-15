@@ -17,8 +17,7 @@
   font-size: 13px;
 }
 
-.fps,
-.quality {
+.fps {
   padding: 6px 10px;
   border-radius: 8px;
   background: var(--panel);
@@ -26,10 +25,6 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   font: inherit;
   font-variant-numeric: tabular-nums;
-}
-
-.quality {
-  cursor: pointer;
 }
 
 /* Minimap with the health and breath bars under it, bottom left. */
@@ -262,4 +257,13 @@ kbd {
   to {
     background: rgba(255, 255, 255, 0.3);
   }
+}
+
+/* The HUD scale setting. */
+.hud,
+.corner,
+.prompt,
+.speedo,
+.ammo {
+  zoom: var(--hud-scale, 1);
 }

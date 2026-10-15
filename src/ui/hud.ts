@@ -1,6 +1,6 @@
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-/** HUD: FPS readout (dev builds or ?debug), wanted stars, health and breath, speedometer, ammo, crosshair, and the death screen. */
+/** HUD: FPS readout (the Show FPS setting), wanted stars, health and breath, speedometer, ammo, crosshair, and the death screen. */
 export class Hud {
   fps = 0
   private frames = 0
@@ -27,7 +27,10 @@ export class Hud {
   constructor() {
     $('hud').hidden = false
     $('corner').hidden = false
-    this.fpsEl.hidden = !(import.meta.env.DEV || location.search.includes('debug'))
+  }
+
+  setFpsVisible(on: boolean): void {
+    this.fpsEl.hidden = !on
   }
 
   /** Five stars, hidden at zero. They blink while the player is out of sight and they cool. */

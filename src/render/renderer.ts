@@ -1,27 +1,39 @@
 import * as THREE from 'three'
-import {
-  BloomEffect,
-  EffectComposer,
-  EffectPass,
-  RenderPass,
-  SMAAEffect,
-  SMAAPreset,
-  ToneMappingEffect,
-  ToneMappingMode,
-  VignetteEffect,
-} from 'postprocessing'
-import type { Quality } from '../settings'
-import { aoPass } from './ao-pass'
+import { needsComposer, type Graphics } from './graphics'
+import { buildChain, type Chain } from './post-chain'
+import { SunFx } from './sun-fx'
 
 const EXPOSURE = 1.0
+// Depth of field in normal play (a soft far background) and when aiming (a tight focus).
+const DOF_CALM = { range: 90, bokeh: 1.2 }
+const DOF_AIM = { range: 22, bokeh: 3.2 }
+// Motion blur on foot is a hint; in a car it grows with speed, full at this many m/s.
+const BLUR_FOOT = 0.3
+const BLUR_TOP_SPEED = 30
+
+/** What the effects follow each frame. */
+export interface FrameView {
+  /** Where the focus sits: the player's chest, or what the crosshair is on while aiming. */
+  focus: THREE.Vector3
+  /** 0 to 1, eased: how far into aiming the camera is. */
+  aim: number
+  /** Forward speed of the driven car in m/s, 0 on foot. */
+  speed: number
+}
+
+const postKey = (g: Graphics) =>
+  [g.ao, g.smaa, g.bloom, g.dof, g.motionBlur, g.godRays, g.lensFlare, g.filmGrain].join()
 
 /**
- * High: HDR composer with ambient occlusion, bloom, SMAA, and ACES filmic tone mapping.
- * Low: direct render with the renderer's own ACES filmic tone mapping and no post.
+ * The WebGL renderer and its post-processing chain, rebuilt live when a setting needs it.
+ * With every post effect off it renders straight to the screen with ACES in the renderer.
  */
 export class Renderer {
   readonly gl: THREE.WebGLRenderer
-  private composer: EffectComposer | null = null
+  readonly sun = new SunFx()
+  private chain: Chain | null = null
+  private key = ''
+  private scale = 1
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -43,47 +55,58 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize())
   }
 
-  setQuality(q: Quality): void {
-    this.composer?.dispose()
-    this.composer = q === 'high' ? this.buildComposer() : null
-    this.gl.toneMapping = q === 'high' ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping
+  /** True when post-processing (and so HDR fog and tone mapping in post) is in use. */
+  get post(): boolean {
+    return this.chain !== null
+  }
+
+  apply(g: Graphics): void {
+    const key = needsComposer(g) ? postKey(g) : ''
+    if (key !== this.key) {
+      this.key = key
+      this.chain?.composer.dispose()
+      const ctx = { gl: this.gl, scene: this.scene, camera: this.camera, sun: this.sun }
+      this.chain = key ? buildChain(ctx, g, innerWidth, innerHeight) : null
+      this.gl.toneMapping = key ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping
+    }
+    this.scale = g.renderScale
     this.resize()
+  }
+
+  /** Render resolution as a fraction of the window, for dynamic resolution. */
+  setScale(s: number): void {
+    if (Math.abs(s - this.scale) < 0.01) return
+    this.scale = s
+    this.resize()
+  }
+
+  /** Points depth of field, motion blur, and the lens flare at this frame. */
+  frame(v: FrameView): void {
+    const c = this.chain
+    if (!c) return
+    if (c.dof) {
+      c.dof.target!.copy(v.focus)
+      c.dof.cocMaterial.focusRange = THREE.MathUtils.lerp(DOF_CALM.range, DOF_AIM.range, v.aim)
+      c.dof.bokehScale = THREE.MathUtils.lerp(DOF_CALM.bokeh, DOF_AIM.bokeh, v.aim)
+    }
+    if (c.blur) c.blur.intensity = Math.max(BLUR_FOOT, Math.min(1, v.speed / BLUR_TOP_SPEED))
+    c.flare?.set(this.sun.uv, this.sun.flare, this.sun.tint)
   }
 
   render(dt: number): void {
     this.gl.info.reset()
-    if (this.composer) this.composer.render(dt)
+    if (this.chain) this.chain.composer.render(dt)
     else this.gl.render(this.scene, this.camera)
   }
 
   private resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
-    // Retina at 1.5x cost 20+ fps on an M4 with AO and bloom; SMAA keeps 1x edges clean.
-    this.gl.setPixelRatio(1)
+    // CSS pixels, never Retina: 1.5x cost 20+ fps on an M4 with AO and bloom; SMAA keeps 1x edges clean.
+    this.gl.setPixelRatio(this.scale)
     this.gl.setSize(w, h, false)
-    this.composer?.setSize(w, h, false)
+    this.chain?.composer.setSize(w, h, false)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
-  }
-
-  private buildComposer(): EffectComposer {
-    const composer = new EffectComposer(this.gl, { frameBufferType: THREE.HalfFloatType })
-    composer.addPass(new RenderPass(this.scene, this.camera))
-    composer.addPass(aoPass(this.scene, this.camera, innerWidth, innerHeight))
-    const bloom = new BloomEffect({
-      mipmapBlur: true,
-      luminanceThreshold: 0.95,
-      luminanceSmoothing: 0.2,
-      intensity: 0.55,
-      radius: 0.7,
-    })
-    const tone = new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC })
-    const vignette = new VignetteEffect({ offset: 0.3, darkness: 0.35 })
-    const smaa = new SMAAEffect({ preset: SMAAPreset.HIGH })
-    composer.addPass(new EffectPass(this.camera, bloom, tone, vignette))
-    // SMAA after tone mapping: it detects edges on display-range colors.
-    composer.addPass(new EffectPass(this.camera, smaa))
-    return composer
   }
 }

@@ -3,13 +3,9 @@ import type { Input } from '../input/input'
 import { nearest } from '../life/places'
 import { cooling, searchRadius, stars } from '../life/wanted'
 import { MAX_BREATH, MAX_HEALTH } from '../player/swim'
-import {
-  loadQuality,
-  loadSensitivity,
-  saveQuality,
-  saveSensitivity,
-  type Quality,
-} from '../settings'
+import type { Look } from '../look'
+import { saveGraphics, type Graphics } from '../render/graphics'
+import { loadPrefs, savePref, type Prefs } from '../settings'
 import { Hud } from './hud'
 import { Minimap } from './minimap'
 import { PauseMenu } from './pause'
@@ -21,41 +17,51 @@ export interface Ui {
   hud: Hud
   pause: PauseMenu
   map: Minimap
-  quality: () => Quality
-  setQuality: (q: Quality) => void
+  /** Apply, show, and save graphics settings (also used by the test hook). */
+  setGraphics: (g: Graphics) => void
+}
+
+/** Puts one display or control preference into effect. */
+function applyPref(w: World, hud: Hud, name: keyof Prefs, value: Prefs[keyof Prefs]): void {
+  if (name === 'sensitivity') w.follow.sensitivity = value as number
+  if (name === 'invertY') w.follow.invertY = value as boolean
+  if (name === 'fov') w.follow.baseFov = value as number
+  if (name === 'showFps') hud.setFpsVisible(value as boolean)
+  if (name === 'hudScale') document.documentElement.style.setProperty('--hud-scale', String(value))
 }
 
 /** The HUD, minimap, and pause menu, with settings loaded from and saved to localStorage. */
-export function createUi(w: World, input: Input): Ui {
-  let quality = loadQuality()
-  const setQuality = (q: Quality) => {
-    quality = q
-    w.renderer.setQuality(q)
-    w.sky.setQuality(q)
-    pause.setQuality(q)
-    saveQuality(q)
+export function createUi(w: World, input: Input, look: Look): Ui {
+  const hud = new Hud()
+  const prefs = loadPrefs()
+  for (const name of Object.keys(prefs) as (keyof Prefs)[]) applyPref(w, hud, name, prefs[name])
+  const setGraphics = (g: Graphics) => {
+    look.apply(g)
+    pause.setGraphics(g)
+    saveGraphics(g)
   }
-  w.follow.sensitivity = loadSensitivity()
   const pause = new PauseMenu({
-    quality,
-    sensitivity: w.follow.sensitivity,
-    onQuality: () => setQuality(quality === 'high' ? 'low' : 'high'),
-    onSensitivity: (v) => {
-      w.follow.sensitivity = v
-      saveSensitivity(v)
+    graphics: look.graphics,
+    prefs,
+    onGraphics: (g) => {
+      look.apply(g)
+      saveGraphics(g)
+    },
+    onPref: (name, value) => {
+      applyPref(w, hud, name, value)
+      savePref(name, value)
     },
     onResume: (fromClick) => {
       input.reset()
       if (fromClick) input.lockPointer()
     },
   })
-  setQuality(quality)
   const map = new Minimap(
     document.getElementById('minimap') as HTMLCanvasElement,
     w.city.layout,
     w.life.hospitals,
   )
-  return { hud: new Hud(), pause, map, quality: () => quality, setQuality }
+  return { hud, pause, map, setGraphics }
 }
 
 export function updateHud(ui: Ui, w: World, dt: number): void {

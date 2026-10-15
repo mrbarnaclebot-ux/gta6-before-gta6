@@ -1,16 +1,11 @@
 import * as THREE from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
-import type { Quality } from '../settings'
 import { lighting, SUN_POWER } from './daynight'
 import { acesFilmic, horizonColor, sunDirection } from './sky-analysis'
 import { skyDome, type DomeUniforms } from './sky-dome'
 
 const DAY_URL = '/assets/hdri/day_kloofendal_2k.hdr'
 const NIGHT_URL = '/assets/hdri/night_dikhololo_1k.hdr'
-// Far enough up the sun ray that 200 m towers sit inside the shadow camera's depth range.
-const SUN_DISTANCE = 400
-const SHADOW_EXTENT = 70
-const FOG_DENSITY = 0.0016
 // Underwater: blue-green murk that hides everything past about 50 m.
 const WATER_FOG = new THREE.Color(0x0e5f6a)
 const WATER_DENSITY = 0.07
@@ -57,22 +52,16 @@ export class Sky {
   /** Linear fog color for the current time; the dome's color below the horizon. */
   private readonly fogColor = new THREE.Color()
   private dayFog = new THREE.Color()
-  private quality: Quality = 'high'
+  /** Post-processing on: fog mixes in before tone mapping. */
+  private post = true
+  /** Haze thickness, set by the render distance. */
+  private fogDensity = 0.0016
   private fog: THREE.FogExp2 | null = null
   private env = { day: null as THREE.Texture | null, night: null as THREE.Texture | null }
   private hdriSunAzimuth = 0
   private underwater = false
 
   constructor(private readonly scene: THREE.Scene) {
-    const cam = this.sun.shadow.camera
-    cam.left = cam.bottom = -SHADOW_EXTENT
-    cam.right = cam.top = SHADOW_EXTENT
-    cam.near = 1
-    cam.far = SUN_DISTANCE * 2
-    this.sun.castShadow = true
-    // Depth bias scales with the 800 m depth range: -0.0001 is about 8 cm.
-    this.sun.shadow.bias = -0.0001
-    this.sun.shadow.normalBias = 0.03
     this.dome = skyDome()
     scene.add(this.sun, this.sun.target, this.dome.mesh, this.fill)
   }
@@ -101,7 +90,7 @@ export class Sky {
     this.dome.uniforms.dayMap.value = day
     this.dome.uniforms.nightMap.value = night
     this.dome.mesh.visible = true
-    this.fog = new THREE.FogExp2(new THREE.Color(), FOG_DENSITY)
+    this.fog = new THREE.FogExp2(new THREE.Color(), this.fogDensity)
     this.scene.fog = this.fog
   }
 
@@ -136,15 +125,10 @@ export class Sky {
     this.applyFogColor()
   }
 
-  setQuality(q: Quality): void {
-    // 2048 on High: 7 cm texels over the 140 m frustum, softened by a 2-texel filter.
-    // 4096 looked the same through the filter and cost a few fps on an M4.
-    const size = q === 'high' ? 2048 : 1024
-    this.sun.shadow.mapSize.set(size, size)
-    this.sun.shadow.radius = 2
-    this.sun.shadow.map?.dispose()
-    this.sun.shadow.map = null
-    this.quality = q
+  /** `post`: the post chain tone maps, so fog stays linear. `density`: haze for the render distance. */
+  setOutput(post: boolean, density: number): void {
+    this.post = post
+    this.fogDensity = density
     this.applyFogColor()
   }
 
@@ -156,7 +140,7 @@ export class Sky {
   }
 
   /**
-   * Low renders straight to the screen, where three mixes fog in after tone mapping
+   * Without post-processing the renderer draws straight to the screen, where three mixes fog in after tone mapping
    * while the sky is tone mapped. Give the fog the tone-mapped color there so fully
    * fogged sea still meets the sky without a band.
    */
@@ -164,9 +148,9 @@ export class Sky {
     const fog = this.fog
     if (!fog) return
     const color = this.underwater ? this.waterFog() : this.fogColor
-    if (this.quality === 'high') fog.color.copy(color)
+    if (this.post) fog.color.copy(color)
     else fog.color.fromArray(acesFilmic(color.toArray()))
-    fog.density = this.underwater ? WATER_DENSITY : FOG_DENSITY
+    fog.density = this.underwater ? WATER_DENSITY : this.fogDensity
     this.dome.mesh.visible = !this.underwater
     // Underwater the backdrop is the fog color itself, so everything fades into it.
     this.scene.background = this.underwater ? fog.color : null
@@ -174,16 +158,6 @@ export class Sky {
 
   private waterFog(): THREE.Color {
     return WATER_DARK.copy(WATER_FOG).multiplyScalar(0.15 + 0.85 * this.ambient.day)
-  }
-
-  /** Keep the shadow frustum centered on the player so shadows stay sharp near them. */
-  follow(focus: THREE.Vector3): void {
-    // Snap to shadow texels so shadow edges do not shimmer while walking.
-    const texel = (SHADOW_EXTENT * 2) / this.sun.shadow.mapSize.x
-    const x = Math.round(focus.x / texel) * texel
-    const z = Math.round(focus.z / texel) * texel
-    this.sun.target.position.set(x, 0, z)
-    this.sun.position.set(x, 0, z).addScaledVector(this.ambient.sunDir, SUN_DISTANCE)
   }
 }
 

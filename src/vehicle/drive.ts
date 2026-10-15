@@ -52,8 +52,8 @@ export function steerToward(current: number, axis: number, speed: number, dt: nu
 }
 
 /** Field of view widens with speed to sell it, capped at highway pace. */
-export function chaseFov(speed: number): number {
-  return BASE_FOV + FOV_GAIN * Math.min(1, Math.abs(speed) / FOV_TOP)
+export function chaseFov(speed: number, base = BASE_FOV): number {
+  return base + FOV_GAIN * Math.min(1, Math.abs(speed) / FOV_TOP)
 }
 
 /** Air drag, newtons, opposing the velocity; sets top speed near 55 m/s (200 km/h). */

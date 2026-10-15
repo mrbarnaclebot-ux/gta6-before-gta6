@@ -1,4 +1,7 @@
-import { SENSITIVITY_RANGE, type Quality } from '../settings'
+import { PRESETS, presetOf, type Graphics, type Preset } from '../render/graphics'
+import type { Prefs } from '../settings'
+import { settingsRows, type Value } from './settings-panel'
+import { CONTROL_ROWS, DISPLAY_ROWS, GRAPHICS_ROWS, PRESET_ROW } from './settings-rows'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
@@ -6,39 +9,49 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const DEBOUNCE_MS = 100
 
 interface PauseOptions {
-  quality: Quality
-  sensitivity: number
-  onQuality: () => void
-  onSensitivity: (value: number) => void
+  graphics: Graphics
+  prefs: Prefs
+  onGraphics: (g: Graphics) => void
+  onPref: <K extends keyof Prefs>(name: K, value: Prefs[K]) => void
   /** `fromClick`: the Resume click is a user gesture, so the game can re-lock the mouse. */
   onResume: (fromClick: boolean) => void
 }
 
-/** Esc menu: resume, mouse sensitivity, graphics quality, and the controls list. */
+/** Esc menu: resume, and the Graphics, Display, and Controls settings tabs. */
 export class PauseMenu {
   open = false
   private openedAt = 0
   private readonly root = $('pause')
   private readonly resume = $<HTMLButtonElement>('resume')
-  private readonly quality = $<HTMLButtonElement>('quality')
-  private readonly slider = $<HTMLInputElement>('sensitivity')
-  private readonly readout = $<HTMLOutputElement>('sensitivity-value')
+  private readonly tabs = [...this.root.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
+  private readonly showGraphics: (v: Record<string, Value>) => void
+  private graphics: Graphics
 
   constructor(private readonly o: PauseOptions) {
-    Object.assign(this.slider, {
-      min: String(SENSITIVITY_RANGE.min),
-      max: String(SENSITIVITY_RANGE.max),
-      step: String(SENSITIVITY_RANGE.step),
-      value: String(o.sensitivity),
-    })
-    this.showSensitivity(o.sensitivity)
-    this.setQuality(o.quality)
-    this.slider.addEventListener('input', () => {
-      const v = Number(this.slider.value)
-      this.showSensitivity(v)
-      o.onSensitivity(v)
-    })
-    this.quality.addEventListener('click', () => o.onQuality())
+    this.graphics = o.graphics
+    this.showGraphics = settingsRows(
+      $('tab-graphics'),
+      [PRESET_ROW, ...GRAPHICS_ROWS],
+      (key, v) => {
+        const g = this.graphics
+        const next =
+          key !== 'preset' ? { ...g, [key]: v } : v === 'custom' ? g : PRESETS[v as Preset]
+        this.setGraphics({ ...next })
+        o.onGraphics(this.graphics)
+      },
+    )
+    this.setGraphics(o.graphics)
+    const prefs = { ...o.prefs }
+    const onPref = (key: string, v: Value) => {
+      Object.assign(prefs, { [key]: v })
+      showPrefs(prefs as unknown as Record<string, Value>)
+      o.onPref(key as keyof Prefs, v as never)
+    }
+    const showPrefs = (v: Record<string, Value>) => [display, controls].forEach((show) => show(v))
+    const display = settingsRows($('tab-display'), DISPLAY_ROWS, onPref)
+    const controls = settingsRows($('control-rows'), CONTROL_ROWS, onPref)
+    showPrefs(prefs as unknown as Record<string, Value>)
+    this.wireTabs()
     this.resume.addEventListener('click', () => this.hide(true))
     // Losing the mouse (Esc in a locked browser, or switching windows) pauses the game.
     document.addEventListener('pointerlockchange', () => {
@@ -46,9 +59,10 @@ export class PauseMenu {
     })
   }
 
-  setQuality(q: Quality): void {
-    this.quality.textContent = q === 'high' ? 'High' : 'Low'
-    this.quality.setAttribute('aria-label', `Graphics quality: ${q}. Click to switch.`)
+  /** Shows these settings, and the preset they match (or Custom). */
+  setGraphics(g: Graphics): void {
+    this.graphics = g
+    this.showGraphics({ ...g, preset: presetOf(g) } as unknown as Record<string, Value>)
   }
 
   /** Esc: open, or close if it has been open a moment. */
@@ -71,7 +85,26 @@ export class PauseMenu {
     this.o.onResume(fromClick)
   }
 
-  private showSensitivity(v: number): void {
-    this.readout.value = `${v.toFixed(1)}x`
+  /** Tabs per the ARIA pattern: click or arrow keys switch, only the active tab is tabbable. */
+  private wireTabs(): void {
+    const select = (tab: HTMLButtonElement) => {
+      for (const t of this.tabs) {
+        const on = t === tab
+        t.setAttribute('aria-selected', String(on))
+        t.tabIndex = on ? 0 : -1
+        $(t.getAttribute('aria-controls')!).hidden = !on
+      }
+    }
+    this.tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => select(tab))
+      tab.addEventListener('keydown', (e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+        if (!step) return
+        const next = this.tabs[(i + step + this.tabs.length) % this.tabs.length]
+        select(next)
+        next.focus()
+      })
+    })
+    select(this.tabs[0])
   }
 }

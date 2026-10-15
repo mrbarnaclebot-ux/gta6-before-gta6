@@ -16,7 +16,7 @@ const PALM_LOD = 80
 // Ferns are a meter tall: a few pixels past this, so they are not drawn at all.
 const FERN_RANGE = 140
 
-type Update = (eye: THREE.Vector3) => void
+type Update = (eye: THREE.Vector3, reach?: number) => void
 
 /** Spreads spots across variants so neighbors rarely match. */
 function plant(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]) {
@@ -72,5 +72,5 @@ export async function plantVegetation(
     const trunk = RAPIER.ColliderDesc.cylinder(2, 0.25)
     ctx.physics.createCollider(trunk.setTranslation(p.x, surfaceAt(c, p.x, p.z) + 2, p.z))
   }
-  return (eye) => updates.forEach((u) => u(eye))
+  return (eye, reach) => updates.forEach((u) => u(eye, reach))
 }

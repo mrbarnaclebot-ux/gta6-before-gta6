@@ -36,6 +36,8 @@ export interface City {
   /** True while the camera is below the water surface. */
   readonly underwater: boolean
   update(dt: number, camera: THREE.Camera): void
+  /** Render distance: `plants` scales palm detail and fern ranges; `reflection` is the sea mirror size. */
+  setDetail(plants: number, reflection: number): void
 }
 
 function landmarks(c: CityLayout): Record<string, Point> {
@@ -95,6 +97,7 @@ export async function buildCity(
     (x, z) => waterAt(x, z) !== null,
   )
   const { x, z } = layout.spawn
+  let reach = 1
   return {
     layout,
     spawn: new THREE.Vector3(x, surfaceAt(layout, x, z) + 0.05, z),
@@ -105,9 +108,13 @@ export async function buildCity(
     },
     update(dt, camera) {
       night(light.night, camera.position)
-      palms(camera.position)
+      palms(camera.position, reach)
       water.update(dt)
       underwater.update(camera, dt, light.day)
+    },
+    setDetail(plants, reflection) {
+      reach = plants
+      water.setReflection(reflection)
     },
   }
 }

@@ -7,14 +7,17 @@ import { findExit } from './exit'
 
 const ENTER_RANGE = 3.6
 const CAPSULE = { halfHeight: 0.55, radius: 0.35 }
-// Parked cars past this are a few pixels across under the haze; not drawing them saves three passes each.
-const DRAW_RANGE = 150
 
 /** Who is in control: the player on foot, or the player driving one of the cars. */
 export class Driving {
   car: Car | null = null
   /** 0 by day, 1 at night: how hard the headlight throws. Set by the game each frame. */
   night = 0
+  /**
+   * Parked cars past this many meters are a few pixels across under the haze; not drawing
+   * them saves three passes each. Set by the render distance.
+   */
+  drawRange = 150
   private readonly headlight = new THREE.SpotLight(0xf2f6ff, 0, 70, 0.5, 0.55, 1.6)
 
   constructor(
@@ -93,7 +96,7 @@ export class Driving {
     const here = this.position
     for (const c of this.cars) {
       c.update(alpha, c === this.car)
-      c.visual.root.visible = c === this.car || c.position.distanceTo(here) < DRAW_RANGE
+      c.visual.root.visible = c === this.car || c.position.distanceTo(here) < this.drawRange
     }
     if (!this.car) return this.player.update(dt, alpha)
     this.headlight.intensity = this.car.dead ? 0 : 60 + 340 * this.night

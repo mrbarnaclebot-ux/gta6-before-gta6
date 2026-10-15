@@ -6,7 +6,7 @@ import { RESPAWN_AFTER, type Life } from './life/life'
 import { cooling, stars } from './life/wanted'
 import type { Player } from './player/player'
 import type { Sky } from './render/sky'
-import type { Quality } from './settings'
+import { PRESETS, type Graphics, type Preset } from './render/graphics'
 import type { Driving } from './vehicle/driving'
 import type { City } from './world/city'
 
@@ -20,12 +20,13 @@ interface HookDeps {
   life: Life
   sky: Sky
   clock: { hours: number }
-  setQuality: (q: Quality) => void
+  setGraphics: (g: Graphics) => void
+  graphics: () => Graphics
   paused: () => boolean
   extra: () => {
     fps: number
     frames: number
-    quality: Quality
+    quality: Preset | 'custom'
     drawCalls: number
     triangles: number
   }
@@ -51,6 +52,8 @@ function snapshot(deps: HookDeps) {
     wantedCooling: cooling(life.wanted),
     hours: clock.hours,
     night: sky.ambient.night,
+    /** Unit vector toward the sun by day, the moon by night. */
+    sun: sky.ambient.sunDir.toArray(),
     paused: deps.paused(),
     sensitivity: follow.sensitivity,
     underwater: city.underwater,
@@ -116,10 +119,15 @@ function lifeHelpers(deps: HookDeps) {
  * tests need because headless browsers cannot pointer-lock or play by hand.
  */
 export function exposeTestHook(deps: HookDeps): void {
-  const { driving, follow, city, combat, setQuality } = deps
+  const { driving, follow, city, combat, setGraphics, graphics } = deps
   const api = {
     state: () => snapshot(deps),
-    setQuality,
+    /** Switch to a quality preset, as the settings menu does. */
+    setQuality: (p: Preset) => setGraphics({ ...PRESETS[p] }),
+    /** A copy of the current graphics settings. */
+    graphics: () => ({ ...graphics() }),
+    /** Change some graphics settings, keeping the rest. */
+    setGraphics: (patch: Partial<Graphics>) => setGraphics({ ...graphics(), ...patch }),
     /**
      * City landmarks plus `car` (the driver's door of the parked car nearest the spawn)
      * and `range` (the spawn, which faces the target dummies on the beach).

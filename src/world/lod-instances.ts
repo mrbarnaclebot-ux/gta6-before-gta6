@@ -81,7 +81,7 @@ function sort(c: Chunk, eye: THREE.Vector3, far2: number) {
  * A model at every spot, detailed within `far` meters of the camera and the cheap
  * version beyond (nothing, if `distant` is empty), decided per spot. Each 250 m chunk
  * is two draw calls per part (near and far) however many trees it holds.
- * Call the returned function every frame.
+ * Call the returned function every frame; `reach` scales `far` (the render distance).
  */
 export function instanceByDistance(
   ctx: WorldCtx,
@@ -89,7 +89,7 @@ export function instanceByDistance(
   distant: Part[],
   spots: Spot[],
   place: Placement,
-): (eye: THREE.Vector3) => void {
+): (eye: THREE.Vector3, reach?: number) => void {
   const chunks: Chunk[] = [...groupByChunk(spots).values()].map((group) => {
     const matrices = bake(group, place)
     return {
@@ -100,10 +100,12 @@ export function instanceByDistance(
     }
   })
   const last = new THREE.Vector3(Infinity, 0, 0)
-  const far2 = place.far ** 2
-  return (eye) => {
-    if (last.distanceToSquared(eye) < RESORT * RESORT) return
+  let lastReach = 1
+  return (eye, reach = 1) => {
+    if (last.distanceToSquared(eye) < RESORT * RESORT && reach === lastReach) return
     last.copy(eye)
+    lastReach = reach
+    const far2 = (place.far * reach) ** 2
     for (const c of chunks) sort(c, eye, far2)
   }
 }

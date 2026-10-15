@@ -59,43 +59,71 @@ float clarity = mix(0.3, 0.97, smoothstep(0.0, 0.4, depth));
 gl_FragColor = vec4(outgoingLight, max(max(clarity, reflectance), foam));
 `
 
-/** Planar-reflection water (three.js Water) patched with depth-based color, clarity, and shore foam. */
-export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
-  const normals = new THREE.TextureLoader().load(NORMALS)
-  normals.wrapS = normals.wrapT = THREE.RepeatWrapping
+interface WaterLook {
+  normals: THREE.Texture
+  depth: { tex: THREE.DataTexture; rect: THREE.Vector4 }
+  light: Ambient
+}
+
+/** One planar-reflection sea with a `size`-pixel mirror, patched with the depth look below. */
+function makeWater(look: WaterLook, size: number): Water {
   const water = new Water(new THREE.PlaneGeometry(EXTENT, EXTENT), {
-    textureWidth: 1024,
-    textureHeight: 1024,
-    waterNormals: normals,
-    sunDirection: light.sunDir,
+    textureWidth: size,
+    textureHeight: size,
+    waterNormals: look.normals,
+    sunDirection: look.light.sunDir,
     waterColor: 0x0a5878,
     distortionScale: 2.5,
     fog: true,
   })
   const mat = water.material as THREE.ShaderMaterial
-  const { tex, rect } = depthTexture(c)
   Object.assign(mat.uniforms, {
-    depthMap: { value: tex },
-    depthRect: { value: rect },
+    depthMap: { value: look.depth.tex },
+    depthRect: { value: look.depth.rect },
     shallowColor: { value: new THREE.Color(0x3fd0c4) },
     waterLight: { value: 1 },
   })
   // Shared by reference: the sky retints it as the sun moves and sets.
-  mat.uniforms.sunColor.value = light.sunColor
+  mat.uniforms.sunColor.value = look.light.sunColor
   mat.uniforms.size.value = 1.6
   patchShader(mat)
   mat.transparent = true
   water.rotation.x = -Math.PI / 2
-  water.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
   water.receiveShadow = true
-  ctx.scene.add(water)
+  return water
+}
+
+/** Planar-reflection water (three.js Water) patched with depth-based color, clarity, and shore foam. */
+export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
+  const normals = new THREE.TextureLoader().load(NORMALS)
+  normals.wrapS = normals.wrapT = THREE.RepeatWrapping
+  const look = { normals, depth: depthTexture(c), light }
+  // The sea sits in a group so its mirror size can change without the rest of the city noticing.
+  const surface = new THREE.Group()
+  surface.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
+  ctx.scene.add(surface)
+  let water = makeWater(look, 1024)
+  surface.add(water)
+  let time = 0
   return {
-    surface: water as THREE.Object3D,
+    surface: surface as THREE.Object3D,
     normals,
+    /** Rebuilds the sea with a `size`-pixel mirror. */
+    setReflection(size: number) {
+      if (water.material.uniforms.mirrorSampler.value.image.width === size) return
+      surface.remove(water)
+      // ponytail: Water keeps its mirror target private, so only its texture can be freed;
+      // the framebuffer leaks a few MB per change. Fork Water.js if settings churn matters.
+      water.material.uniforms.mirrorSampler.value.dispose()
+      water.material.dispose()
+      water.geometry.dispose()
+      surface.add((water = makeWater(look, size)))
+    },
     update(dt: number) {
-      mat.uniforms.time.value += dt * 0.6
+      const u = water.material.uniforms
+      u.time.value = time += dt * 0.6
       // Body color is lit by the sky, not the sun: dark blue at night instead of glowing turquoise.
-      mat.uniforms.waterLight.value = 0.05 + 0.95 * light.day
+      u.waterLight.value = 0.05 + 0.95 * light.day
     },
   }
 }

@@ -68,23 +68,45 @@
       aria-labelledby="pause-title"
       hidden
     >
-      <div class="pause-card">
-        <h2 id="pause-title">Paused</h2>
-        <button id="resume" type="button" class="resume">Resume</button>
-        <section class="settings" aria-label="Settings">
-          <label class="setting" for="sensitivity">
-            <span>Mouse sensitivity</span>
-            <output id="sensitivity-value" for="sensitivity"></output>
-          </label>
-          <input id="sensitivity" type="range" />
-          <div class="setting">
-            <span>Graphics</span>
-            <button id="quality" type="button" class="quality"></button>
+      <div class="pause-shell">
+        <header class="pause-head">
+          <h2 id="pause-title">Paused</h2>
+          <div class="tabs" role="tablist" aria-label="Settings">
+            <button type="button" role="tab" id="tab-btn-graphics" aria-controls="tab-graphics">
+              Graphics
+            </button>
+            <button type="button" role="tab" id="tab-btn-display" aria-controls="tab-display">
+              Display
+            </button>
+            <button type="button" role="tab" id="tab-btn-controls" aria-controls="tab-controls">
+              Controls
+            </button>
           </div>
-        </section>
-        <section aria-labelledby="controls-title">
-          <h3 id="controls-title">Controls</h3>
-          <dl class="keys">
+          <button id="resume" type="button" class="resume">Resume</button>
+        </header>
+        <section
+          id="tab-graphics"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-graphics"
+        ></section>
+        <section
+          id="tab-display"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-display"
+          hidden
+        ></section>
+        <section
+          id="tab-controls"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-controls"
+          hidden
+        >
+          <div id="control-rows"></div>
+          <h3 id="keys-title">Keys</h3>
+          <dl class="keys" aria-labelledby="keys-title">
             <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
             <dd>Move, or drive</dd>
             <dt><kbd>Shift</kbd></dt>
@@ -107,6 +129,7 @@
             <dd>Pause and resume</dd>
           </dl>
         </section>
+        <p class="pause-foot">Changes apply instantly and are saved in this browser.</p>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

@@ -1,43 +1,56 @@
-export type Quality = 'low' | 'high'
+/** Display and control preferences. Graphics settings live in render/graphics.ts. */
+export interface Prefs {
+  /** Mouse look speed as a multiple of the default. */
+  sensitivity: number
+  invertY: boolean
+  /** Vertical field of view on foot, in degrees; the car's speed widens it from here. */
+  fov: number
+  showFps: boolean
+  /** HUD size as a multiple of the default. */
+  hudScale: number
+}
 
-const KEY = 'vice.quality'
+export type Range = { min: number; max: number; step: number }
+export const RANGES: Record<'sensitivity' | 'fov' | 'hudScale', Range> = {
+  sensitivity: { min: 0.3, max: 3, step: 0.1 },
+  fov: { min: 45, max: 80, step: 1 },
+  hudScale: { min: 0.75, max: 1.25, step: 0.05 },
+}
 
-/** URL ?quality= wins (handy for tests and slow machines), then the saved choice, then high. */
-export function loadQuality(): Quality {
-  const fromUrl = new URLSearchParams(location.search).get('quality')
-  if (fromUrl === 'low' || fromUrl === 'high') return fromUrl
+export function defaultPrefs(): Prefs {
+  const debug = import.meta.env.DEV || location.search.includes('debug')
+  return { sensitivity: 1, invertY: false, fov: 55, showFps: debug, hudScale: 1 }
+}
+
+const key = (name: keyof Prefs) => `vice.${name}`
+
+/** Each preference is its own localStorage key; unset, out of range, or unreadable means default. */
+export function loadPrefs(): Prefs {
+  const prefs = defaultPrefs()
+  for (const name of Object.keys(prefs) as (keyof Prefs)[]) {
+    const raw = read(name)
+    if (raw === null) continue
+    if (typeof prefs[name] === 'boolean') Object.assign(prefs, { [name]: raw === 'true' })
+    else {
+      const v = Number(raw)
+      const r = RANGES[name as keyof typeof RANGES]
+      if (v >= r.min && v <= r.max) Object.assign(prefs, { [name]: v })
+    }
+  }
+  return prefs
+}
+
+function read(name: keyof Prefs): string | null {
   try {
-    return localStorage.getItem(KEY) === 'low' ? 'low' : 'high'
+    return localStorage.getItem(key(name))
   } catch {
-    return 'high'
+    return null
   }
 }
 
-export function saveQuality(q: Quality): void {
+export function savePref<K extends keyof Prefs>(name: K, value: Prefs[K]): void {
   try {
-    localStorage.setItem(KEY, q)
-  } catch {
-    // Private mode or blocked storage: the setting just does not persist.
-  }
-}
-
-const SENSITIVITY_KEY = 'vice.sensitivity'
-export const SENSITIVITY_RANGE = { min: 0.3, max: 3, step: 0.1 }
-
-/** Mouse look speed as a multiple of the default; 1 if unset or unreadable. */
-export function loadSensitivity(): number {
-  try {
-    const v = Number(localStorage.getItem(SENSITIVITY_KEY))
-    const { min, max } = SENSITIVITY_RANGE
-    return v >= min && v <= max ? v : 1
-  } catch {
-    return 1
-  }
-}
-
-export function saveSensitivity(v: number): void {
-  try {
-    localStorage.setItem(SENSITIVITY_KEY, String(v))
+    localStorage.setItem(key(name), String(value))
   } catch {
     // Blocked storage: the setting lasts for this visit only.
   }

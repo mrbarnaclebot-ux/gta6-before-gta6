@@ -9,8 +9,12 @@ import { createPhysics, FIXED_STEP } from './physics'
 import { Avatar } from './player/avatar'
 import { loadFigures } from './player/figure'
 import { Player } from './player/player'
+import { Look } from './look'
 import { advance, START_HOUR } from './render/daynight'
+import { loadGraphics, presetOf } from './render/graphics'
+import { installHeightFog } from './render/height-fog'
 import { Renderer } from './render/renderer'
+import { Shadows } from './render/shadows'
 import { Sky } from './render/sky'
 import { exposeTestHook } from './test-hook'
 import { createUi, updateHud, type Ui } from './ui/hud-sync'
@@ -30,11 +34,13 @@ function startHour(): number {
 
 /** Renderer, physics, sky, city, and the loaded models. */
 async function loadWorld(canvas: HTMLCanvasElement) {
+  installHeightFog()
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
   camera.layers.enable(DETAIL_LAYER)
   const renderer = new Renderer(canvas, scene, camera)
   const sky = new Sky(scene)
+  const shadows = new Shadows(scene, camera, sky.sun)
   const physics = await createPhysics()
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
@@ -45,7 +51,7 @@ async function loadWorld(canvas: HTMLCanvasElement) {
   ])
   // Car bodies load after the first frame (see startGame); box bodies stand in till then.
   const carModels = new CarModels(scene)
-  return { scene, camera, renderer, sky, physics, figures, city, carModels, load }
+  return { scene, camera, renderer, sky, shadows, physics, figures, city, carModels, load }
 }
 
 /** The player on foot, the parked cars, and who is driving what. */
@@ -60,7 +66,7 @@ function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
 
 async function buildScene(canvas: HTMLCanvasElement) {
   const world = await loadWorld(canvas)
-  const { scene, camera, renderer, sky, physics, figures, city, carModels } = world
+  const { scene, camera, renderer, sky, shadows, physics, figures, city, carModels } = world
   const makeCar = carModels.make
   const { player, cars, driving } = spawnPlayer(world)
   const follow = new FollowCamera(camera, physics, player.collider)
@@ -80,6 +86,7 @@ async function buildScene(canvas: HTMLCanvasElement) {
     camera,
     renderer,
     sky,
+    shadows,
     physics,
     player,
     driving,
@@ -116,7 +123,6 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
   w.life.update(dt, VIEW, { count: shots, ...lastShot }, ambient.night)
   w.clock.hours = advance(w.clock.hours, dt)
   w.sky.setTime(w.clock.hours)
-  w.sky.follow(w.driving.position)
   w.city.update(dt, w.camera)
   w.sky.setUnderwater(w.city.underwater)
   return acc
@@ -129,7 +135,7 @@ export function chase(car: { quaternion: THREE.Quaternion; speed: number }) {
 }
 
 /** Long frames are clamped, not caught up. While paused the world holds still but still draws. */
-function runLoop(w: World, input: Input, ui: Ui, onFrame: (dt: number) => void): void {
+function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: number) => void) {
   let acc = 0
   let last = performance.now()
   w.renderer.gl.setAnimationLoop((now) => {
@@ -140,6 +146,7 @@ function runLoop(w: World, input: Input, ui: Ui, onFrame: (dt: number) => void):
     if (input.consume('pause')) ui.pause.toggle()
     if (!ui.pause.open) acc = simulate(w, input, dt, acc)
     w.carModels.newFrame()
+    look.update(dt)
     w.renderer.render(dt)
     onFrame(dt)
   })
@@ -148,9 +155,10 @@ function runLoop(w: World, input: Input, ui: Ui, onFrame: (dt: number) => void):
 export async function startGame(canvas: HTMLCanvasElement, input: Input): Promise<void> {
   const w = await buildScene(canvas)
   w.sky.setTime(w.clock.hours)
-  const ui = createUi(w, input)
+  const look = new Look(w, loadGraphics())
+  const ui = createUi(w, input, look)
   let frames = 0
-  runLoop(w, input, ui, (dt) => {
+  runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
     // The car bodies are the heaviest download; fetch them once the city is on screen.
     if (frames++ === 0) void w.upgradeCars()
@@ -158,12 +166,13 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
   exposeTestHook({
     ...w,
     input,
-    setQuality: ui.setQuality,
+    setGraphics: ui.setGraphics,
+    graphics: () => look.graphics,
     paused: () => ui.pause.open,
     extra: () => ({
       fps: Math.round(ui.hud.fps),
       frames,
-      quality: ui.quality(),
+      quality: presetOf(look.graphics),
       drawCalls: w.renderer.gl.info.render.calls,
       triangles: w.renderer.gl.info.render.triangles,
     }),

@@ -35,6 +35,14 @@ export class FollowCamera {
   pitch = 0.18
   /** Mouse look speed multiplier from the settings menu. */
   sensitivity = 1
+  invertY = false
+  /** Field of view on foot, in degrees (the Display setting). */
+  baseFov = 55
+  /** 0 to 1: how far the camera has eased into the aiming rig. */
+  get aim(): number {
+    return this.aimBlend
+  }
+
   /** Over-the-shoulder aim on foot; eases in and out. */
   aiming = false
   /** Gun raised without aiming (hip fire): the shoulder offset without the zoom. */
@@ -71,7 +79,7 @@ export class FollowCamera {
     // Finer mouse while zoomed in, as a scope would be.
     const sens = SENSITIVITY * this.sensitivity * (1 - 0.4 * aim)
     this.yaw -= look.x * sens
-    this.pitch = clampPitch(this.pitch + look.y * sens)
+    this.pitch = clampPitch(this.pitch + look.y * sens * (this.invertY ? -1 : 1))
     this.idle = look.x || look.y ? 0 : this.idle + dt
     if (chase) this.recenter(chase, dt)
     const rig = chase ? RIGS.car : mixRig(mixRig(RIGS.foot, RIGS.ready, ready), RIGS.aim, aim)
@@ -80,7 +88,7 @@ export class FollowCamera {
     this.distance = nextDistance(this.distance, this.clearance(rig.distance), dt)
     this.camera.position.copy(this.pivot).addScaledVector(this.dir, this.distance)
     this.camera.lookAt(this.pivot)
-    const fov = chaseFov(chase?.speed ?? 0) - AIM_ZOOM * aim
+    const fov = chaseFov(chase?.speed ?? 0, this.baseFov) - AIM_ZOOM * aim
     if (Math.abs(fov - this.camera.fov) < 0.01) return
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 3)
     this.camera.updateProjectionMatrix()

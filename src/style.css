@@ -102,10 +102,7 @@ h1 span {
   transform: scale(1.05);
 }
 
-#play:focus-visible,
-.quality:focus-visible,
-.resume:focus-visible,
-#sensitivity:focus-visible {
+#play:focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 3px;
 }
