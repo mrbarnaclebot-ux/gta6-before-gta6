@@ -1,0 +1,138 @@
+/* Full-screen map: the city canvas edge to edge, a title bar, and a legend in glass. */
+.worldmap {
+  position: fixed;
+  inset: 0;
+  background: #2b6f8e;
+  animation: fade-in 0.2s ease-out both;
+}
+
+.worldmap-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  outline: none;
+  touch-action: none;
+}
+
+.worldmap-canvas:active {
+  cursor: grabbing;
+}
+
+/* Darkened edges so the title and legend read over any part of the map. */
+.worldmap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 6, 18, 0.7) 0%, transparent 16%),
+    linear-gradient(0deg, rgba(8, 6, 18, 0.55) 0%, transparent 14%);
+}
+
+.worldmap-head {
+  position: absolute;
+  z-index: 1;
+  top: var(--edge);
+  left: var(--edge);
+  right: var(--edge);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 24px;
+  pointer-events: none;
+}
+
+.worldmap-head h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(30px, 3.4vw, 44px);
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.worldmap-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.legend {
+  position: absolute;
+  z-index: 1;
+  right: var(--edge);
+  bottom: var(--edge);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 14px 18px;
+  list-style: none;
+  border-radius: 14px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: var(--glass-blur);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend i {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1.5px rgba(10, 8, 20, 0.85);
+}
+
+.lg-you {
+  background: #fff;
+  clip-path: polygon(50% 0, 100% 100%, 50% 75%, 0 100%);
+  box-shadow: none !important;
+}
+
+.lg-way {
+  background: #ff4fa0;
+  border-radius: 50% 50% 50% 0 !important;
+  transform: rotate(-45deg);
+}
+
+.lg-hosp {
+  background:
+    linear-gradient(#d6283c, #d6283c) center / 3px 9px no-repeat,
+    linear-gradient(#d6283c, #d6283c) center / 9px 3px no-repeat,
+    #f4f6f8;
+}
+
+.lg-car {
+  width: 9px !important;
+  margin: 0 2.5px;
+  background: #8fd8ff;
+}
+
+.lg-park {
+  background: #4c7a45;
+}
+
+.lg-beach {
+  background: #d8c497;
+}
+
+.lg-water {
+  background: #3f8fa6;
+}
+
+@media (max-width: 600px) {
+  .legend {
+    grid-template-columns: repeat(2, auto);
+    gap: 6px 14px;
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+}

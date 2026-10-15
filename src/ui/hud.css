@@ -1,0 +1,193 @@
+/* In-game HUD frame: top-right status, the minimap corner, the crosshair. Panels are in hud-panels.css. */
+.underwater {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Water absorbs red first: multiplying by cyan tints even nearby things, which fog alone cannot. */
+  background: linear-gradient(180deg, rgb(150, 225, 225) 0%, rgb(70, 165, 175) 100%);
+  mix-blend-mode: multiply;
+}
+
+/* The shared glass panel every HUD box uses. */
+.hud .fps,
+.wanted,
+.corner,
+.weapon,
+.prompt,
+.toast {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: var(--glass-blur);
+}
+
+.hud {
+  position: fixed;
+  top: var(--edge);
+  right: var(--edge);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.fps {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Five stars drawn with clip-path: no font or image needed. The dark pill keeps them readable on a bright sky. */
+.wanted {
+  display: flex;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 999px;
+}
+
+.wanted span {
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.22);
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+
+.wanted span.on {
+  background: linear-gradient(180deg, #ffffff, #ffe8a3);
+}
+
+.wanted.cooling span.on {
+  animation: blink 0.9s steps(2, jump-none) infinite;
+}
+
+@keyframes blink {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+
+/* Minimap with the health and breath strip under it, bottom left, in one frame. */
+.corner {
+  position: fixed;
+  left: var(--edge);
+  bottom: var(--edge);
+  display: grid;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.minimap {
+  display: block;
+  width: 240px;
+  height: 156px;
+  border-radius: 10px;
+  background: #2b6f8e;
+}
+
+.vitals {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 4px;
+}
+
+.bar {
+  height: 7px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  width: var(--fill, 100%);
+  transition: width 0.2s linear;
+}
+
+.health {
+  background: rgba(91, 210, 108, 0.24);
+}
+
+.health span {
+  background: var(--health);
+}
+
+.health.low {
+  background: rgba(255, 59, 78, 0.26);
+}
+
+.health.low span {
+  background: var(--danger);
+  animation: blink 0.8s ease-in-out infinite alternate;
+}
+
+.breath {
+  background: rgba(79, 195, 255, 0.22);
+}
+
+.breath span {
+  background: var(--breath);
+}
+
+/* Four ticks around a dot, drawn with gradients: crisp at any pixel ratio and no image to load. */
+.crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background:
+    radial-gradient(circle, #fff 0 1.5px, transparent 2px),
+    linear-gradient(#fff, #fff) center top / 2px 8px no-repeat,
+    linear-gradient(#fff, #fff) center bottom / 2px 8px no-repeat,
+    linear-gradient(#fff, #fff) left center / 8px 2px no-repeat,
+    linear-gradient(#fff, #fff) right center / 8px 2px no-repeat;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.9));
+}
+
+/* A red X over the crosshair when a shot lands on a target. */
+.hitmark {
+  position: absolute;
+  inset: -5px;
+  background:
+    linear-gradient(45deg, transparent 46%, #ff4747 46% 54%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, #ff4747 46% 54%, transparent 54%);
+  mask: radial-gradient(circle, transparent 0 8px, #000 8.5px);
+}
+
+/* The HUD scale setting. */
+.hud,
+.corner,
+.prompt,
+.speedo,
+.weapon,
+.toasts {
+  zoom: var(--hud-scale, 1);
+}
+
+/* Small screens: a smaller minimap, so it never covers the middle of the view. */
+@media (max-width: 600px) {
+  .minimap {
+    width: 180px;
+    height: 117px;
+  }
+}

@@ -1,0 +1,88 @@
+/* One visual system for the menu, loading screen, HUD, map, and pause menu. */
+@font-face {
+  font-family: 'Anton';
+  src: url('/assets/fonts/anton-latin-400.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --font-display: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+  --ink: #fff7f0;
+  --ink-dim: rgba(255, 247, 240, 0.72);
+  --pink: #ff4fa0;
+  --orange: #ffb347;
+  --teal: #1fc8c8;
+  --cyan: #2de2e6;
+  --night: #120c24;
+  --health: #5bd26c;
+  --breath: #4fc3ff;
+  --danger: #ff3b4e;
+  --panel: rgba(10, 12, 20, 0.55);
+  --glass: rgba(9, 10, 20, 0.6);
+  --glass-line: rgba(255, 255, 255, 0.12);
+  --glass-blur: blur(12px) saturate(1.3);
+  --sunset: linear-gradient(100deg, #ffcf6e 0%, #ff8a5c 38%, #ff4fa0 72%, #c86bff 100%);
+  /* Distance from the screen edge to the HUD. */
+  --edge: clamp(12px, 2.2vw, 28px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--night);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+#view {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+/* Key caps: light keys with a bottom lip, the same in menus, prompts, and help. */
+kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.75em;
+  height: 1.75em;
+  padding: 0 0.45em;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #ffffff, #e4e6ec);
+  box-shadow:
+    inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+    0 1px 3px rgba(0, 0, 0, 0.45);
+  color: #14121c;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+kbd svg {
+  width: 9px;
+  height: 9px;
+  fill: currentColor;
+}
+
+kbd + kbd {
+  margin-left: 3px;
+}

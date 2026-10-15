@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vice Demo</title>
+    <link
+      rel="preload"
+      href="/assets/fonts/anton-latin-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="preload" href="/assets/ui/menu.webp" as="image" />
+  </head>
+  <body>
+    <canvas id="view" tabindex="0"></canvas>
+    <section id="menu" class="menu">
+      <div class="menu-art" aria-hidden="true"></div>
+      <div class="menu-body">
+        <h1 class="wordmark"><span>Vice</span> <span>Demo</span></h1>
+        <p class="menu-tag">An open-world drive down a sunny coast, in your browser</p>
+        <nav class="menu-list" aria-label="Main menu">
+          <button id="play" type="button" class="menu-item" autofocus>Play</button>
+          <button id="menu-settings" type="button" class="menu-item">Settings</button>
+          <button id="menu-controls" type="button" class="menu-item">Controls</button>
+          <button id="menu-credits" type="button" class="menu-item">Credits</button>
+          <a class="menu-item" href="/terms.html">Terms</a>
+        </nav>
+        <p id="status" class="status" role="status"></p>
+      </div>
+      <footer class="menu-foot">
+        <span class="menu-keys" aria-hidden="true">
+          <kbd
+            ><svg viewBox="0 0 10 10"><path d="M5 2 9 8H1z" /></svg></kbd
+          ><kbd
+            ><svg viewBox="0 0 10 10"><path d="M5 8 1 2h8z" /></svg
+          ></kbd>
+          Select <kbd>Enter</kbd> Confirm
+        </span>
+        <span class="desktop-note">Built for a desktop with keyboard and mouse</span>
+      </footer>
+      <div
+        id="credits"
+        class="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="credits-title"
+        hidden
+      >
+        <h2 id="credits-title">Credits</h2>
+        <dl class="credit-list">
+          <dt>Art direction, menu and loading art</dt>
+          <dd>The project owner, generated with Higgsfield</dd>
+          <dt>Player, people, cars, palms</dt>
+          <dd>The project owner, generated with AssetHub (Tripo)</dd>
+          <dt>Animations, traffic props</dt>
+          <dd>Quaternius (CC0)</dd>
+          <dt>Skies, textures, ferns</dt>
+          <dd>Poly Haven: Greg Zaal, Rob Tuytel, and others (CC0)</dd>
+          <dt>Water normals</dt>
+          <dd>three.js authors (MIT)</dd>
+          <dt>Display type</dt>
+          <dd>Anton by Vernon Adams (SIL Open Font License)</dd>
+          <dt>Engine</dt>
+          <dd>three.js, Rapier, pmndrs postprocessing, N8AO</dd>
+        </dl>
+        <p class="credit-more">
+          Full list with links and licenses: <a href="/assets/CREDITS.md">asset credits</a>. Not
+          affiliated with Rockstar Games.
+        </p>
+        <button id="credits-close" type="button" class="sheet-close">Back</button>
+      </div>
+    </section>
+    <section id="loading" class="loading" aria-label="Loading" hidden>
+      <div class="slides" aria-hidden="true">
+        <img alt="" data-src="/assets/ui/load_car.webp" />
+        <img alt="" data-src="/assets/ui/load_beach.webp" />
+        <img alt="" data-src="/assets/ui/load_police.webp" />
+        <img alt="" data-src="/assets/ui/load_swim.webp" />
+        <img alt="" data-src="/assets/ui/menu_night.webp" />
+      </div>
+      <p class="load-mark" aria-hidden="true"><span>Vice</span> Demo</p>
+      <div class="load-foot">
+        <div class="tip">
+          <span class="tip-label">Tip</span>
+          <p id="tip" aria-live="polite"></p>
+        </div>
+        <div class="load-meter">
+          <div class="load-row">
+            <span id="load-status">Loading</span><span id="load-pct">0%</span>
+          </div>
+          <div
+            id="load-bar"
+            class="load-bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+            aria-labelledby="load-status"
+          >
+            <span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+    <div id="hud" class="hud" hidden>
+      <span id="fps" class="fps" hidden></span>
+      <div id="wanted" class="wanted" role="img" aria-label="Wanted level 0 of 5" hidden>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+    <div id="underwater" class="underwater" hidden></div>
+    <p id="prompt" class="prompt" hidden><kbd>F</kbd><span></span></p>
+    <div id="speedo" class="speedo" hidden>
+      <svg class="speed-dial" viewBox="0 0 120 120" aria-hidden="true">
+        <defs>
+          <linearGradient id="dial-grad" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#ffcf6e" />
+            <stop offset="0.5" stop-color="#ff8a5c" />
+            <stop offset="1" stop-color="#ff4fa0" />
+          </linearGradient>
+        </defs>
+        <circle class="dial-track" cx="60" cy="60" r="52" pathLength="100" />
+        <circle id="speed-arc" class="dial-fill" cx="60" cy="60" r="52" pathLength="100" />
+      </svg>
+      <span id="speed" class="speed-value">0</span>
+      <span class="speed-unit">km/h</span>
+      <span id="stall" class="stall" hidden>Engine flooded</span>
+    </div>
+    <div id="crosshair" class="crosshair" hidden>
+      <span class="hitmark" id="hitmark" hidden></span>
+    </div>
+    <div id="ammo" class="weapon" hidden>
+      <svg class="pistol" viewBox="0 0 64 40" aria-hidden="true">
+        <path d="M5 6h52l3 3v8H5zM7 3h3v3H7zM53 3h3v3h-3zM7 17h28v4H7zM8 20h13l-3 17H2z" />
+        <path class="guard" d="M21 21v4a4 4 0 0 0 4 4h5a4 4 0 0 0 4-4v-4M27 21v4" />
+      </svg>
+      <span class="weapon-name">Pistol</span>
+      <span class="ammo-count"
+        ><span id="mag" class="mag">12</span><span id="reserve" class="reserve">96</span></span
+      >
+      <span id="reloading" class="reloading" hidden>Reloading</span>
+    </div>
+    <div id="corner" class="corner" hidden>
+      <canvas id="minimap" class="minimap" aria-label="Minimap" role="img"></canvas>
+      <div class="vitals">
+        <div id="health" class="bar health" role="meter" aria-label="Health">
+          <span></span>
+        </div>
+        <div id="breath" class="bar breath" role="meter" aria-label="Breath">
+          <span></span>
+        </div>
+      </div>
+    </div>
+    <div id="death" class="death" hidden>
+      <div class="death-band">
+        <p class="death-title">Wasted</p>
+        <p id="death-where" class="death-where"></p>
+      </div>
+    </div>
+    <div
+      id="worldmap"
+      class="worldmap"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="worldmap-title"
+      hidden
+    >
+      <canvas id="worldmap-canvas" class="worldmap-canvas"></canvas>
+      <header class="worldmap-head">
+        <h2 id="worldmap-title">City map</h2>
+        <p class="worldmap-hint">
+          Drag to pan &middot; Wheel to zoom &middot; Click to set a waypoint &middot;
+          <kbd>M</kbd> or <kbd>Esc</kbd> to close
+        </p>
+      </header>
+      <ul class="legend" aria-label="Legend">
+        <li><i class="lg-you"></i>You</li>
+        <li><i class="lg-way"></i>Waypoint</li>
+        <li><i class="lg-hosp"></i>Hospital</li>
+        <li><i class="lg-car"></i>Parked car</li>
+        <li><i class="lg-park"></i>Park</li>
+        <li><i class="lg-beach"></i>Beach</li>
+        <li><i class="lg-water"></i>Water</li>
+      </ul>
+    </div>
+    <div
+      id="pause"
+      class="pause"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pause-title"
+      hidden
+    >
+      <div class="pause-shell">
+        <header class="pause-head">
+          <h2 id="pause-title">Paused</h2>
+          <div class="tabs" role="tablist" aria-label="Settings">
+            <button type="button" role="tab" id="tab-btn-graphics" aria-controls="tab-graphics">
+              Graphics
+            </button>
+            <button type="button" role="tab" id="tab-btn-display" aria-controls="tab-display">
+              Display
+            </button>
+            <button type="button" role="tab" id="tab-btn-controls" aria-controls="tab-controls">
+              Controls
+            </button>
+          </div>
+          <button id="resume" type="button" class="resume">Resume</button>
+        </header>
+        <section
+          id="tab-graphics"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-graphics"
+        ></section>
+        <section
+          id="tab-display"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-display"
+          hidden
+        ></section>
+        <section
+          id="tab-controls"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-controls"
+          hidden
+        >
+          <div id="control-rows"></div>
+          <h3 id="keys-title">Keys</h3>
+          <dl class="keys" aria-labelledby="keys-title">
+            <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
+            <dd>Move, or drive</dd>
+            <dt><kbd>Shift</kbd></dt>
+            <dd>Run, swim faster</dd>
+            <dt><kbd>Space</kbd></dt>
+            <dd>Jump, surface, climb out, handbrake</dd>
+            <dt><kbd>Ctrl</kbd> or <kbd>C</kbd></dt>
+            <dd>Dive</dd>
+            <dt><kbd>F</kbd></dt>
+            <dd>Get in or out of a car</dd>
+            <dt>Right mouse</dt>
+            <dd>Aim</dd>
+            <dt>Left mouse</dt>
+            <dd>Fire</dd>
+            <dt><kbd>R</kbd></dt>
+            <dd>Reload</dd>
+            <dt>Mouse</dt>
+            <dd>Look</dd>
+            <dt><kbd>M</kbd></dt>
+            <dd>Map: click to set a waypoint</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Pause and resume</dd>
+          </dl>
+        </section>
+        <p class="pause-foot">Changes apply instantly and are saved in this browser.</p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

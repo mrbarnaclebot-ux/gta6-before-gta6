@@ -1,0 +1,182 @@
+/* Pause menu: a blurred night skyline behind dark glass panels with pink and cyan accents. */
+.pause {
+  --glass: rgba(14, 10, 32, 0.66);
+  --line: rgba(255, 255, 255, 0.09);
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.pause::before,
+.pause::after {
+  content: '';
+  position: absolute;
+  inset: -48px;
+  z-index: -1;
+}
+
+.pause::before {
+  background: #120c24 url('/assets/ui/menu_night.webp') center / cover;
+  filter: blur(18px) saturate(1.2) brightness(0.6);
+}
+
+.pause::after {
+  background:
+    radial-gradient(120% 80% at 85% 10%, rgba(255, 79, 160, 0.22), transparent 60%),
+    linear-gradient(180deg, rgba(10, 6, 24, 0.35), rgba(10, 6, 24, 0.75));
+}
+
+.pause-shell {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(1000px, 100%);
+  max-height: 100%;
+  border-radius: 20px;
+  background: var(--glass);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px) saturate(1.3);
+  overflow: hidden;
+}
+
+.pause-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 28px;
+  padding: 22px 28px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.pause-head h2 {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--sunset);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-self: stretch;
+}
+
+.tabs [role='tab'] {
+  position: relative;
+  padding: 0 16px;
+  border: 0;
+  background: none;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  color: var(--ink);
+}
+
+.tabs [role='tab'][aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(90deg, var(--pink), var(--cyan));
+}
+
+.resume {
+  margin: 0 0 14px auto;
+  padding: 11px 28px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--night);
+  background: var(--ink);
+  cursor: pointer;
+}
+
+.resume:hover {
+  background: #fff;
+}
+
+.pause :focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+.panel {
+  overflow-y: auto;
+  padding: 10px 16px 14px;
+  overscroll-behavior: contain;
+}
+
+.pause-foot {
+  margin: 0;
+  padding: 12px 28px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.panel h3 {
+  margin: 18px 12px 10px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 20px;
+  margin: 0 12px;
+  font-size: 14px;
+}
+
+.keys dt {
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+
+.keys dd {
+  margin: 0;
+}
+
+.keys kbd + kbd {
+  margin-left: 2px;
+}
+
+@media (max-width: 480px) {
+  .pause-head {
+    padding: 18px 16px 0;
+  }
+  .tabs [role='tab'] {
+    padding: 0 8px;
+    letter-spacing: 0.08em;
+  }
+}

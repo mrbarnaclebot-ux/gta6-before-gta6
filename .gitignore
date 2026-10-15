@@ -1,0 +1,11 @@
+node_modules/
+dist/
+test-results/
+playwright-report/
+.env
+.DS_Store
+*.log
+
+# Local review screenshots (about 300 MB) and owner reference images
+.planning/phases/screens-*/
+ingame-examples/
