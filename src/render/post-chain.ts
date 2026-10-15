@@ -7,7 +7,6 @@ import {
   EffectComposer,
   EffectPass,
   GodRaysEffect,
-  KernelSize,
   LUT3DEffect,
   NoiseEffect,
   RenderPass,
@@ -52,9 +51,9 @@ function godRays(c: Ctx): GodRaysEffect {
     weight: 0.22,
     exposure: 0.32,
     clampMax: 0.7,
-    resolutionScale: 0.4,
-    kernelSize: KernelSize.SMALL,
-    blur: true,
+    // A third of the resolution and no extra blur pass: the radial smear is soft already.
+    resolutionScale: 0.33,
+    blur: false,
   })
 }
 

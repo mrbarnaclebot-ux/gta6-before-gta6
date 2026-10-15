@@ -15,6 +15,9 @@ const CASCADES: Record<Exclude<Tier, 'low'>, { count: number; size: number }> = 
 // Filter radius in texels per cascade: crisp next to the player, softer farther out,
 // where each texel already covers more ground.
 const RADII = [1.5, 2.5, 3, 3]
+// The far cascades redraw one at a time, on every FAR_EVERY-th frame: drawing shadow maps was
+// most of CSM's cost, and far shadows a few frames old are not visible.
+const FAR_EVERY = 3
 // New materials (a car body swapped in, a decal) are set up within this many frames.
 const ADOPT_EVERY = 10
 
@@ -88,12 +91,13 @@ export class Shadows {
       l.intensity = this.sun.intensity
     }
     csm.update()
-    // The nearest cascade redraws every frame; the farther ones take turns, one per frame.
-    // A skipped map keeps last frame's matrix with it, so it stays aligned, just a frame old.
-    const turn = 1 + (this.frame % (csm.lights.length - 1))
+    // The nearest cascade redraws every frame; the farther ones take turns (see FAR_EVERY).
+    // A skipped map keeps its own matrix with it, so it stays aligned, just a few frames old.
+    const far = this.frame % FAR_EVERY === 0
+    const turn = 1 + (Math.floor(this.frame / FAR_EVERY) % (csm.lights.length - 1))
     csm.lights.forEach((l, i) => {
       l.shadow.autoUpdate = false
-      l.shadow.needsUpdate ||= i === 0 || i === turn
+      l.shadow.needsUpdate ||= i === 0 || (far && i === turn)
       // Normal bias of about one texel, which grows with each cascade's footprint.
       const cam = l.shadow.camera
       l.shadow.normalBias = ((cam.right - cam.left) / l.shadow.mapSize.x) * 1.2
