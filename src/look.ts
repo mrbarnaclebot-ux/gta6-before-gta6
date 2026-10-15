@@ -10,6 +10,21 @@ const MIRROR: Record<Tier, number> = { low: 256, medium: 512, high: 1024, ultra:
 // Focus point on foot: the player's chest. While aiming: whatever the crosshair is on.
 const CHEST = 1.2
 const AIM_RANGE = 300
+const MAPS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'] as const
+
+/**
+ * Raises every texture that asked for anisotropic filtering (roads, sand, facades, palms)
+ * to the GPU's maximum: sharper at grazing angles for a cost too small to measure.
+ */
+function sharpenTextures(scene: THREE.Scene, max: number): void {
+  scene.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as unknown as Record<string, THREE.Texture | null>
+    for (const key of mat ? MAPS : []) {
+      const t = mat[key]
+      if (t && t.anisotropy > 1 && t.anisotropy < max) t.anisotropy = max
+    }
+  })
+}
 
 /** How the city looks: applies graphics settings and feeds the camera effects each frame. */
 export class Look {
@@ -25,6 +40,7 @@ export class Look {
   ) {
     this.graphics = g
     this.dynamic = new DynamicRes(g.renderScale)
+    sharpenTextures(w.scene, w.renderer.gl.capabilities.getMaxAnisotropy())
     this.apply(g)
   }
 

@@ -90,12 +90,8 @@ export async function buildCity(
   const water = buildWater(ctx, layout, light)
   const palms = await plantVegetation(ctx, layout, load)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
-  const underwater = buildUnderwater(
-    ctx.scene,
-    water.surface,
-    water.normals,
-    (x, z) => waterAt(x, z) !== null,
-  )
+  const wet = (x: number, z: number) => waterAt(x, z) !== null
+  const underwater = buildUnderwater(ctx.scene, water.surface, water.normals, wet)
   const { x, z } = layout.spawn
   let reach = 1
   return {
