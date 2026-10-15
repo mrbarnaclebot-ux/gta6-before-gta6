@@ -46,7 +46,9 @@ await page.waitForTimeout(4000)
 const bytesAfterPlay = bytes
 const g = (fn, arg) => page.evaluate(fn, arg)
 async function sample(label, secs = 5) {
-  await page.waitForTimeout(1500)
+  // A teleport costs a hitch (new textures and shadow maps), and dynamic resolution
+  // (on in Medium) takes a couple of seconds to settle after it: measure the steady state.
+  await page.waitForTimeout(4000)
   const f0 = await g(() => [window.__game.state().frames, performance.now()])
   await page.waitForTimeout(secs * 1000)
   const f1 = await g(() => [
@@ -60,10 +62,14 @@ async function sample(label, secs = 5) {
 }
 const res = []
 res.push(await sample('spawn'))
+// Yaw 0 looks north (-z), pi/2 west toward the city from the beach, -pi/2 east.
 for (const [name, yaw] of [
   ['downtown', 0],
   ['beach', Math.PI / 2],
   ['canal', 0],
+  ['hillside', -Math.PI / 2],
+  ['flyover', Math.PI],
+  ['residential', 2.4],
 ]) {
   await g(
     ([n, y]) => {
