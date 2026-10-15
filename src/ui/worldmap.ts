@@ -88,9 +88,10 @@ export class WorldMap {
   private marks(): void {
     const g = this.g
     const at = (q: P) => this.toScreen(q)
-    this.districts()
     const me = this.player
     if (this.nav.path.length) routeLine(g, [at(me), ...this.nav.path.map(at)], 4)
+    // Names go over the route line so it never cuts through them; icons go over both.
+    this.districts()
     for (const c of me.cars) {
       const p = at(c)
       carIcon(g, p.x, p.y, Math.PI - c.heading)
