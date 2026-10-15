@@ -1,6 +1,6 @@
 # Phase 2 summary: The world
 
-Status: built and verified on branch `phase-02-world`. Code review, Designer sign-off, and the audit pass from the AGENTS.md build loop have not run yet.
+Status: built and verified on branch `phase-02-world`. Code review ran; its three blockers are fixed (see "Review fixes"). Designer sign-off and the audit pass have not run yet.
 
 ## What was built
 
@@ -54,7 +54,7 @@ Same as Phase 1: WASD or arrows move, Shift runs, Space jumps, and the mouse orb
 ## Verification
 
 - `pnpm lint`: clean (ESLint and Prettier). All functions are under 40 lines, checked with a one-off `max-lines-per-function` run.
-- `pnpm test`: 5 files, 20 tests passed. New tests in `src/city/layout.test.ts` cover:
+- `pnpm test`: 5 files, 21 tests passed (20 at first build, plus the ACES test from the review fixes). New tests in `src/city/layout.test.ts` cover:
   - Determinism per seed.
   - City size.
   - Buildings stay inside their lots, never overlap, and never touch the canal.
@@ -77,14 +77,27 @@ Same as Phase 1: WASD or arrows move, Shift runs, Space jumps, and the mouse orb
   - `ocean-drive-low.jpg`: the Low preset.
   - `smoke-city-swiftshader.jpg`: from the e2e run.
 
+## Review fixes
+
+- Grey band at the horizon in raised views: water past `camera.far` (3 km) was clipped and the HDRI's repainted ground showed through. The backdrop is now a second copy of the HDRI with its lower half painted in the exact fog color; the sunlit-ground copy is used only for image-based lighting. On Low (no composer) three mixes fog after tone mapping, so Low gives the fog the ACES-tone-mapped color (`acesFilmic` in `sky-analysis.ts`, unit tested) and fogged sea meets the backdrop there too. Screens: `rooftop-horizon.jpg` (High), `rooftop-horizon-low.jpg` (Low).
+- Shadows on water were near-black stains: three's `Water` multiplies the body color by the shadow mask. Shaded water now keeps half its body color (`mix(0.5, 1.0, getShadowMask())`). Screen: `canal-shadow.jpg`.
+- README rule: `src/city/README.md` added. The unused Quaternius palms, bushes, plants, and streetlights were deleted, so `models/vegetation/` holds only the fern.
+- Cheap review notes also taken:
+  - Building colliders now match the meshes (the +CURB_H offset is gone). The gravel roof slab, the 1.1 m parapets, and the glass towers' 1.6 m roof band have colliders, so the player can no longer walk off a roof. Checked by walking into all four parapets on the tallest beachfront roof.
+  - PBR textures are shared per image URL: `white_stucco` downloads and uploads once instead of four times. The unused `concrete_tile_facade` set (1.8 MB) is deleted.
+  - The deco side fin straddles the side wall, so above the roof it grows out of the parapet instead of standing beside the building.
+  - `layout.ts` reuses `rng.pick` and documents that the park count is a maximum.
+  - The `DETAIL_LAYER` comment says detail meshes never cast sun shadows.
+
 ## Known gaps
 
 - Shadows cover only about 70 m around the player (one shadow map). In wide views, distant buildings have no cast shadows and look flatter. Cascaded shadows are planned for Phase 7.
 - Buildings are boxes with procedural facades. There are no rounded deco corners, storefronts, awnings, signage, or neon (neon is Phase 6). All residential towers share one window pattern.
-- Swimming is Phase 3. The sea and canal have colliders only on the seabed (heightfield), so the player can walk underwater today.
+- Swimming is Phase 3. The sea and canal have colliders only on the seabed (heightfield), so the player can walk underwater today. Phase 3 also needs:
+  - An underwater or back-face water pass: seen from below, the surface is invisible and there is no underwater tint.
+  - A boundary: about 160 m offshore the seabed heightfield ends (`MARGIN` in `terrain.ts`) and the player falls into a void until the kill-height respawn.
 - The water's planar reflection renders the scene a second time. Ferns are kept out of it with a render layer. The Low preset still renders the reflection.
 - Asset gaps:
-  - The Quaternius palms, bushes, and lamp posts in `public/assets` are no longer used. They were replaced by procedural palms, the Poly Haven fern scan, and procedural streetlights for realism and triangle budget. They are not downloaded, but they are still in the repo.
   - `TrafficLight.glb` and `Sign_Stop.glb` are not placed yet; intersections have no signals.
 - There is no highway or elevated road yet (the "highway district" is a v1 goal). The island edges are straight, and the canal is closed at both ends.
 - Size: only 1 km is exercised in-game. At 2 km the terrain grid and draw calls grow about 4x, and chunk streaming does not exist yet.
