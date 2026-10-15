@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { CURB_H, type CityLayout, type Rect } from '../city/layout'
 import type { PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
+import { DYES, outfit } from './outfit'
 import { Pedestrian } from './pedestrian'
 import { loopPoint, perimeter, walkLoops } from './places'
 
@@ -15,19 +16,12 @@ const DEAD_FOR = 25
 const SCARE_RADIUS = 45
 const IMPACT_RADIUS = 15
 
-/** Slight color casts over the generated people's textures, so the crowd is not all twins. */
-const TINTS = [0xffffff, 0xdfe7ff, 0xffeedd, 0xd2d2d2, 0xf0ffe6, 0xffe6ee]
-
-/** Shares one tinted copy of each source material per tint across the whole crowd. */
-function wardrobe(): (tint: number) => (m: THREE.Material) => THREE.Material {
+/** Shares one dyed copy of each source material per outfit across the whole crowd. */
+function wardrobe(): (dye: number) => (m: THREE.Material) => THREE.Material {
   const made = new Map<string, THREE.Material>()
-  return (tint) => (m) => {
-    const key = `${m.uuid}|${tint}`
-    if (!made.has(key)) {
-      const copy = (m as THREE.MeshStandardMaterial).clone()
-      copy.color.multiply(new THREE.Color(TINTS[tint]))
-      made.set(key, copy)
-    }
+  return (dye) => (m) => {
+    const key = `${m.uuid}|${dye}`
+    if (!made.has(key)) made.set(key, outfit(m, dye))
     return made.get(key)!
   }
 }
@@ -55,8 +49,9 @@ export class Crowd {
     this.loops = walkLoops(layout)
     const dress = wardrobe()
     this.people = Array.from({ length: COUNT }, (_, i) => {
-      const tint = Math.floor(i / people.length) % TINTS.length
-      const p = new Pedestrian(people[i % people.length], dress(tint), physics)
+      // Outfit 0 is the player's own clothes: never on the street.
+      const dye = 1 + ((Math.floor(i / people.length) + i) % (DYES.length - 1))
+      const p = new Pedestrian(people[i % people.length], dress(dye), physics)
       p.onShot = onShot
       p.root.visible = false
       p.state = 'dead'

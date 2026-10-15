@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { HSV_GLSL } from '../render/hsv-glsl'
 
 /*
  * The generated car bodies are one textured mesh each: paint, glass, trim, and lamps
@@ -17,25 +18,15 @@ const FRAGMENT = /* glsl */ `
 uniform vec3 uPaint;
 uniform vec4 uLamps;
 varying vec3 vCarPos;
-vec3 carHsv(vec3 c) {
-  vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
-  vec4 p = mix(vec4(c.bg, k.wz), vec4(c.gb, k.xy), step(c.b, c.g));
-  vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
-  float d = q.x - min(q.w, q.y);
-  return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + 1e-5)), d / (q.x + 1e-5), q.x);
-}
-vec3 carRgb(vec3 c) {
-  vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
-  return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
-}`
+${HSV_GLSL}`
 
 // Classified in gamma space (sqrt is close enough), where hues read as they look.
 // Lamp masks also use model units: the body spans -0.5..0.5 along z, nose at +z.
 const LAMPS = /* glsl */ `
   vec3 carSrc = diffuseColor.rgb;
-  vec3 hsv = carHsv(sqrt(carSrc));
+  vec3 hsv = rgb2hsv(sqrt(carSrc));
   float colorful = smoothstep(0.25, 0.5, hsv.y);
-  vec3 painted = carRgb(vec3(fract(hsv.x + uPaint.x), min(1.0, hsv.y * uPaint.y), hsv.z * uPaint.z));
+  vec3 painted = hsv2rgb(vec3(fract(hsv.x + uPaint.x), min(1.0, hsv.y * uPaint.y), hsv.z * uPaint.z));
   diffuseColor.rgb = mix(carSrc, painted * painted, colorful);
   float isRed = step(0.55, hsv.y) * step(0.15, hsv.z) * max(step(hsv.x, 0.035), step(0.97, hsv.x));
   float isBlue = step(0.4, hsv.y) * step(0.2, hsv.z) * step(0.55, hsv.x) * step(hsv.x, 0.75);

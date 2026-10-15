@@ -9,3 +9,4 @@ Renderer, post-processing, sky, and the day and night cycle.
 - `sky-analysis.ts` finds the sun and horizon color in an HDRI; ACES curve for Low fog
 - `n8ao.d.ts` types for the ambient occlusion pass
 - `*.test.ts` checks for the pure parts
+- `hsv-glsl.ts` GLSL rgb and hsv conversions for shaders that recolor baked textures
