@@ -71,7 +71,12 @@ export async function buildCity(
   placeProps(ctx, layout)
   await plantVegetation(ctx, layout, load)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
-  const underwater = buildUnderwater(ctx.scene, water.surface, (x, z) => waterAt(x, z) !== null)
+  const underwater = buildUnderwater(
+    ctx.scene,
+    water.surface,
+    water.normals,
+    (x, z) => waterAt(x, z) !== null,
+  )
   const { x, z } = layout.spawn
   return {
     layout,

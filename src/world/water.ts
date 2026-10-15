@@ -4,7 +4,7 @@ import { SEA_LEVEL, type CityLayout } from '../city/layout'
 import { heightAt, terrainGrid } from '../city/terrain'
 import type { WorldCtx } from './blocks'
 
-export const NORMALS = '/assets/textures/water/waternormals.jpg'
+const NORMALS = '/assets/textures/water/waternormals.jpg'
 // Far past the fog distance so the plane edge never shows on the horizon.
 const EXTENT = 40000
 const DEPTH_RANGE = 12
@@ -87,6 +87,7 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, sunDir: THREE.Vector3) 
   ctx.scene.add(water)
   return {
     surface: water as THREE.Object3D,
+    normals,
     update(dt: number) {
       mat.uniforms.time.value += dt * 0.6
     },
