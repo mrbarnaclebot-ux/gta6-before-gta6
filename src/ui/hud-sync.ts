@@ -40,6 +40,31 @@ function applyPref(w: World, hud: Hud, name: keyof Prefs, value: Prefs[keyof Pre
   if (name === 'hudScale') document.documentElement.style.setProperty('--hud-scale', String(value))
 }
 
+/** The title screen's settings menu becomes the in-game pause menu. */
+function takeOverPause(
+  pause: PauseMenu,
+  o: { w: World; hud: Hud; input: Input; look: Look; worldMap: WorldMap },
+): void {
+  pause.playing = true
+  // The tab last picked on the title screen (often Controls) should not stick into the game.
+  pause.selectTab('graphics')
+  pause.hooks = {
+    onGraphics: (g) => {
+      o.look.apply(g)
+      saveGraphics(g)
+    },
+    onPref: (name, value) => {
+      applyPref(o.w, o.hud, name, value)
+      savePref(name, value)
+    },
+    onResume: (fromClick) => {
+      o.input.reset()
+      if (fromClick) o.input.lockPointer()
+    },
+    autoOpen: () => !o.worldMap.open,
+  }
+}
+
 /** The HUD, maps, and pause menu, with settings loaded from and saved to localStorage. */
 export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): Ui {
   const hud = new Hud()
@@ -53,24 +78,7 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
   const nav = new Nav(roadGraph(w.city.layout, w.city.layout.paths))
   const base = paintBase(w.city.layout)
   const worldMap = new WorldMap(base, w.city.layout, w.life.hospitals, nav)
-  pause.playing = true
-  // The tab last picked on the title screen (often Controls) should not stick into the game.
-  pause.selectTab('graphics')
-  pause.hooks = {
-    onGraphics: (g) => {
-      look.apply(g)
-      saveGraphics(g)
-    },
-    onPref: (name, value) => {
-      applyPref(w, hud, name, value)
-      savePref(name, value)
-    },
-    onResume: (fromClick) => {
-      input.reset()
-      if (fromClick) input.lockPointer()
-    },
-    autoOpen: () => !worldMap.open,
-  }
+  takeOverPause(pause, { w, hud, input, look, worldMap })
   const map = new Minimap(
     document.getElementById('minimap') as HTMLCanvasElement,
     base,

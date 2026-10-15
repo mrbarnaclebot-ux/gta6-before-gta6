@@ -75,6 +75,37 @@ interface Range {
   j1: number
 }
 
+/** Grid indices from `a` to `b` every `step`, always ending on `b`. */
+function steps(a: number, b: number, step: number): number[] {
+  const out: number[] = []
+  for (let v = a; v < b; v += step) out.push(v)
+  return [...out, b]
+}
+
+/** Vertex buffers for one tile level; `vertex` adds one (dropped `drop` meters for skirts). */
+function vertexWriter(land: Land, splat: Float32Array, center: THREE.Vector3) {
+  const g = land.ground
+  const buf = {
+    pos: [] as number[],
+    nor: [] as number[],
+    spl: [] as number[],
+    hid: [] as boolean[],
+  }
+  const n = new THREE.Vector3()
+  const vertex = (i: number, j: number, drop = 0) => {
+    const x = g.x0 + i * CELL
+    const z = g.z0 + j * CELL
+    const k = index(g, i, j)
+    buf.pos.push(x - center.x, g.h[k] - drop - center.y, z - center.z)
+    normalAt(g, i, j, n)
+    buf.nor.push(n.x, n.y, n.z)
+    buf.spl.push(splat[k * 4], splat[k * 4 + 1], splat[k * 4 + 2], splat[k * 4 + 3])
+    buf.hid.push(hidden(land, x, z, g.h[k]))
+    return buf.pos.length / 3 - 1
+  }
+  return { buf, vertex }
+}
+
 /** One level of one tile: a grid of `step`-cell quads plus skirts, positioned relative to `center`. */
 function tileGeometry(
   land: Land,
@@ -83,32 +114,12 @@ function tileGeometry(
   step: number,
   center: THREE.Vector3,
 ): THREE.BufferGeometry | null {
-  const g = land.ground
-  const cols: number[] = []
-  const rows: number[] = []
-  for (let i = r.i0; i < r.i1; i += step) cols.push(i)
-  cols.push(r.i1)
-  for (let j = r.j0; j < r.j1; j += step) rows.push(j)
-  rows.push(r.j1)
-  const pos: number[] = []
-  const nor: number[] = []
-  const spl: number[] = []
-  const hid: boolean[] = []
-  const n = new THREE.Vector3()
-  const vertex = (i: number, j: number, drop = 0) => {
-    const x = g.x0 + i * CELL
-    const z = g.z0 + j * CELL
-    const k = index(g, i, j)
-    pos.push(x - center.x, g.h[k] - drop - center.y, z - center.z)
-    normalAt(g, i, j, n)
-    nor.push(n.x, n.y, n.z)
-    spl.push(splat[k * 4], splat[k * 4 + 1], splat[k * 4 + 2], splat[k * 4 + 3])
-    hid.push(hidden(land, x, z, g.h[k]))
-    return pos.length / 3 - 1
-  }
+  const cols = steps(r.i0, r.i1, step)
+  const rows = steps(r.j0, r.j1, step)
+  const { buf, vertex } = vertexWriter(land, splat, center)
   const grid = cols.map((i) => rows.map((j) => vertex(i, j)))
   const idx: number[] = []
-  const show = (a: number, b: number, c: number) => !(hid[a] && hid[b] && hid[c])
+  const show = (a: number, b: number, c: number) => !(buf.hid[a] && buf.hid[b] && buf.hid[c])
   for (let a = 0; a + 1 < cols.length; a++) {
     for (let b = 0; b + 1 < rows.length; b++) {
       const [p, q, s, t] = [grid[a][b], grid[a + 1][b], grid[a][b + 1], grid[a + 1][b + 1]]
@@ -119,9 +130,9 @@ function tileGeometry(
   if (!idx.length) return null
   skirts(cols, rows, grid, vertex, idx)
   const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
-  geo.setAttribute('splat', new THREE.Float32BufferAttribute(spl, 4))
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(buf.pos, 3))
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(buf.nor, 3))
+  geo.setAttribute('splat', new THREE.Float32BufferAttribute(buf.spl, 4))
   geo.setIndex(idx)
   geo.computeBoundingSphere()
   return geo

@@ -24,47 +24,30 @@ export interface HouseParts {
 
 /** A gabled roof over a w x d box: ridge along x, `over` meters of overhang, eaves at y0. */
 function gable(w: number, d: number, y0: number, over: number): THREE.BufferGeometry {
-  const hw = w / 2 + over
-  const hd = d / 2 + over
-  const rise = (d / 2) * 0.48
+  const [hw, hd, rise] = [w / 2 + over, d / 2 + over, (d / 2) * 0.48]
   const top = y0 + rise
-  // Two slopes and two gable ends, each slope a quad; UVs in meters for the tile texture.
-  const pos = [
-    [-hw, y0, hd],
-    [hw, y0, hd],
-    [hw, top, 0],
-    [-hw, top, 0],
-    [hw, y0, -hd],
-    [-hw, y0, -hd],
-    [-hw, top, 0],
-    [hw, top, 0],
-    [-w / 2, y0, d / 2],
-    [-w / 2, top - 0.02, 0],
-    [-w / 2, y0, -d / 2],
-    [w / 2, y0, -d / 2],
-    [w / 2, top - 0.02, 0],
-    [w / 2, y0, d / 2],
-  ].flat()
   const slope = Math.hypot(hd, rise)
-  const uv = [
-    [0, 0],
-    [2 * hw, 0],
-    [2 * hw, slope],
-    [0, slope],
-    [0, 0],
-    [2 * hw, 0],
-    [2 * hw, slope],
-    [0, slope],
-    [0, 0],
-    [d / 2, rise],
-    [d, 0],
-    [0, 0],
-    [d / 2, rise],
-    [d, 0],
-  ].flat()
+  // Two slopes (quads) and two gable ends (triangles); UVs in meters for the tile texture.
+  const quad = (z: number, dir: 1 | -1) => [
+    [-hw * dir, y0, z],
+    [hw * dir, y0, z],
+    [hw * dir, top, 0],
+    [-hw * dir, top, 0],
+  ]
+  const end = (x: number, dir: 1 | -1) => [
+    [x, y0, (dir * d) / 2],
+    [x, top - 0.02, 0],
+    [x, y0, (-dir * d) / 2],
+  ]
+  const pos = [...quad(hd, 1), ...quad(-hd, -1), ...end(-w / 2, 1), ...end(w / 2, -1)].flat()
+  const slopeUv = [0, 0, 2 * hw, 0, 2 * hw, slope, 0, slope]
+  const endUv = [0, 0, d / 2, rise, d, 0]
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  geo.setAttribute(
+    'uv',
+    new THREE.Float32BufferAttribute([...slopeUv, ...slopeUv, ...endUv, ...endUv], 2),
+  )
   geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 11, 12, 13])
   geo.computeVertexNormals()
   return geo
@@ -96,27 +79,8 @@ const turn = (geos: THREE.BufferGeometry[], from: number, yaw: number) => {
   for (let i = from; i < geos.length; i++) geos[i].rotateY(yaw)
 }
 
-/** Every part of one house, placed in the world. */
-export function houseParts(h: House, p: HouseParts): void {
-  const start = {
-    wall: p.wall.length,
-    roof: p.roof.length,
-    glass: p.glass.length,
-    trim: p.trim.length,
-  }
-  const height = h.floors * FLOOR_H
-  p.wall.push(
-    tinted(
-      metricBox(h.w, height + SINK, h.d).translate(0, (height - SINK) / 2, 0),
-      WALLS[h.tint % WALLS.length],
-    ),
-  )
-  p.roof.push(tinted(gable(h.w, h.d, height, 0.55), ROOFS[h.roof]))
-  const garage = h.garage * (h.w / 2 - 2.2)
-  const door = -h.garage * 0.8
-  p.trim.push(tinted(metricBox(3.0, 2.4, 0.1).translate(garage, 1.2, h.d / 2 + 0.03), TRIM))
-  p.trim.push(tinted(metricBox(1.0, 2.2, 0.1).translate(door, 1.1, h.d / 2 + 0.03), DOOR))
-  const gap: [number, number] = [Math.min(garage, door) - 1.5, Math.max(garage, door) + 1.5]
+/** Framed windows on all four faces of every floor, leaving room for the door and garage in front. */
+function houseWindows(h: House, p: HouseParts, gap: [number, number]): void {
   for (let f = 0; f < h.floors; f++) {
     const y = f * FLOOR_H + 1.6
     const faces: [number, number, number, [number, number] | null][] = [
@@ -133,11 +97,22 @@ export function houseParts(h: House, p: HouseParts): void {
       turn(p.trim, t0, yaw)
     }
   }
-  const place = (list: THREE.BufferGeometry[], from: number) => {
-    for (let i = from; i < list.length; i++) list[i].rotateY(h.yaw).translate(h.x, h.y, h.z)
-  }
-  place(p.wall, start.wall)
-  place(p.roof, start.roof)
-  place(p.glass, start.glass)
-  place(p.trim, start.trim)
+}
+
+/** Every part of one house, placed in the world. */
+export function houseParts(h: House, p: HouseParts): void {
+  const lists = [p.wall, p.roof, p.glass, p.trim]
+  const start = lists.map((l) => l.length)
+  const height = h.floors * FLOOR_H
+  const wall = metricBox(h.w, height + SINK, h.d).translate(0, (height - SINK) / 2, 0)
+  p.wall.push(tinted(wall, WALLS[h.tint % WALLS.length]))
+  p.roof.push(tinted(gable(h.w, h.d, height, 0.55), ROOFS[h.roof]))
+  const garage = h.garage * (h.w / 2 - 2.2)
+  const door = -h.garage * 0.8
+  p.trim.push(tinted(metricBox(3.0, 2.4, 0.1).translate(garage, 1.2, h.d / 2 + 0.03), TRIM))
+  p.trim.push(tinted(metricBox(1.0, 2.2, 0.1).translate(door, 1.1, h.d / 2 + 0.03), DOOR))
+  houseWindows(h, p, [Math.min(garage, door) - 1.5, Math.max(garage, door) + 1.5])
+  lists.forEach((list, k) => {
+    for (let i = start[k]; i < list.length; i++) list[i].rotateY(h.yaw).translate(h.x, h.y, h.z)
+  })
 }

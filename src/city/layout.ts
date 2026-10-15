@@ -164,6 +164,17 @@ function walksFor(land: Rect, xRoads: number[], zRoads: number[], exits: Exits):
   ]
 }
 
+/** The canal runs north-south down the middle of the second block column. */
+function canalRect(zRoads: number[]): Rect {
+  const cx = PITCH / 2
+  return {
+    x0: cx - CANAL_HALF,
+    x1: cx + CANAL_HALF,
+    z0: zRoads[0] + ROAD_HALF,
+    z1: zRoads[zRoads.length - 1] - ROAD_HALF,
+  }
+}
+
 export function generateCity(
   seed = 7,
   size = 1000,
@@ -180,13 +191,7 @@ export function generateCity(
     z0: zRoads[0] - ROAD_HALF - EDGE_WALK,
     z1: zRoads[zRoads.length - 1] + ROAD_HALF + EDGE_WALK,
   }
-  const cx = PITCH / 2
-  const canal = {
-    x0: cx - CANAL_HALF,
-    x1: cx + CANAL_HALF,
-    z0: zRoads[0] + ROAD_HALF,
-    z1: zRoads[zRoads.length - 1] - ROAD_HALF,
-  }
+  const canal = canalRect(zRoads)
   const plain = gridBlocks(xRoads, zRoads, canal, size)
   const parkable = plain.filter((b) => !b.canalSide && b.district !== 'beachfront')
   // Duplicate picks collapse, so this makes at most round(size / 350) parks.

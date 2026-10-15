@@ -83,6 +83,16 @@ function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStand
   }
 }
 
+/** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the dune grass update. */
+async function buildScenery(ctx: WorldCtx, layout: Land) {
+  await buildTerrain(ctx, layout)
+  buildRoads(ctx, layout)
+  buildHouses(ctx, layout)
+  buildVillas(ctx, layout)
+  buildBeach(ctx, layout)
+  return plantDuneGrass(ctx, layout)
+}
+
 /** Generates the seeded city and builds every visual and collider for it. */
 export async function buildCity(
   ctx: WorldCtx,
@@ -95,12 +105,7 @@ export async function buildCity(
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  await buildTerrain(ctx, layout)
-  buildRoads(ctx, layout)
-  buildHouses(ctx, layout)
-  buildVillas(ctx, layout)
-  buildBeach(ctx, layout)
-  const dunes = plantDuneGrass(ctx, layout)
+  const dunes = await buildScenery(ctx, layout)
   const water = buildWater(ctx, layout, light)
   const palms = await plantVegetation(ctx, layout, load, gl)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
