@@ -41,8 +41,9 @@ test('main menu: arrow keys, settings, credits', { tag: '@smoke' }, async ({ pag
 })
 
 test('loads, plays, walks, maps, and stands on the city', async ({ page }) => {
-  // The default Medium preset in SwiftShader with people and traffic runs near 1 fps.
-  test.setTimeout(180_000 * SLOW)
+  // The default Medium preset in SwiftShader with people and traffic runs near 1 fps, and
+  // the rooftop view now takes in the whole 2 km world (terrain, hills, highway).
+  test.setTimeout(300_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
