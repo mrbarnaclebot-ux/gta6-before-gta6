@@ -21,9 +21,9 @@ const RELIEF = 6
 
 /**
  * Splat inputs per grid vertex, worked out once for every level: sand near the coast,
- * dirt on trails and in the forest, and large-scale variation.
+ * dirt on trails and in the forest, shade under tree crowns, and large-scale variation.
  */
-function splatGrid(land: Land): Float32Array {
+function splatGrid(land: Land, canopy: Float32Array | null): Float32Array {
   const g = land.ground
   const out = new Float32Array(g.h.length * 4)
   for (let i = 0; i <= g.nx; i++) {
@@ -33,7 +33,11 @@ function splatGrid(land: Land): Float32Array {
       const k = index(g, i, j)
       const vary = 0.5 + 0.5 * fbm(x / 110, z / 110, 41, 3)
       const dirt = Math.max(land.dirt[k] / 255, forestAt(x, z) * (0.15 + 0.3 * vary))
-      out.set([smoothstep(-14, -2, x - coastX(land.frame, z)), Math.min(1, dirt), 0, vary], k * 4)
+      const shade = canopy ? canopy[k] : 0
+      out.set(
+        [smoothstep(-14, -2, x - coastX(land.frame, z)), Math.min(1, dirt), shade, vary],
+        k * 4,
+      )
     }
   }
   return out
@@ -167,9 +171,14 @@ function skirts(
 }
 
 /** The whole terrain as 256 m tiles, each a THREE.LOD that picks its detail by camera distance. */
-export function buildTerrainMesh(scene: THREE.Scene, land: Land, material: THREE.Material): void {
+export function buildTerrainMesh(
+  scene: THREE.Scene,
+  land: Land,
+  material: THREE.Material,
+  canopy: Float32Array | null = null,
+): void {
   const g = land.ground
-  const splat = splatGrid(land)
+  const splat = splatGrid(land, canopy)
   for (let i0 = 0; i0 < g.nx; i0 += TILE) {
     for (let j0 = 0; j0 < g.nz; j0 += TILE) {
       const r = { i0, j0, i1: Math.min(g.nx, i0 + TILE), j1: Math.min(g.nz, j0 + TILE) }

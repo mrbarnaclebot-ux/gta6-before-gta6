@@ -72,6 +72,8 @@ float depth = ${SEA_LEVEL.toFixed(2)} - vGroundPos.y;
 float wet = smoothstep(-0.5, 0.15, depth) * sand;
 tint *= mix(vec3(1.0), vec3(0.66, 0.62, 0.56), wet);
 tint *= mix(vec3(1.0), vec3(0.32, 0.5, 0.48), smoothstep(0.3, 6.0, depth));
+// Shade and leaf litter under tree crowns: the forest floor reads darker than the fields.
+tint *= mix(vec3(1.0), vec3(0.4, 0.44, 0.32), clamp(vSplat.z, 0.0, 1.0));
 diffuseColor.rgb *= ground.rgb * tint;
 float groundRough = mix(ground.a, 0.35, wet);
 `

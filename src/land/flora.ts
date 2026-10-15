@@ -7,7 +7,9 @@ import { lie, upAt, type Surface } from './footing'
 import { gridRect, slopeAt } from './grid'
 import { fbm, smoothstep } from './noise'
 import type { Land } from './plan'
+import { LOOKOUT_R } from './hillside'
 import { poissonOver } from './poisson'
+import { dist } from './polyline'
 import { coastX } from './shape'
 import { avenuePalms, hedges } from './flora-rows'
 import { GARDEN_TRUNK, ROCK_RIM, ROCK_SPREAD, SINK, tint, TRUNK, upright } from './plant'
@@ -66,7 +68,9 @@ function trees(land: Land, c: Clearance, surface: Surface, out: Flora) {
     if (s.clear !== FREE || s.coast > -14 || s.slope > 0.85 || wet(s)) continue
     const wc = 0.9 * s.forest + 0.35 * s.hill * (1 - s.forest)
     const wb = 0.16 * s.forest + 0.2 * s.hill + 0.5 * s.grove
-    if (r() >= Math.min(0.95, wc + wb)) continue
+    // The summit is a meadow, so the lookout sees over the woods to the city and the forest.
+    const crown = smoothstep(LOOKOUT_R + 25, LOOKOUT_R + 150, dist(p, land.lookout))
+    if (r() >= Math.min(0.95, wc + wb) * crown) continue
     const conifer = r() * (wc + wb) < wc
     const h = conifer ? range(r, 13, 24) : range(r, 8, 15)
     const list = conifer ? out.conifers : out.broadleaf

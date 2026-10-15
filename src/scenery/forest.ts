@@ -68,6 +68,13 @@ function treeLevels(scene: THREE.Object3D): Part[][] {
   return [parts(['bark', 'foliage']), parts(['lite', 'foliage'])]
 }
 
+/**
+ * Far impostors drawn a little fuller than the tree: two cards show less of the crown than
+ * the cards they stand in for, and the hillside showed through between them.
+ */
+const fuller = (parts: Part[]) =>
+  parts.map((p) => ({ ...p, geometry: p.geometry.clone().scale(1.3, 1.08, 1.3) }))
+
 async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: Flora) {
   const updates: Update[] = []
   for (const [kind, files] of Object.entries(TREES) as [keyof typeof TREES, string[]][]) {
@@ -76,7 +83,7 @@ async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: 
       const [near, mid] = treeLevels(m.scene)
       const place = { scale: (s: Grounded) => s.s, ranges: [NEAR, MID], shadowLevels: 1 }
       const spots = share(flora[kind], models.length, i)
-      updates.push(instanceByDistance(ctx, [near, mid, impostor(gl, mid)], spots, place))
+      updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, mid))], spots, place))
     })
   }
   return updates

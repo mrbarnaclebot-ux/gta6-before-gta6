@@ -15,7 +15,8 @@ import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
 import { buildForest } from '../scenery/forest'
 import { plantGrass } from '../scenery/grass'
-import { generateFlora } from '../land/flora'
+import { canopyGrid } from '../land/canopy'
+import { generateFlora, type Flora } from '../land/flora'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -88,8 +89,9 @@ function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMat
 }
 
 /** Everything outside the city grid: terrain, roads, homes, and the beach. */
-async function buildScenery(ctx: WorldCtx, layout: Land) {
-  await buildTerrain(ctx, layout)
+async function buildScenery(ctx: WorldCtx, layout: Land, flora: Flora) {
+  const trees = [...flora.conifers, ...flora.broadleaf, ...flora.garden]
+  await buildTerrain(ctx, layout, canopyGrid(layout.ground, trees))
   buildRoads(ctx, layout)
   buildHouses(ctx, layout)
   buildVillas(ctx, layout)
@@ -97,8 +99,13 @@ async function buildScenery(ctx: WorldCtx, layout: Land) {
 }
 
 /** Every plant: palms, ferns, the forest, bushes, rocks, dune grass, and grass. Returns their per-frame update. */
-async function buildPlants(ctx: WorldCtx, layout: Land, load: Load, gl: THREE.WebGLRenderer) {
-  const flora = generateFlora(layout)
+async function buildPlants(
+  ctx: WorldCtx,
+  layout: Land,
+  flora: Flora,
+  load: Load,
+  gl: THREE.WebGLRenderer,
+) {
   const updates = [
     await plantVegetation(ctx, layout, flora.palms, load, gl),
     await buildForest(ctx, gl, load, layout, flora),
@@ -120,9 +127,10 @@ export async function buildCity(
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  await buildScenery(ctx, layout)
+  const flora = generateFlora(layout)
+  await buildScenery(ctx, layout, flora)
   const water = buildWater(ctx, layout, light)
-  const plants = await buildPlants(ctx, layout, load, gl)
+  const plants = await buildPlants(ctx, layout, flora, load, gl)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
   const wet = (x: number, z: number) => waterAt(x, z) !== null
   const underwater = buildUnderwater(ctx.scene, water.surface, water.normals, wet)

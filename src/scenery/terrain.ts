@@ -7,9 +7,13 @@ import { buildTerrainMesh } from './terrain-mesh'
 import { terrainTextures } from './terrain-textures'
 
 /** The ground of the whole map: splat-textured LOD tiles, one Rapier heightfield, and edge walls. */
-export async function buildTerrain(ctx: WorldCtx, land: Land): Promise<void> {
+export async function buildTerrain(
+  ctx: WorldCtx,
+  land: Land,
+  canopy: Float32Array | null = null,
+): Promise<void> {
   const tex = await terrainTextures()
-  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal))
+  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal), canopy)
   const g = land.ground
   const w = g.nx * CELL
   const d = g.nz * CELL
