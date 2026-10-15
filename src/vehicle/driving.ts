@@ -43,6 +43,8 @@ export class Driving {
     let best: Car | null = null
     let bestD = ENTER_RANGE
     for (const c of this.cars) {
+      // A flooded car will not start, so do not offer it.
+      if (c.stalled) continue
       const d = Math.hypot(c.position.x - p.x, c.position.z - p.z)
       if (d < bestD && Math.abs(c.position.y - p.y) < 2) [best, bestD] = [c, d]
     }

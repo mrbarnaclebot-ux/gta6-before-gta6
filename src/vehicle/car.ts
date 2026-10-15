@@ -41,6 +41,8 @@ export class Car {
   private readonly prev = { p: new THREE.Vector3(), q: new THREE.Quaternion() }
   private readonly curr = { p: new THREE.Vector3(), q: new THREE.Quaternion() }
   private steer = 0
+  /** Each wheel's spring top in car space; fixed, so read once instead of every frame. */
+  private readonly anchorY: number[] = []
 
   constructor(
     physics: PhysicsWorld,
@@ -68,6 +70,7 @@ export class Car {
     const v = this.vehicle
     const i = v.numWheels()
     const anchor = { x: hub.x, y: hub.y + REST - SAG, z: hub.z }
+    this.anchorY.push(anchor.y)
     v.addWheel(anchor, { x: 0, y: -1, z: 0 }, { x: -1, y: 0, z: 0 }, REST, hub.y)
     v.setWheelSuspensionStiffness(i, STIFFNESS)
     v.setWheelSuspensionCompression(i, 2.6)
@@ -161,6 +164,8 @@ export class Car {
 
   /** Render-rate update: place the model, spin and steer the wheels, light the lamps. */
   update(alpha: number, driven = false): void {
+    // A parked car asleep has not moved since it was last posed.
+    if (!driven && this.body.isSleeping()) return
     this.position.lerpVectors(this.prev.p, this.curr.p, alpha)
     this.quaternion.slerpQuaternions(this.prev.q, this.curr.q, alpha)
     const { root, wheels, headlights, brakelights } = this.visual
@@ -168,8 +173,7 @@ export class Car {
     root.quaternion.copy(this.quaternion)
     wheels.forEach((w, i) => {
       const travel = this.vehicle.wheelSuspensionLength(i) ?? REST
-      const anchor = this.vehicle.wheelChassisConnectionPointCs(i)!
-      w.position.y = anchor.y - travel
+      w.position.y = this.anchorY[i] - travel
       w.rotation.set(this.vehicle.wheelRotation(i) ?? 0, this.vehicle.wheelSteering(i) ?? 0, 0)
     })
     headlights.emissiveIntensity = driven && !this.dead ? 10 : 0.15
