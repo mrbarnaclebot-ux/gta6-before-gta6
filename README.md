@@ -32,7 +32,7 @@ Measured with `node scripts/perf.mjs` on an M4 MacBook (Metal, headless Chromium
 | Canal | 441 | 254 | 37.3 | 39.5 | 56.8 | 59.3 |
 | Downtown at night | 438 | 260 | 36.9 | 41.3 | 57.5 | 59.6 |
 
-Those runs overlapped a busy desktop Chrome. In the quietest back-to-back pair, High went from 50 / 46 / 36 / 44 / 52 fps to 55 / 60 / 47 / 51 / 57 in the same five scenes. The 60 fps target on High is met downtown but not yet at the beach. The game is GPU-bound, not draw-call bound (the main thread is about 65% idle). What helped: N8AO's transparency mode off (about +3 fps), a 2048 shadow map (+2), and halving draw calls (instanced wheels, per-tree palm detail, nearby-only ferns, one streetlight batch, parked cars hidden past 150 m). The remaining big costs are N8AO (about 10 fps) and SMAA (about 6). Details: `.planning/phases/07-SUMMARY.md`.
+Those runs overlapped a busy desktop Chrome. In the quietest back-to-back pair, High went from 50 / 46 / 36 / 44 / 52 fps to 55 / 60 / 47 / 51 / 57 in the same five scenes. The 60 fps target on High is met downtown but not yet at the beach. The game is GPU-bound, not draw-call bound (the main thread is about 65% idle). Those numbers predate the fix that actually turns N8AO's transparency mode off (the first attempt left it on); that fix alone adds about +4 fps at the beach in paired uncapped runs. Also helping: a 2048 shadow map (+2), and halving draw calls (instanced wheels, per-tree palm detail, nearby-only ferns, one streetlight batch, parked cars hidden past 150 m). The remaining big costs are N8AO (about 10 fps) and SMAA (about 6). Details: `.planning/phases/07-SUMMARY.md`.
 
 ## Controls
 

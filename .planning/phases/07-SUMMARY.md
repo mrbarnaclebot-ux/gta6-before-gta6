@@ -1,6 +1,6 @@
 # Phase 7 summary: CI and performance pass
 
-Status: built and verified on branch `phase-07-ship`. Not pushed; the orchestrator pushes. The Code Reviewer, Designer sign-off, and audit passes have not run yet. The CI workflow has been validated but has not yet run on GitHub, because nothing was pushed.
+Status: built and verified on branch `phase-07-ship`. Not pushed; the orchestrator pushes. The Code Reviewer has run; its one blocker (N8AO transparency mode not actually off) and the cheap notes are fixed below. Designer sign-off and the audit pass have not run yet. The CI workflow has been validated but has not yet run on GitHub, because nothing was pushed.
 
 ## What was built
 
@@ -43,17 +43,24 @@ At the beach (760 draw calls), 120 of the main pass's 408 calls were wheels: 15 
 - **Wheels** (`src/vehicle/wheel-batch.ts`):
   - Every wheel of one car kind is now two InstancedMeshes (tire and rim) for the whole city.
   - Cars keep plain pivot objects at the hubs. `scene.onBeforeRender` copies the pivots' world matrices in, after three updates matrices and before it collects draws. So the main pass, the mirror, and shadows all see this frame's wheels.
+  - Review fix: the copy runs only on the first scene render of each frame (`CarModels.newFrame()` in the loop), not again for the mirror and AO renders. `CarModels` owns that scene-wide hook, as its comment says.
   - Hidden cars are skipped, and nothing is allocated per frame.
 - **Palms** (`src/world/lod-instances.ts`):
   - Detail is now chosen per tree, not per 100 m cell. Within 80 m a palm uses the 7.5k-triangle model; beyond that, the 2.3k one.
   - Each 250 m chunk is one near and one far InstancedMesh.
   - The split is re-sorted only after the camera moves 4 m. This fixes the 6b gap where a palm 40 to 180 m away could draw at either detail.
+  - Review fix: the re-sort copies matrices with an index loop instead of a `subarray` view per spot, so it allocates nothing.
 - **Ferns:** drawn only within 140 m, using the same per-spot sorter. They are about 1 m tall, so past that range they are a few pixels.
 - **Streetlights:** one instanced batch for all 800 (about 120k triangles) instead of about 25 chunk draws per pass.
 - **Parked cars:** hidden beyond 150 m of the player (`DRAW_RANGE` in `driving.ts`). Their wheels hide with them.
-- **N8AO transparency mode off:** the biggest single GPU finding.
+- **N8AO transparency mode off** (`src/render/ao-pass.ts`): the biggest single GPU finding.
   - N8AO sees the transparent sea and switches on its transparency mode. That adds two extra scene renders and four whole-scene traversals every frame, and each extra render re-triggers the water's mirror pass.
-  - Turning it off gained about +3 fps in paired uncapped runs (2.7, 2.8, 4.1). Screenshots show no visible change on the water or the canal.
+  - Review fix: the first commit set `autoDetectTransparency` after the constructor had already detected the sea, so the mode stayed on and the shipped build never got the gain. The +3 fps first recorded here came from a probe toggle, not from the committed code. The pass now sets `autoDetectTransparency = false` and then `configuration.transparencyAware = false` (both typed in `n8ao.d.ts`). `ao-pass.test.ts` fails against the old code.
+  - Re-measured on the shipped builds, before and after the fix: 1920x1080, High, uncapped (vsync off), M4 Metal, four interleaved pairs.
+    - Beach: 46.0 / 44.9 / 42.7 / 39.1 before, 51.3 / 46.1 / 44.1 / 47.0 after. Paired gain +1.2 to +7.9, mean +4.0.
+    - Canal: paired gain +0.5 to +6.3, mean +3.8. Downtown at night: +0.4 to +12.1, mean +5.3.
+    - Background GPU load drifted downward across the runs, so single pairs are noisy; every pair favors the fix.
+  - Screenshots show no visible change on the beach, the canal water, or at night (`07-screens/ao-transparency-canal.jpg`, before on top).
 - **Shadow map 2048 on High** (was 4096), with the filter radius set to 2 texels. The world-space softness is nearly unchanged.
   - Paired gain: +1.6 to +2.5 fps.
   - Palm and player shadows look the same in a cropped before/after comparison.
@@ -63,7 +70,8 @@ At the beach (760 draw calls), 120 of the main pass's 408 calls were wheels: 15 
   - N8AO "Low" quality: no gain, since its cost is the full-resolution passes, not the sample count.
   - Hiding pedestrians from the water mirror: within noise.
   - Removing palms entirely: +5, which is the ceiling for any further palm LOD work.
-- **Minimap:** skips the clip-and-rotate redraw when position, yaw, heading, zoom, and search blink are all unchanged.
+- **Minimap:** skips the clip-and-rotate redraw when position, yaw, heading, zoom, and the search area are all unchanged.
+  - Review fix: the key now includes the search area's center, so a moving search area redraws, and it is written into a reused buffer instead of a new array each frame.
   - The 2440 px base canvas was kept. Profiling shows the minimap under 1% of main-thread time.
   - At 1 px/m it is already upscaled 1.5x on Retina, so halving it would blur the roads.
 
@@ -116,11 +124,13 @@ Unchanged. A click made while a hip-fire shot is still waiting for the gun no lo
 - **`pnpm install`:** adds `@types/node` 22.20.5 (dev only).
 - **`pnpm lint`:** "All matched files use Prettier code style!"
   - A one-off `max-lines: 300` plus `max-lines-per-function: 40` run over every changed file passes.
-- **`pnpm test`:** 17 files, 61 tests passed. New:
+- **`pnpm test`:** 18 files, 62 tests passed (after the review fixes). New:
+  - `ao-pass.test.ts`: transparency mode stays off with a transparent sea added before or after the pass.
   - `lod-instances.test.ts`: per-spot near/far split, the 4 m re-sort threshold, and hiding an empty mesh.
   - `wheel-batch.test.ts`: hidden cars skipped; the right side flipped and placed.
 - **`pnpm build`:** "built in 316ms".
-- **`pnpm test:e2e` (full, local):** 5 passed (4.4 min).
+- **`pnpm test:e2e` (full, local):** 5 passed (4.4 min). After the review fixes: 5 passed (4.2 min).
+- **After the review fixes, on the GPU:** a parked car and a driven, steering car show their wheels in place; no page or console errors.
 - **`CI=1` smoke subset:** run locally against `vite preview` on a spare port at 960x540. 3 passed (2.0 min, 678 s of CPU).
   - A 2-core runner should take about 6 minutes for this step, so the whole job should fit in about 10 to 12 minutes.
 - **Screenshots** in `.planning/phases/07-screens/`. Each before/after image has before on top and after below:
@@ -143,4 +153,5 @@ Unchanged. A click made while a hip-fire shot is still waiting for the gun no lo
   - The near/far palm swap happens per tree at 80 m.
 - **Wheel batch pool:** capped at 120 wheels per car kind (30 cars), with a console warning past that. The city spawns 22 cars.
 - **N8AO transparency mode is off.** If transparent glass or foliage is added later that should block AO, set `userData.treatAsOpaque` on the sea instead, and turn the mode back on.
+- **Left from review, low priority:** `@types/node` is still in the project-wide `tsconfig.json` types, so browser code in `src/` type-checks Node globals. A separate tsconfig for `e2e/`, `playwright.config.ts`, and the tests would keep `src/` browser-only.
 - No paid generation was used.
