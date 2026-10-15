@@ -11,7 +11,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -42,11 +42,12 @@ jobs:
         if: steps.browsers.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
-      # SwiftShader on a 2-core runner draws well under 1 fps, so CI runs the tagged
-      # smoke tests (load, play, walk, drive, shoot); run the full suite locally.
+      # SwiftShader on a 2-core runner draws well under 1 fps, so CI runs one boot-and-walk
+      # test on Low; the full suite (swim, drive, shoot, life) runs locally with `pnpm test:e2e`.
       - run: pnpm test:e2e --grep @smoke
+        timeout-minutes: 10
       - uses: actions/upload-artifact@v7
-        if: failure()
+        if: failure() || cancelled()
         with:
           name: test-results
           path: test-results/
