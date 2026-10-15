@@ -1,6 +1,7 @@
 import * as THREE from 'three'
-import { CURB_H, ROAD_HALF, type CityLayout, type Rect } from '../city/layout'
+import { CURB_H, ROAD_HALF, SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
 import { CANAL_FLOOR } from '../city/terrain'
+import { RAPIER } from '../physics'
 import { addMerged, metricBox, rectBox, rectCollider, type WorldCtx } from './blocks'
 import { pbr } from './materials'
 
@@ -9,6 +10,11 @@ const WALL = 0.5
 const PROUD = 0.02
 const RAIL_H = 1.05
 const POST_GAP = 2.4
+const STAIR_W = 1.4
+const STEP_RUN = 0.4
+// Steps start just under the surface, so a floating swimmer can reach them, and rise to the bank.
+const STEP_COUNT = 10
+const STEP_RISE = (CURB_H - (SEA_LEVEL - 1.15)) / STEP_COUNT
 
 /** Seawalls along both banks and across both ends of the canal. */
 function walls(c: CityLayout): Rect[] {
@@ -35,6 +41,43 @@ function bridges(c: CityLayout) {
   }))
 }
 
+type Step = { r: Rect; top: number }
+
+/**
+ * A flight of steps against the seawall: a landing level with the bank, then
+ * steps descending along the wall into the water. Returns the steps and the
+ * landing's z range, where the railing leaves a gap.
+ */
+function stairs(wallX: number, side: 1 | -1, z: number) {
+  const [x0, x1] = side > 0 ? [wallX, wallX + STAIR_W] : [wallX - STAIR_W, wallX]
+  const steps: Step[] = [{ r: { x0, x1, z0: z - STAIR_W, z1: z }, top: CURB_H }]
+  for (let k = 1; k <= STEP_COUNT; k++) {
+    const r = { x0, x1, z0: z + (k - 1) * STEP_RUN, z1: z + k * STEP_RUN }
+    steps.push({ r, top: CURB_H - k * STEP_RISE })
+  }
+  return { steps, gap: [z - STAIR_W, z] as const }
+}
+
+/**
+ * The flight collides as a smooth ramp over the step nosings, carried on
+ * two meters past the last step so a swimmer slides up it out of the water.
+ * Capsules snag on 0.4 m treads; a ramp under visible steps is the usual trick.
+ */
+function stairRamp(ctx: WorldCtx, landing: Rect, z: number): void {
+  const run = STEP_COUNT * STEP_RUN + 2
+  const drop = (run / STEP_RUN) * STEP_RISE
+  const len = Math.hypot(run, drop)
+  const angle = Math.atan2(drop, run)
+  const t = 0.4
+  // Midpoint of the slope line, pushed down half the slab thickness along its normal.
+  const y = CURB_H - drop / 2 - (Math.cos(angle) * t) / 2
+  const zc = z + run / 2 - (Math.sin(angle) * t) / 2
+  const desc = RAPIER.ColliderDesc.cuboid((landing.x1 - landing.x0) / 2, t / 2, len / 2)
+    .setTranslation((landing.x0 + landing.x1) / 2, y, zc)
+    .setRotation({ x: Math.sin(angle / 2), y: 0, z: 0, w: Math.cos(angle / 2) })
+  ctx.physics.createCollider(desc)
+}
+
 /** White railing (posts and two rails) along one bank between two bridges. */
 function railing(x: number, z0: number, z1: number): THREE.BufferGeometry[] {
   const len = z1 - z0
@@ -47,7 +90,6 @@ function railing(x: number, z0: number, z1: number): THREE.BufferGeometry[] {
 }
 
 export function buildCanal(ctx: WorldCtx, c: CityLayout): void {
-  const k = c.canal
   const stone = pbr('white_stucco', 0.5, { color: 0xd4ccbc, roughness: 0.95 })
   const metal = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.35, metalness: 0.6 })
   const sides = walls(c)
@@ -64,15 +106,41 @@ export function buildCanal(ctx: WorldCtx, c: CityLayout): void {
   )
   for (const r of sides) rectCollider(ctx, r, CANAL_FLOOR - 0.2, -PROUD)
   for (const r of parapets) rectCollider(ctx, r, 0, 0.9)
+  buildBanks(ctx, c, stone, metal)
+}
 
+/** Railings along both banks, broken where a flight of steps leads down into the water. */
+function buildBanks(ctx: WorldCtx, c: CityLayout, stone: THREE.Material, metal: THREE.Material) {
+  const k = c.canal
   const rails: THREE.BufferGeometry[] = []
+  const steps: Step[] = []
   for (let i = 0; i + 1 < c.zRoads.length; i++) {
     const z0 = c.zRoads[i] + ROAD_HALF + 0.3
     const z1 = c.zRoads[i + 1] - ROAD_HALF - 0.3
+    // One flight per stretch between bridges, alternating banks.
+    const west = i % 2 === 0
+    const flight = stairs(west ? k.x0 : k.x1, west ? 1 : -1, (z0 + z1) / 2)
+    steps.push(...flight.steps)
+    rectCollider(ctx, flight.steps[0].r, CANAL_FLOOR, CURB_H)
+    stairRamp(ctx, flight.steps[0].r, (z0 + z1) / 2)
     for (const x of [k.x0 - 0.15, k.x1 + 0.15]) {
-      rails.push(...railing(x, z0, z1))
-      rectCollider(ctx, { x0: x - 0.05, x1: x + 0.05, z0, z1 }, CURB_H, CURB_H + RAIL_H)
+      const runs =
+        x < k.x0 === west
+          ? [
+              [z0, flight.gap[0]],
+              [flight.gap[1], z1],
+            ]
+          : [[z0, z1]]
+      for (const [a, b] of runs) {
+        rails.push(...railing(x, a, b))
+        rectCollider(ctx, { x0: x - 0.05, x1: x + 0.05, z0: a, z1: b }, CURB_H, CURB_H + RAIL_H)
+      }
     }
   }
   addMerged(ctx, rails, metal)
+  addMerged(
+    ctx,
+    steps.map((s) => rectBox(s.r, CANAL_FLOOR, s.top)),
+    stone,
+  )
 }
