@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { CURB_H, type CityLayout } from '../city/layout'
+import type { CityLayout } from '../city/layout'
 import { FLOOR_H, type Building, type Style } from '../city/lots'
 import { RAPIER } from '../physics'
 import { addMerged, metricBox, tinted, type WorldCtx } from './blocks'
@@ -44,10 +44,10 @@ function walls(b: Building, w: number, d: number, y0: number, y1: number) {
 const box = (b: Building, w: number, h: number, d: number, x: number, y: number, z: number) =>
   metricBox(w, h, d).translate(b.x + x, y + h / 2, b.z + z)
 
-/** A centered w x d block from y0 to y1 that the player cannot walk through. */
-function solid(p: Parts, b: Building, w: number, d: number, y0: number, y1: number) {
-  const min = new THREE.Vector3(b.x - w / 2, y0, b.z - d / 2)
-  p.solids.push(new THREE.Box3(min, new THREE.Vector3(b.x + w / 2, y1, b.z + d / 2)))
+/** A w x d block from y0 to y1, offset (x, z) from the footprint center, that the player cannot walk through. */
+function solid(p: Parts, b: Building, w: number, d: number, y0: number, y1: number, x = 0, z = 0) {
+  const min = new THREE.Vector3(b.x + x - w / 2, y0, b.z + z - d / 2)
+  p.solids.push(new THREE.Box3(min, new THREE.Vector3(b.x + x + w / 2, y1, b.z + z + d / 2)))
 }
 
 /** Stone plinth so facades do not look sunk into the sidewalk. */
@@ -65,6 +65,11 @@ function crownParts(b: Building, p: Parts, w: number, d: number, top: number, co
     tinted(box(b, t, 1.1, d - 2 * t, -(w - t) / 2, top, 0), color),
   )
   p.roof.push(box(b, w - 2 * t, 0.12, d - 2 * t, 0, top, 0))
+  solid(p, b, w, d, top, top + 0.12)
+  solid(p, b, w, t, top, top + 1.1, 0, (d - t) / 2)
+  solid(p, b, w, t, top, top + 1.1, 0, -(d - t) / 2)
+  solid(p, b, t, d, top, top + 1.1, (w - t) / 2, 0)
+  solid(p, b, t, d, top, top + 1.1, -(w - t) / 2, 0)
 }
 
 function decoParts(b: Building, p: Parts, wall: number, accent: number) {
@@ -80,7 +85,8 @@ function decoParts(b: Building, p: Parts, wall: number, accent: number) {
   crownParts(b, p, b.w, b.d, h, wall)
   if (b.seed % 3 === 0) {
     const side = b.seed % 2 ? 1 : -1
-    p.trim.push(tinted(box(b, 0.9, h * 0.5 + 5, 3.2, (side * (b.w + 0.9)) / 2, h * 0.5, 0), accent))
+    // Straddles the side wall so above the roof it grows out of the parapet, not beside it.
+    p.trim.push(tinted(box(b, 1.2, h * 0.5 + 5, 3.2, (side * b.w) / 2, h * 0.5, 0), accent))
   }
 }
 
@@ -116,6 +122,7 @@ function glassParts(b: Building, p: Parts, wall: number) {
     solid(p, b, w, d, split, h)
   }
   p.trim.push(tinted(box(b, w + 0.4, 1.6, d + 0.4, 0, h, 0), 0xdedfdd))
+  solid(p, b, w + 0.4, d + 0.4, h, h + 1.6)
   p.trim.push(tinted(box(b, w * 0.4, 4, d * 0.4, 0, h + 1.6, 0), 0xdedfdd))
   solid(p, b, w * 0.4, d * 0.4, h, h + 5.6)
   if (b.seed % 3 === 0) p.trim.push(tinted(box(b, 0.6, 14, 0.6, 0, h + 5.6, 0), 0xdedfdd))
@@ -154,7 +161,7 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
       const half = s.getSize(new THREE.Vector3()).multiplyScalar(0.5)
       const at = s.getCenter(new THREE.Vector3())
       const desc = RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z)
-      ctx.physics.createCollider(desc.setTranslation(at.x, at.y + CURB_H, at.z))
+      ctx.physics.createCollider(desc.setTranslation(at.x, at.y, at.z))
     }
   }
 }
