@@ -5,8 +5,8 @@ import { SunFx } from './sun-fx'
 
 const EXPOSURE = 1.0
 // Depth of field in normal play (a soft far background) and when aiming (a tight focus).
-const DOF_CALM = { range: 90, bokeh: 1.2 }
-const DOF_AIM = { range: 22, bokeh: 3.2 }
+const DOF_CALM = { range: 160, strength: 0.75 }
+const DOF_AIM = { range: 30, strength: 1 }
 // Motion blur on foot is a hint; in a car it grows with speed, full at this many m/s.
 const BLUR_FOOT = 0.3
 const BLUR_TOP_SPEED = 30
@@ -85,9 +85,10 @@ export class Renderer {
     const c = this.chain
     if (!c) return
     if (c.dof) {
-      c.dof.target!.copy(v.focus)
-      c.dof.cocMaterial.focusRange = THREE.MathUtils.lerp(DOF_CALM.range, DOF_AIM.range, v.aim)
-      c.dof.bokehScale = THREE.MathUtils.lerp(DOF_CALM.bokeh, DOF_AIM.bokeh, v.aim)
+      const f = c.dof.focus
+      f.distance = this.camera.position.distanceTo(v.focus)
+      f.range = THREE.MathUtils.lerp(DOF_CALM.range, DOF_AIM.range, v.aim)
+      f.strength = THREE.MathUtils.lerp(DOF_CALM.strength, DOF_AIM.strength, v.aim)
     }
     if (c.blur) c.blur.intensity = Math.max(BLUR_FOOT, Math.min(1, v.speed / BLUR_TOP_SPEED))
     c.flare?.set(this.sun.uv, this.sun.flare, this.sun.tint)

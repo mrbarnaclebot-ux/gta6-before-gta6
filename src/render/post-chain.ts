@@ -3,7 +3,6 @@ import {
   BlendFunction,
   BloomEffect,
   ChromaticAberrationEffect,
-  DepthOfFieldEffect,
   type Effect,
   EffectComposer,
   EffectPass,
@@ -19,6 +18,7 @@ import {
   VignetteEffect,
 } from 'postprocessing'
 import { aoPass } from './ao-pass'
+import { DistanceBlurEffect } from './distance-blur'
 import { gradeLut } from './grade'
 import type { Graphics } from './graphics'
 import { LensFlareEffect } from './lens-flare'
@@ -28,7 +28,7 @@ import type { SunFx } from './sun-fx'
 /** The composer plus the effects that need per-frame input. Absent when switched off. */
 export interface Chain {
   composer: EffectComposer
-  dof?: DepthOfFieldEffect
+  dof?: DistanceBlurEffect
   blur?: MotionBlurEffect
   flare?: LensFlareEffect
 }
@@ -62,14 +62,8 @@ function godRays(c: Ctx): GodRaysEffect {
 function mainEffects(c: Ctx, g: Graphics, out: Chain): Effect[] {
   const fx: Effect[] = []
   if (g.dof) {
-    // Focus follows the player (see Renderer.focus); the range opens wide outside aiming.
-    out.dof = new DepthOfFieldEffect(c.camera, {
-      focusDistance: 6,
-      focusRange: 60,
-      bokehScale: 1.6,
-    })
-    out.dof.target = new THREE.Vector3()
-    fx.push(out.dof)
+    // Focus follows the player or the crosshair (see Renderer.frame).
+    fx.push((out.dof = new DistanceBlurEffect(c.camera)))
   }
   if (g.godRays) fx.push(godRays(c))
   if (g.bloom) {

@@ -62,7 +62,10 @@ export class Shadows {
     })
     installCsmChunks()
     csm.fade = true
-    csm.lights.forEach((l, i) => (l.shadow.radius = RADII[i]))
+    csm.lights.forEach((l, i) => {
+      l.shadow.radius = RADII[i]
+      l.shadow.needsUpdate = true
+    })
     this.csm = csm
     this.materials = new CsmMaterials(csm)
     this.materials.adopt(this.scene)
@@ -85,11 +88,16 @@ export class Shadows {
       l.intensity = this.sun.intensity
     }
     csm.update()
-    // Normal bias of about one texel, which grows with each cascade's footprint.
-    for (const l of csm.lights) {
+    // The nearest cascade redraws every frame; the farther ones take turns, one per frame.
+    // A skipped map keeps last frame's matrix with it, so it stays aligned, just a frame old.
+    const turn = 1 + (this.frame % (csm.lights.length - 1))
+    csm.lights.forEach((l, i) => {
+      l.shadow.autoUpdate = false
+      l.shadow.needsUpdate ||= i === 0 || i === turn
+      // Normal bias of about one texel, which grows with each cascade's footprint.
       const cam = l.shadow.camera
       l.shadow.normalBias = ((cam.right - cam.left) / l.shadow.mapSize.x) * 1.2
-    }
+    })
   }
 
   private single(): void {
