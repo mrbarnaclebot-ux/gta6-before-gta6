@@ -17,4 +17,10 @@ The 2 x 2 km world around the city as pure, seeded data: no three.js. `src/scene
 - `lane-graph.ts` directed highway lanes for traffic, with ramps and turnarounds
 - `road-graph.ts`, `route-search.ts` the GPS graph over every road and A* by travel time
 - `landmarks.ts` named spots outside the city for tests and the perf probe
-- `*.test.ts` terrain, grade, bridge clearance, lane and road connectivity checks
+- `footing.ts` the one ground-placement helper: upright things on their lowest ground, rigid footprints (cars) on a fitted plane, rocks tilted with the slope
+- `flora.ts` entry point `generateFlora(land)`: biome-aware trees, bushes, rocks, and palms, each set on the ground; `flora-rows.ts` avenue palms and front-yard hedges; `plant.ts` shared sizes, sink allowances, tints
+- `poisson.ts` Poisson-disk points (a wrapping Bridson tile repeated over the map)
+- `clearance.ts` a 2 m raster of where plants may grow: roads, buildings, the city blocked; yards garden only
+- `grass.ts` grass clumps around a point from a fixed hashed grid; `canopy.ts` shade under tree crowns for the terrain
+- `beach-props.ts` lifeguard towers and umbrellas, set on the sand
+- `*.test.ts` terrain, grade, bridge clearance, lane and road connectivity checks; `grounding.test.ts` checks nothing floats

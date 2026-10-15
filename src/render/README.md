@@ -22,4 +22,5 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 - `sky-analysis.ts` finds the sun and horizon color in an HDRI; ACES curve for fog without post
 - `hsv-glsl.ts` GLSL rgb and hsv conversions for shaders that recolor baked textures
 - `n8ao.d.ts` types for the ambient occlusion pass
+- `card-normals.ts` leaf and grass cards: keep their up-leaning normals on back faces, and draw them matte
 - `*.test.ts` checks for the pure parts
