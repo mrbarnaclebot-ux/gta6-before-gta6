@@ -11,7 +11,10 @@ declare module 'n8ao' {
       intensity: number
       halfRes: boolean
       gammaCorrection: boolean
+      transparencyAware: boolean
     }
+    autoDetectTransparency: boolean
+    detectTransparency(): void
     setQualityMode(mode: 'Performance' | 'Low' | 'Medium' | 'High' | 'Ultra'): void
   }
 }

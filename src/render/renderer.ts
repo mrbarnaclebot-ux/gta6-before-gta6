@@ -10,8 +10,8 @@ import {
   ToneMappingMode,
   VignetteEffect,
 } from 'postprocessing'
-import { N8AOPostPass } from 'n8ao'
 import type { Quality } from '../settings'
+import { aoPass } from './ao-pass'
 
 const EXPOSURE = 1.0
 
@@ -70,17 +70,7 @@ export class Renderer {
   private buildComposer(): EffectComposer {
     const composer = new EffectComposer(this.gl, { frameBufferType: THREE.HalfFloatType })
     composer.addPass(new RenderPass(this.scene, this.camera))
-    const ao = new N8AOPostPass(this.scene, this.camera, innerWidth, innerHeight)
-    ao.configuration.aoRadius = 1.6
-    ao.configuration.distanceFalloff = 0.6
-    ao.configuration.intensity = 2.2
-    ao.configuration.halfRes = true
-    ao.setQualityMode('Medium')
-    // The sea is transparent, so N8AO would turn on its transparency mode: two more scene
-    // renders a frame, each re-drawing the water's reflection. AO on the water itself is invisible.
-    // The flag exists at runtime but not in n8ao's typings.
-    Object.assign(ao, { autoDetectTransparency: false })
-    composer.addPass(ao)
+    composer.addPass(aoPass(this.scene, this.camera, innerWidth, innerHeight))
     const bloom = new BloomEffect({
       mipmapBlur: true,
       luminanceThreshold: 0.95,
