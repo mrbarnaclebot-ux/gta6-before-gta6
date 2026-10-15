@@ -1,7 +1,15 @@
 import { expect, test, type Page } from '@playwright/test'
 
 type Point = { x: number; y: number; z: number }
-type GameState = { position: Point; frames: number; mode: string; fps: number; drawCalls: number }
+type GameState = {
+  position: Point
+  frames: number
+  mode: string
+  fps: number
+  drawCalls: number
+  breath: number
+  underwater: boolean
+}
 type Game = {
   state: () => GameState
   landmarks: () => Record<string, Point>
@@ -74,5 +82,32 @@ test('loads, plays, walks, and stands on the city', async ({ page }) => {
   await page.screenshot({ path: 'test-results/beach.png' })
   await visit(page, 'rooftop', 2.3, 0.5)
   await page.screenshot({ path: 'test-results/city.png' })
+  expect(errors).toEqual([])
+})
+
+test('swims in the ocean and dives under', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Play' }).click()
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await settle(page)
+
+  await visit(page, 'ocean', -1.2, 0.15)
+  const floating = await game(page)
+  expect(floating.mode).toBe('swimming')
+  await page.screenshot({ path: 'test-results/swim.png' })
+
+  // A level camera follows the diver under the surface.
+  await page.evaluate(() => (window as unknown as { __game: Game }).__game.setCameraPitch(0))
+  await page.keyboard.down('Control')
+  await settle(page, 14)
+  await page.keyboard.up('Control')
+  const dived = await game(page)
+  console.log(`dived to y ${dived.position.y.toFixed(2)}, breath ${dived.breath.toFixed(1)}`)
+  expect(dived.mode).toBe('swimming')
+  expect(dived.position.y).toBeLessThan(floating.position.y - 0.5)
+  expect(dived.underwater).toBe(true)
+  await page.screenshot({ path: 'test-results/underwater.png' })
   expect(errors).toEqual([])
 })
