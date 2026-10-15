@@ -49,7 +49,9 @@ export function groundProbe(physics: PhysicsWorld) {
   const ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, DOWN)
   return (x: number, y: number, z: number): number | null => {
     // Rapier's heightfield misses rays that run exactly down a grid line (lanes sit on whole meters).
-    ray.origin = { x: x + NUDGE, y: y + 1.5, z: z + NUDGE }
+    ray.origin.x = x + NUDGE
+    ray.origin.y = y + 1.5
+    ray.origin.z = z + NUDGE
     const hit = physics.castRay(ray, 4, true, SOLID_ONLY)
     return hit ? y + 1.5 - hit.timeOfImpact : null
   }

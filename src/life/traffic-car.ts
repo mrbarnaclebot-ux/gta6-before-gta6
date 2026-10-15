@@ -162,9 +162,13 @@ export class TrafficCar {
   private settle(k: number): void {
     const { x, y, z } = this.position
     const feet = corners(x, z, this.heading, CAR_HALF.l, CAR_HALF.w)
-    const h = feet.map((c) => this.ground(c.x, y, c.z) ?? y)
+    let found = false
+    const h = feet.map((c) => {
+      const g = this.ground(c.x, y, c.z)
+      if (g !== null) found = true
+      return g ?? y
+    })
     const rest = restOnCorners(h, CAR_HALF.l, CAR_HALF.w)
-    const found = h.some((v) => v !== y)
     this.feet.set(x, found ? rest.y : y, z)
     this.pitch += ((found ? rest.pitch : this.slope) - this.pitch) * k
     this.roll += ((found ? rest.roll : 0) - this.roll) * k
