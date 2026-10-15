@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { game, play, settle, SLOW, visit, type Game } from './helpers'
+import { game, LOAD_TIMEOUT, play, settle, SLOW, visit, type Game } from './helpers'
 
 test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
   // High quality in SwiftShader with people and traffic about runs near 1 fps.
@@ -9,7 +9,7 @@ test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ 
   await page.goto('/')
   await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible()
   await page.getByRole('button', { name: 'Play' }).click()
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: LOAD_TIMEOUT })
   await settle(page)
   await expect(page.locator('#title')).toBeHidden()
 
@@ -67,7 +67,7 @@ test('gets into a parked car and drives it', { tag: '@smoke' }, async ({ page })
   await page.goto('/?quality=low')
   // Space on the focused Play button must start the game, not be swallowed as a game key.
   await page.getByRole('button', { name: 'Play' }).press('Space')
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: LOAD_TIMEOUT })
   await settle(page)
 
   await visit(page, 'car', 0.6, 0.2)

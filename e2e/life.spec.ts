@@ -64,7 +64,20 @@ async function dieAndRevive(page: Page) {
   expect(gap).toBeLessThan(2)
 }
 
-/** Esc pauses: the clock stops, and the sensitivity setting persists. */
+/** The Graphics tab: a toggle makes the preset Custom and applies live; a preset puts it back. */
+async function graphicsSettings(page: Page) {
+  await page.locator('label.switch:has(#bloom)').click()
+  await settle(page, 2)
+  expect((await game(page)).quality).toBe('custom')
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('vice.graphics') ?? '{}'))
+  expect(saved.bloom).toBe(true)
+  await page.locator('#preset label', { hasText: 'Low' }).click()
+  await settle(page, 2)
+  expect((await game(page)).quality).toBe('low')
+  await expect(page.locator('#preset input[value="low"]')).toBeChecked()
+}
+
+/** Esc pauses: the clock stops, settings apply, and the sensitivity setting persists. */
 async function pauseMenu(page: Page) {
   await page.keyboard.press('Escape')
   await settle(page, 2)
@@ -73,6 +86,8 @@ async function pauseMenu(page: Page) {
   await settle(page, 3)
   expect((await game(page)).paused).toBe(true)
   expect((await game(page)).hours).toBe(pausedAt)
+  await graphicsSettings(page)
+  await page.getByRole('tab', { name: 'Controls' }).click()
   await page.locator('#sensitivity').fill('2')
   expect((await game(page)).sensitivity).toBe(2)
   expect(await page.evaluate(() => localStorage.getItem('vice.sensitivity'))).toBe('2')

@@ -19,6 +19,7 @@ export type GameState = {
   sensitivity: number
   hours: number
   night: number
+  quality: string
 }
 export type Game = {
   state: () => GameState
@@ -38,6 +39,11 @@ export type Game = {
 
 /** SwiftShader on a 2-core CI runner is a few times slower than on a dev machine. */
 export const SLOW = process.env.CI ? 3 : 1
+/**
+ * Loading the city and the first frames at a new spot (shader compiles) run on the CPU under
+ * SwiftShader; with five tests rendering in parallel either can take over a minute.
+ */
+export const LOAD_TIMEOUT = 120_000 * SLOW
 
 export const game = (page: Page) =>
   page.evaluate(() => (window as unknown as { __game: Game }).__game.state())
@@ -48,7 +54,7 @@ export async function settle(page: Page, frames = 6) {
   await page.waitForFunction(
     (n) => (window as unknown as { __game: Game }).__game.state().frames > n,
     start + frames,
-    { timeout: 60_000 * SLOW },
+    { timeout: LOAD_TIMEOUT },
   )
 }
 
@@ -58,7 +64,7 @@ export async function play(page: Page, url: string) {
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto(url)
   await page.getByRole('button', { name: 'Play' }).click()
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: LOAD_TIMEOUT })
   await settle(page)
   return errors
 }
