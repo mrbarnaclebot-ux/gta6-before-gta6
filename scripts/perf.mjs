@@ -1,12 +1,19 @@
 // Frame-rate and load probe: node scripts/perf.mjs <url> <screenshot-dir> [high|low] [deviceScaleFactor]
 // macOS only: it forces Chrome onto the real GPU through ANGLE's Metal backend.
+// UNCAPPED=1 turns off vsync so A/B runs show headroom above 60 fps.
 import { chromium } from '@playwright/test'
 const URL = process.argv[2]
 const OUT = process.argv[3]
 const quality = process.argv[4] || 'high'
 const browser = await chromium.launch({
   headless: true,
-  args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--enable-unsafe-webgpu'],
+  args: [
+    '--use-angle=metal',
+    '--enable-gpu',
+    '--ignore-gpu-blocklist',
+    '--enable-unsafe-webgpu',
+    ...(process.env.UNCAPPED ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : []),
+  ],
 })
 const ctx = await browser.newContext({
   viewport: { width: 1920, height: 1080 },
@@ -22,7 +29,7 @@ cdp.on('Network.loadingFinished', (e) => {
   bytes += e.encodedDataLength
 })
 const t0 = Date.now()
-await page.goto(URL + (quality === 'low' ? '?quality=low&debug' : '?debug'), { waitUntil: 'load' })
+await page.goto(`${URL}?quality=${quality}&debug`, { waitUntil: 'load' })
 const tTitle = Date.now() - t0
 const gpu = await page.evaluate(() => {
   const g = document.createElement('canvas').getContext('webgl2')
