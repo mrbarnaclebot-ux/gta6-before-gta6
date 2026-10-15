@@ -3,6 +3,7 @@ import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { Grounded } from '../city/layout'
 import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
+import { matteCard } from '../render/card-normals'
 import type { WorldCtx } from './blocks'
 import { impostor } from './impostor'
 import { instanceParts, modelParts, type Part } from './instancing'
@@ -56,9 +57,19 @@ async function plantPalms(
   }
 }
 
-/** The Poly Haven fern file holds four plants side by side; each becomes its own variant. */
+/**
+ * The Poly Haven fern file holds four plants side by side; each becomes its own variant.
+ * Matte (see matteCard): in full sun the PBR fronds glowed pale yellow on the sand.
+ */
 function fernVariants(gltf: GLTF): Part[][] {
-  return gltf.scene.children.map((child: THREE.Object3D) => modelParts(child))
+  const matte = new Map<THREE.Material, THREE.Material>()
+  const swap = (m: THREE.Material) => {
+    if (!matte.has(m)) matte.set(m, matteCard(m as THREE.MeshStandardMaterial))
+    return matte.get(m)!
+  }
+  return gltf.scene.children.map((child: THREE.Object3D) =>
+    modelParts(child).map((p) => ({ ...p, material: swap(p.material) })),
+  )
 }
 
 /** The city's palms and ferns, plus the palms outside it (`more`). */
