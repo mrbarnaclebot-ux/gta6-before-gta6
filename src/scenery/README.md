@@ -13,4 +13,4 @@ Meshes and colliders for everything outside the city grid, built from `src/land`
 - `villas.ts` hillside villas, terraces, pools, retaining walls
 - `beach.ts` lifeguard towers, umbrellas, loungers; `dune-grass.ts` sea oats on the dune crests
 - `forest.ts` the Poly Haven trees (card trees near, lighter trunks mid, impostors far), bushes, rocks, and their colliders
-- `grass.ts` grass clumps around the camera, swaying in the wind and fading out with distance
+- `grass.ts` grass clumps around the camera, swaying in the wind and fading out with distance; `grass-tiles.ts` caches their 29 m tiles, building a few per frame

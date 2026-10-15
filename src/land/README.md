@@ -21,6 +21,6 @@ The 2 x 2 km world around the city as pure, seeded data: no three.js. `src/scene
 - `flora.ts` entry point `generateFlora(land)`: biome-aware trees, bushes, rocks, and palms, each set on the ground; `flora-rows.ts` avenue palms and front-yard hedges; `plant.ts` shared sizes, sink allowances, tints
 - `poisson.ts` Poisson-disk points (a wrapping Bridson tile repeated over the map)
 - `clearance.ts` a 2 m raster of where plants may grow: roads, buildings, the city blocked; yards garden only
-- `grass.ts` grass clumps around a point from a fixed hashed grid; `canopy.ts` shade under tree crowns for the terrain
+- `grass.ts` grass clumps per 29 m tile from a fixed hashed grid; `canopy.ts` shade under tree crowns for the terrain
 - `beach-props.ts` lifeguard towers and umbrellas, set on the sand
 - `*.test.ts` terrain, grade, bridge clearance, lane and road connectivity checks; `grounding.test.ts` checks nothing floats

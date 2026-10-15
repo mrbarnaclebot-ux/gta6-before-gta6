@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import type { Grounded } from '../city/layout'
 import type { Clearance } from '../land/clearance'
-import { GRASS_CELL, grassAround } from '../land/grass'
+import { CLUMP_STRIDE, GRASS_CELL, grassTile } from '../land/grass'
 import type { Land } from '../land/plan'
 import { KEEP_NORMAL } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
-import { DETAIL_LAYER, spotMatrix } from '../world/instancing'
+import { DETAIL_LAYER } from '../world/instancing'
+import { GrassTiles } from './grass-tiles'
 
 /*
  * Grass clumps drawn only around the camera: one instanced mesh refilled as the camera
@@ -19,6 +19,12 @@ const ATLAS = '/assets/textures/grass_clumps.webp'
 const RANGE = 42
 // Refill once the camera has moved this far: the fade hides clumps appearing at the edge.
 const REFILL = 3
+/** Milliseconds a frame may spend building grass tiles. */
+const BUDGET = 2
+/** Floats per clump once baked: its instance matrix, atlas cell, and dry flag. */
+const BAKED = 18
+// A straw tint for dry clumps: it must stay light, as it multiplies an already dark texture.
+const DRY = new THREE.Color(0xffe9a0)
 
 /** Three crossed cards, 2 m wide and 1 m tall (the atlas cells are 2:1), normals leaning up. */
 function clump(): THREE.BufferGeometry {
@@ -74,6 +80,53 @@ function material(time: { value: number }, range: { value: number }): THREE.Mesh
   return m
 }
 
+/** A tile's clumps as instance matrices, so a refill only copies numbers. */
+function bake(land: Land, clear: Clearance, ti: number, tj: number): Float32Array {
+  const c = grassTile(land, clear, ti, tj)
+  const out = new Float32Array((c.length / CLUMP_STRIDE) * BAKED)
+  const m = new THREE.Matrix4()
+  const turn = new THREE.Quaternion()
+  const up = new THREE.Vector3(0, 1, 0)
+  const at = new THREE.Vector3()
+  const size = new THREE.Vector3()
+  for (let k = 0, o = 0; k < c.length; k += CLUMP_STRIDE, o += BAKED) {
+    turn.setFromAxisAngle(up, c[k + 4])
+    m.compose(at.set(c[k], c[k + 1], c[k + 2]), turn, size.setScalar(c[k + 3]))
+    m.toArray(out, o)
+    out[o + 16] = Math.floor((c[k + 4] * 1.37) % 4)
+    out[o + 17] = c[k + 5]
+  }
+  return out
+}
+
+/** Copies every baked clump within `radius` of (x, z) into the mesh. */
+function refill(
+  mesh: THREE.InstancedMesh,
+  cells: Float32Array,
+  tiles: GrassTiles,
+  x: number,
+  z: number,
+  radius: number,
+) {
+  const mats = mesh.instanceMatrix.array as Float32Array
+  const colors = mesh.instanceColor!.array as Float32Array
+  const cap = cells.length
+  let n = 0
+  tiles.forEach(x, z, radius, (t) => {
+    for (let o = 0; o < t.length && n < cap; o += BAKED) {
+      if ((t[o + 12] - x) ** 2 + (t[o + 14] - z) ** 2 > radius * radius) continue
+      for (let k = 0; k < 16; k++) mats[n * 16 + k] = t[o + k]
+      const dry = t[o + 17] > 0
+      colors[n * 3] = dry ? DRY.r : 1
+      colors[n * 3 + 1] = dry ? DRY.g : 1
+      colors[n * 3 + 2] = dry ? DRY.b : 1
+      cells[n++] = t[o + 16]
+    }
+  })
+  mesh.count = n
+  mesh.instanceMatrix.needsUpdate = mesh.instanceColor!.needsUpdate = true
+}
+
 /** Grass around the camera. Returns the per-frame update. */
 export function plantGrass(ctx: WorldCtx, land: Land, clear: Clearance) {
   const time = { value: 0 }
@@ -87,24 +140,15 @@ export function plantGrass(ctx: WorldCtx, land: Land, clear: Clearance) {
   mesh.receiveShadow = true
   mesh.layers.set(DETAIL_LAYER)
   ctx.scene.add(mesh)
-  const spots: Grounded[] = []
+  const tiles = new GrassTiles((i, j) => bake(land, clear, i, j))
   const last = new THREE.Vector3(Infinity, 0, 0)
-  const tmp = new THREE.Matrix4()
-  const color = new THREE.Color()
   return (eye: THREE.Vector3, reach = 1) => {
     time.value = performance.now() / 1000
+    const moved = range.value !== RANGE * reach || last.distanceToSquared(eye) >= REFILL * REFILL
     range.value = RANGE * reach
-    if (last.distanceToSquared(eye) < REFILL * REFILL) return
+    if (!tiles.fill(eye.x, eye.z, range.value, BUDGET) && !moved) return
     last.copy(eye)
-    grassAround(land, clear, eye.x, eye.z, range.value, spots)
-    mesh.count = Math.min(cap, spots.length)
-    for (let i = 0; i < mesh.count; i++) {
-      const s = spots[i]
-      mesh.setMatrixAt(i, spotMatrix(s, s.s, tmp))
-      mesh.setColorAt(i, color.setHex(s.tint ?? 0xffffff))
-      cells.setX(i, Math.floor((s.r * 1.37) % 4))
-    }
-    mesh.instanceMatrix.needsUpdate = cells.needsUpdate = true
-    mesh.instanceColor!.needsUpdate = true
+    refill(mesh, cells.array as Float32Array, tiles, eye.x, eye.z, range.value)
+    cells.needsUpdate = true
   }
 }
