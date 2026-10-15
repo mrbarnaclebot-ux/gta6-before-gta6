@@ -19,6 +19,7 @@ const COLORS = {
 
 type Bounds = { x0: number; z0: number }
 
+// ponytail: about 2440 px square (24 MB) at one pixel per meter; halve it if mobile ever matters.
 /** The whole map painted once, one pixel per meter. */
 function paintBase(c: CityLayout): { canvas: HTMLCanvasElement; origin: Bounds } {
   const origin = { x0: c.land.x0 - MARGIN, z0: c.land.z0 - MARGIN }

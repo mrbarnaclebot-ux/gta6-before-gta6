@@ -79,6 +79,8 @@ export class Input {
     if (!action) return
     if (!down) return void this.held.delete(action)
     // The click that re-captures the mouse after Esc should not also fire.
+    // ponytail: if the browser refuses the re-lock (Chrome's cooldown right after Esc), clicks
+    // stay swallowed until a re-lock succeeds; track the re-lock request itself if that bites.
     if (this.everLocked && !this.locked) return
     this.pressed.add(action)
     this.held.add(action)

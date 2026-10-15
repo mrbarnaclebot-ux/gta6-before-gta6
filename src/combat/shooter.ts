@@ -33,7 +33,7 @@ export class Shooter {
   /** The crosshair shows while the gun is raised: aiming, or just after a hip-fire shot. */
   raised = false
   shots = 0
-  /** The latest shot: from the shooter's chest to where it landed (or 60 m out on a miss). */
+  /** The latest shot: from the shooter's feet to where it landed (or 60 m out on a miss). */
   readonly lastShot = { from: new THREE.Vector3(), to: new THREE.Vector3() }
   private sinceShot = Infinity
 

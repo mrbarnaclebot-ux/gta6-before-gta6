@@ -135,7 +135,10 @@ export class Pedestrian {
 
   /** Walkers sometimes stop to chat; fleeing calms down after a while. */
   private think(): void {
-    if (this.state === 'flee' && this.timer > FLEE_TIME) this.state = 'walk'
+    if (this.state === 'flee' && this.timer > FLEE_TIME) {
+      this.state = 'walk'
+      this.timer = 0
+    }
     if (this.state === 'walk' && this.timer > 6 && Math.random() < 0.002) {
       this.state = 'idle'
       this.timer = 0
