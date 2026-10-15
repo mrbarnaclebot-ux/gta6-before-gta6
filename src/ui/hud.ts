@@ -52,6 +52,7 @@ export class Hud {
 function bar(el: HTMLElement, value: number): void {
   el.hidden = value >= 1
   const pct = Math.round(value * 100)
+  if (el.getAttribute('aria-valuenow') === String(pct)) return
   el.style.setProperty('--fill', `${pct}%`)
   el.setAttribute('aria-valuenow', String(pct))
 }
