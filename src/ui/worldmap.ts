@@ -1,5 +1,5 @@
-import type { CityLayout } from '../city/layout'
-import type { P } from '../city/route'
+import type { Land } from '../land/plan'
+import type { P2 as P } from '../land/polyline'
 import { carIcon, hospitalIcon, playerArrow, routeLine, waypointIcon } from './map-icons'
 import { districtLabels, MAP_COLORS, type Base } from './map-paint'
 import type { Nav } from './nav'
@@ -36,7 +36,7 @@ export class WorldMap {
 
   constructor(
     private readonly base: Base,
-    layout: CityLayout,
+    layout: Land,
     private readonly hospitals: P[],
     private readonly nav: Nav,
   ) {
@@ -120,8 +120,7 @@ export class WorldMap {
     g.strokeStyle = 'rgba(10, 8, 20, 0.6)'
     g.fillStyle = 'rgba(255, 255, 255, 0.85)'
     for (const d of this.labels) {
-      // One block north of the middle, clear of the district's hospital.
-      const p = this.toScreen({ x: d.x, z: d.z - 100 })
+      const p = this.toScreen(d)
       g.strokeText(d.name.toUpperCase(), p.x, p.y)
       g.fillText(d.name.toUpperCase(), p.x, p.y)
     }

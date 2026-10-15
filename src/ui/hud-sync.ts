@@ -6,6 +6,7 @@ import { MAX_BREATH, MAX_HEALTH } from '../player/swim'
 import type { Look } from '../look'
 import { saveGraphics, type Graphics } from '../render/graphics'
 import { loadPrefs, savePref, type Prefs } from '../settings'
+import { roadGraph } from '../land/road-graph'
 import { Hud } from './hud'
 import { paintBase } from './map-paint'
 import { Minimap } from './minimap'
@@ -49,7 +50,7 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
     pause.setGraphics(g)
     saveGraphics(g)
   }
-  const nav = new Nav(w.city.layout)
+  const nav = new Nav(roadGraph(w.city.layout, w.city.layout.paths))
   const base = paintBase(w.city.layout)
   const worldMap = new WorldMap(base, w.city.layout, w.life.hospitals, nav)
   pause.playing = true

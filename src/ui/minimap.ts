@@ -1,4 +1,4 @@
-import type { P } from '../city/route'
+import type { P2 as P } from '../land/polyline'
 import { carIcon, hospitalIcon, playerArrow, routeLine, waypointIcon } from './map-icons'
 import type { Base } from './map-paint'
 

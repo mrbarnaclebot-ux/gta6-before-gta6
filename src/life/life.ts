@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { CURB_H, type CityLayout } from '../city/layout'
+import { CURB_H } from '../city/layout'
+import type { Land } from '../land/plan'
 import type { PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
 import type { Player } from '../player/player'
@@ -18,7 +19,7 @@ export const RESPAWN_AFTER = 5
 interface LifeDeps {
   scene: THREE.Scene
   physics: PhysicsWorld
-  layout: CityLayout
+  layout: Land
   /** The kinds of people on the sidewalks; they take turns. */
   people: Figure[]
   makeCar: CarFactory
@@ -110,16 +111,17 @@ export class Life {
     const list = this.obstacleList
     let n = 0
     // Reuses the same objects every frame: this runs at render rate.
-    const add = (x: number, z: number, r: number) => {
-      const o = (list[n++] ??= { x, z, r })
-      o.x = x
-      o.z = z
+    const add = (at: THREE.Vector3, r: number) => {
+      const o = (list[n++] ??= { x: 0, y: 0, z: 0, r })
+      o.x = at.x
+      o.y = at.y
+      o.z = at.z
       o.r = r
     }
-    for (const c of this.driving.cars) add(c.position.x, c.position.z, 1)
-    if (!this.driving.car) add(this.player.position.x, this.player.position.z, 0.4)
+    for (const c of this.driving.cars) add(c.position, 1)
+    if (!this.driving.car) add(this.player.position, 0.4)
     for (const p of this.crowd.people) {
-      if (p.alive && p.root.visible) add(p.position.x, p.position.z, 0.4)
+      if (p.alive && p.root.visible) add(p.position, 0.4)
     }
     list.length = n
     return list

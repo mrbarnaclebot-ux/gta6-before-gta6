@@ -24,11 +24,39 @@ export interface Heading {
   u: number
 }
 
-/** A point to drive through and the speed limit on the way to it. */
+/** A point to drive through and the speed limit on the way to it. `y` is 0 (street level) if left out. */
 export interface Waypoint {
   x: number
+  y?: number
   z: number
   limit: number
+}
+
+/** Hands a traffic car its route one leg at a time. */
+export interface Driver {
+  next(): Waypoint[]
+}
+
+/** A car's start: where it is placed, facing `yaw`, and who picks its turns from there. */
+export interface Start {
+  x: number
+  y: number
+  z: number
+  yaw: number
+  driver: Driver
+}
+
+/** Starts a car on the road grid at `h`, turning at random at each intersection. */
+export function gridStart(g: Grid, h: Heading, r: Rand): Start {
+  let route = h
+  const driver = {
+    next: () => {
+      const leg = nextLeg(g, route, r)
+      route = leg.next
+      return leg.points
+    },
+  }
+  return { ...lanePoint(h, h.u), y: 0, yaw: yawOf(h), driver }
 }
 
 const other = (a: Axis): Axis => (a === 'x' ? 'z' : 'x')

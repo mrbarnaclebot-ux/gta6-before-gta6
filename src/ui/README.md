@@ -8,7 +8,8 @@ Plain DOM menus and HUD over the canvas. Markup lives in `index.html`; these fil
 - `hud-sync.ts` builds the HUD, maps, and pause menu, feeds them game state each frame, and handles the M and Esc keys
 - `minimap.ts` rounded, rotating minimap, bottom left; `worldmap.ts` the full-screen map on M
 - `map-paint.ts` the city painted once to a canvas both maps draw from; `map-icons.ts` their markers
-- `nav.ts` the waypoint and its road route (A* in `src/city/route.ts`)
+- `nav.ts` the waypoint and its road route (A* over every road, `src/land/route-search.ts`)
+- `map-terrain.ts` the hill-shaded terrain under both maps
 - `pause.ts` settings menu: Esc in game, Settings on the title screen; Graphics, Display, and Controls tabs
 - `settings-rows.ts` every settings row: label, cost hint, and control kind
 - `settings-panel.ts` renders rows as segmented choices, switches, and sliders, and reports changes

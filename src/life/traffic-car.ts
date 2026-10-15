@@ -1,18 +1,16 @@
 import * as THREE from 'three'
 import { easeAngle } from '../camera/orbit-math'
-import type { CityLayout } from '../city/layout'
-import type { Rand } from '../city/rng'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from '../vehicle/car-model'
 import { CAR_SPECS } from '../vehicle/car-specs'
-import { CRUISE, lanePoint, nextLeg, yawOf, type Heading, type Waypoint } from './lanes'
+import { CRUISE, type Driver, type Start, type Waypoint } from './lanes'
 
 const HP = 160
 const ACCEL = 3
 const BRAKE = 7
-const UP = new THREE.Vector3(0, 1, 0)
+const EULER = new THREE.Euler()
 // Light bar flashes per second, alternating red and blue.
 const FLASH_RATE = 3
 
@@ -33,14 +31,14 @@ export class TrafficCar {
   /** Set by the traffic manager: called on the first bullet since this car was placed. */
   onShot: () => void = () => {}
   private path: Waypoint[] = []
-  private route: Heading = { axis: 'z', at: 0, dir: 1, u: 0 }
+  private driver: Driver = { next: () => [] }
   private clock = 0
+  /** Nose-up angle on bridges and ramps, eased. */
+  private pitch = 0
 
   constructor(
     physics: PhysicsWorld,
     readonly visual: CarVisual,
-    private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads'>,
-    private readonly r: Rand,
   ) {
     const size = visual.bounds.getSize(new THREE.Vector3())
     const center = visual.bounds.getCenter(new THREE.Vector3())
@@ -58,14 +56,14 @@ export class TrafficCar {
   }
 
   /** Start fresh at a lane position. */
-  place(h: Heading): void {
-    this.route = h
+  place(s: Start): void {
+    this.driver = s.driver
     this.path = []
     this.health.hp = HP
     this.collider.setEnabled(true)
-    const p = lanePoint(h, h.u)
-    this.position.set(p.x, 0, p.z)
-    this.heading = yawOf(h)
+    this.position.set(s.x, s.y, s.z)
+    this.heading = s.yaw
+    this.pitch = 0
     this.speed = CRUISE * 0.7
     this.refill()
     this.pose()
@@ -109,7 +107,8 @@ export class TrafficCar {
 
   /** Slow down in time for the next turn: v^2 = v_turn^2 + 2 a d. */
   private curveLimit(): number {
-    let limit = CRUISE
+    if (!this.path.length) return CRUISE
+    let limit = Infinity
     let d = 0
     let from: { x: number; z: number } = this.position
     for (const p of this.path) {
@@ -128,12 +127,15 @@ export class TrafficCar {
       const dx = p.x - this.position.x
       const dz = p.z - this.position.z
       const d = Math.hypot(dx, dz)
+      const dy = (p.y ?? 0) - this.position.y
       if (d > step) {
         this.position.x += (dx / d) * step
         this.position.z += (dz / d) * step
+        this.position.y += (dy / d) * step
+        this.pitch += (Math.atan2(dy, d) - this.pitch) * 0.2
         return Math.atan2(dx, dz)
       }
-      this.position.set(p.x, 0, p.z)
+      this.position.set(p.x, p.y ?? 0, p.z)
       step -= d
       this.path.shift()
     }
@@ -142,14 +144,14 @@ export class TrafficCar {
 
   private refill(): void {
     while (this.path.length < 10) {
-      const leg = nextLeg(this.grid, this.route, this.r)
-      this.path.push(...leg.points)
-      this.route = leg.next
+      const leg = this.driver.next()
+      if (!leg.length) return
+      this.path.push(...leg)
     }
   }
 
   private pose(): void {
-    this.quaternion.setFromAxisAngle(UP, this.heading)
+    this.quaternion.setFromEuler(EULER.set(-this.pitch, this.heading, 0, 'YXZ'))
     this.visual.root.position.copy(this.position)
     this.visual.root.quaternion.copy(this.quaternion)
   }
