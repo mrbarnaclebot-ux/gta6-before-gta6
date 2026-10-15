@@ -14,6 +14,7 @@ export const MAP_COLORS = {
   sea: '#2b6f8e',
   shallows: '#3f8fa6',
   land: '#3b3e46',
+  ridge: '#5b7049',
   sand: '#d8c497',
   building: '#565a65',
   house: '#d9d2c4',
@@ -24,7 +25,8 @@ export const MAP_COLORS = {
   trail: '#8a6a45',
 }
 
-export type Base = { canvas: HTMLCanvasElement; x0: number; z0: number }
+/** The painted map, where its top-left corner sits in the world, and where the sea starts beyond it. */
+export type Base = { canvas: HTMLCanvasElement; x0: number; z0: number; coast: number }
 
 function fillRect(g: CanvasRenderingContext2D, o: Base, r: Rect, color: string): void {
   g.fillStyle = color
@@ -129,7 +131,7 @@ function footprint(
 export function paintBase(c: Land): Base {
   const r = gridRect(c.ground)
   const canvas = document.createElement('canvas')
-  const o: Base = { canvas, x0: r.x0, z0: r.z0 }
+  const o: Base = { canvas, x0: r.x0, z0: r.z0, coast: coastX(c.frame, r.z0) }
   canvas.width = r.x1 - r.x0
   canvas.height = r.z1 - r.z0
   const g = canvas.getContext('2d')!
