@@ -10,6 +10,9 @@ A browser open-world demo set in a sunny Miami-like coastal city. Three.js, Rapi
 - `pnpm test` - Vitest unit tests for pure logic
 - `pnpm test:e2e` - Playwright smoke test (starts its own dev server)
 - `pnpm lint` / `pnpm format` - ESLint plus Prettier
+- `node scripts/perf.mjs <url> <dir> [high|low] [scale]` - load time and fps probe on the GPU
+
+Live build: https://web-production-af31.up.railway.app (Railway, redeploys on push to `phase-07-ship`).
 
 ## Controls
 
