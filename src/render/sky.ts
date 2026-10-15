@@ -15,8 +15,7 @@ const FOG_DENSITY = 0.0016
 const WATER_FOG = new THREE.Color(0x0e5f6a)
 const WATER_DENSITY = 0.07
 const WATER_DARK = new THREE.Color()
-// Night: a deep blue sky with the HDRI's stars, and a haze lit violet by the city.
-const NIGHT_SKY = new THREE.Color(0.05, 0.075, 0.2)
+// Night: a haze lit violet by the city.
 const NIGHT_FOG = new THREE.Color(0.016, 0.018, 0.045)
 const DUSK = new THREE.Color(1.0, 0.36, 0.12)
 const DUSK_FOG = DUSK.clone().multiplyScalar(0.35)
@@ -122,7 +121,7 @@ export class Sky {
       .setScalar(1)
       .lerp(DUSK_SKY, l.dusk * 0.6)
       .multiplyScalar(l.day ** 1.5)
-    u.nightTint.value.copy(NIGHT_SKY).multiplyScalar(1 - l.day)
+    u.night.value = 1 - l.day
     u.yaw.value = this.hdriSunAzimuth - Math.atan2(a.sunDir.z, a.sunDir.x)
     u.glow.value.copy(DUSK).multiplyScalar(l.dusk)
     this.fill.intensity = 1.4 * l.dusk

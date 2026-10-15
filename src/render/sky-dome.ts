@@ -20,7 +20,7 @@ const FRAGMENT = /* glsl */ `
 uniform sampler2D dayMap;
 uniform sampler2D nightMap;
 uniform vec3 dayTint;
-uniform vec3 nightTint;
+uniform float night;
 uniform float yaw;
 uniform vec3 horizon;
 uniform vec3 sunDir;
@@ -37,7 +37,12 @@ void main() {
   vec3 d = normalize(vDir);
   vec3 day = texture2D(dayMap, equirectUv(turned(d))).rgb;
   day *= min(1.0, 6.0 / max(luminance(day), 1e-4));
-  vec3 sky = day * dayTint + texture2D(nightMap, equirectUv(d)).rgb * nightTint;
+  // Night: a light-polluted gradient, with the HDRI's stars only high up, where its
+  // treeline does not reach and where a city sky still shows stars.
+  float up = max(d.y, 0.0);
+  vec3 dark = mix(vec3(0.05, 0.03, 0.085), vec3(0.004, 0.008, 0.028), sqrt(up));
+  dark += texture2D(nightMap, equirectUv(d)).rgb * smoothstep(0.4, 0.75, up) * 0.25;
+  vec3 sky = day * dayTint + dark * night;
   float toSun = max(dot(d, sunDir), 0.0);
   float low = pow(1.0 - max(d.y, 0.0), 5.0);
   sky += glow * (pow(toSun, 12.0) * 1.5 + low * (0.25 + 0.75 * pow(toSun, 2.0)));
@@ -52,7 +57,7 @@ export type DomeUniforms = {
   dayMap: { value: THREE.Texture | null }
   nightMap: { value: THREE.Texture | null }
   dayTint: { value: THREE.Color }
-  nightTint: { value: THREE.Color }
+  night: { value: number }
   yaw: { value: number }
   horizon: { value: THREE.Color }
   sunDir: { value: THREE.Vector3 }
@@ -66,7 +71,7 @@ export function skyDome(): { mesh: THREE.Mesh; uniforms: DomeUniforms } {
     dayMap: { value: null },
     nightMap: { value: null },
     dayTint: { value: new THREE.Color(1, 1, 1) },
-    nightTint: { value: new THREE.Color(0, 0, 0) },
+    night: { value: 0 },
     yaw: { value: 0 },
     horizon: { value: new THREE.Color() },
     sunDir: { value: new THREE.Vector3(0, 1, 0) },
