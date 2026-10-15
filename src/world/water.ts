@@ -87,6 +87,9 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, sunDir: THREE.Vector3) 
       /reflectionSample \+ specularLight, reflectance \)/,
       'reflectionSample + specularLight, reflectance * 0.6 )',
     )
+    // Shadow darkens only the sun-lit part of the body color; full masking turned
+    // shaded water into opaque black stains over the seabed.
+    .replace('* getShadowMask()', '* mix(0.5, 1.0, getShadowMask())')
     .replace('gl_FragColor = vec4( outgoingLight, alpha );', OUTPUT)
   mat.transparent = true
   water.rotation.x = -Math.PI / 2
