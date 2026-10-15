@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { game, play, settle, type Game, type Point } from './helpers'
+import { game, play, settle, SLOW, type Game, type Point } from './helpers'
 
 /** Runs `fn` against window.__game in the page. `fn` must not close over test variables. */
 const hook = <T>(page: Page, fn: (g: Game) => T) =>
@@ -83,7 +83,7 @@ async function pauseMenu(page: Page) {
 }
 
 test('people, traffic, wanted level, death, pause menu, and night', async ({ page }) => {
-  test.setTimeout(300_000)
+  test.setTimeout(300_000 * SLOW)
   const errors = await play(page, '/?quality=low')
   await expect(page.locator('#minimap')).toBeVisible()
 

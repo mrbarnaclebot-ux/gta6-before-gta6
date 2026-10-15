@@ -1,15 +1,15 @@
 import { expect, test } from '@playwright/test'
-import { game, play, settle, visit, type Game } from './helpers'
+import { game, play, settle, SLOW, visit, type Game } from './helpers'
 
-test('loads, plays, walks, and stands on the city', async ({ page }) => {
+test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
   // High quality in SwiftShader with people and traffic about runs near 1 fps.
-  test.setTimeout(180_000)
+  test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
   await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible()
   await page.getByRole('button', { name: 'Play' }).click()
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
   await settle(page)
   await expect(page.locator('#title')).toBeHidden()
 
@@ -37,7 +37,7 @@ test('loads, plays, walks, and stands on the city', async ({ page }) => {
 })
 
 test('swims in the ocean and dives under', async ({ page }) => {
-  test.setTimeout(180_000)
+  test.setTimeout(180_000 * SLOW)
   const errors = await play(page, '/')
 
   await visit(page, 'ocean', -1.2, 0.15)
@@ -59,15 +59,15 @@ test('swims in the ocean and dives under', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('gets into a parked car and drives it', async ({ page }) => {
+test('gets into a parked car and drives it', { tag: '@smoke' }, async ({ page }) => {
   // SwiftShader draws a dozen detailed cars at well under 1 fps; Low skips post-processing.
-  test.setTimeout(180_000)
+  test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/?quality=low')
   // Space on the focused Play button must start the game, not be swallowed as a game key.
   await page.getByRole('button', { name: 'Play' }).press('Space')
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
   await settle(page)
 
   await visit(page, 'car', 0.6, 0.2)
@@ -92,8 +92,8 @@ test('gets into a parked car and drives it', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('aims and shoots a target dummy', async ({ page }) => {
-  test.setTimeout(180_000)
+test('aims and shoots a target dummy', { tag: '@smoke' }, async ({ page }) => {
+  test.setTimeout(180_000 * SLOW)
   const errors = await play(page, '/?quality=low')
 
   await visit(page, 'range', 0, 0.18)

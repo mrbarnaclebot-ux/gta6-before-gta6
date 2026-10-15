@@ -36,6 +36,9 @@ export type Game = {
   setTime: (hours: number) => void
 }
 
+/** SwiftShader on a 2-core CI runner is a few times slower than on a dev machine. */
+export const SLOW = process.env.CI ? 3 : 1
+
 export const game = (page: Page) =>
   page.evaluate(() => (window as unknown as { __game: Game }).__game.state())
 
@@ -45,7 +48,7 @@ export async function settle(page: Page, frames = 6) {
   await page.waitForFunction(
     (n) => (window as unknown as { __game: Game }).__game.state().frames > n,
     start + frames,
-    { timeout: 60_000 },
+    { timeout: 60_000 * SLOW },
   )
 }
 
@@ -55,7 +58,7 @@ export async function play(page: Page, url: string) {
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto(url)
   await page.getByRole('button', { name: 'Play' }).click()
-  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 * SLOW })
   await settle(page)
   return errors
 }
