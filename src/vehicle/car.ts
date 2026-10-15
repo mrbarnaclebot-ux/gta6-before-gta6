@@ -1,4 +1,6 @@
 import * as THREE from 'three'
+import { damageAt, hurt, type Health } from '../combat/damage'
+import type { Surface } from '../combat/effects'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from './car-model'
 import { BRAKE, drag, floods, HANDBRAKE, pedals, steerToward } from './drive'
@@ -12,6 +14,8 @@ const GRIP = 2.4
 const DRIFT_GRIP = 1.4
 // The cabin floor sits this far above the ground; water deeper than STALL_DEPTH above it floods the engine.
 const FLOOR = 0.3
+// About ten close pistol shots.
+const CAR_HP = 240
 
 export interface Controls {
   throttle: number
@@ -29,6 +33,7 @@ export class Car {
   speed = 0
   stalled = false
   braking = false
+  readonly health: Health = { hp: CAR_HP, max: CAR_HP }
   /** Interpolated chassis transform for rendering. */
   readonly position = new THREE.Vector3()
   readonly quaternion = new THREE.Quaternion()
@@ -89,9 +94,27 @@ export class Car {
     this.snapshot()
   }
 
+  /** Flooded or shot to pieces: the engine no longer runs. */
+  get dead(): boolean {
+    return this.stalled || this.health.hp <= 0
+  }
+
+  /** A bullet from `distance` meters away. Pistol rounds do not move a 1.2 t car, so no impulse. */
+  hit(distance: number): Surface {
+    hurt(this.health, damageAt(distance))
+    return 'metal'
+  }
+
+  /** Where engine smoke rises: the middle of the hood, in world space. */
+  hood(out: THREE.Vector3): THREE.Vector3 {
+    const b = this.visual.bounds
+    out.set(0, b.max.y * 0.75, b.max.z * 0.65)
+    return out.applyQuaternion(this.quaternion).add(this.position)
+  }
+
   private drive(dt: number, c: Controls): void {
     const v = this.vehicle
-    const { engine, brake } = pedals(c.throttle, this.speed, this.stalled)
+    const { engine, brake } = pedals(c.throttle, this.speed, this.dead)
     this.braking = brake === BRAKE || c.handbrake
     this.steer = steerToward(this.steer, c.steer, this.speed, dt)
     for (let i = 0; i < 4; i++) {
@@ -149,8 +172,8 @@ export class Car {
       w.position.y = anchor.y - travel
       w.rotation.set(this.vehicle.wheelRotation(i) ?? 0, this.vehicle.wheelSteering(i) ?? 0, 0)
     })
-    headlights.emissiveIntensity = driven && !this.stalled ? 10 : 0.15
-    brakelights.emissiveIntensity = this.braking ? 24 : driven && !this.stalled ? 1.5 : 0.3
+    headlights.emissiveIntensity = driven && !this.dead ? 10 : 0.15
+    brakelights.emissiveIntensity = this.braking ? 24 : driven && !this.dead ? 1.5 : 0.3
   }
 }
 

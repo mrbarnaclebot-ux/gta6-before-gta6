@@ -2,7 +2,7 @@ import type { Quality } from '../settings'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-/** HUD: FPS readout (dev builds or ?debug), the Low/High graphics toggle, health and breath bars. */
+/** HUD: FPS readout (dev builds or ?debug), graphics toggle, health and breath, speedometer, ammo, and crosshair. */
 export class Hud {
   fps = 0
   private frames = 0
@@ -16,6 +16,12 @@ export class Hud {
   private readonly speedEl = $('speed')
   private readonly stallEl = $('stall')
   private readonly promptEl = $('prompt')
+  private readonly crosshairEl = $('crosshair')
+  private readonly hitmarkEl = $('hitmark')
+  private readonly ammoEl = $('ammo')
+  private readonly magEl = $('mag')
+  private readonly reserveEl = $('reserve')
+  private readonly reloadingEl = $('reloading')
 
   constructor(quality: Quality, onToggle: () => void) {
     $('hud').hidden = false
@@ -43,12 +49,27 @@ export class Hud {
     this.underwaterEl.hidden = !on
   }
 
-  /** Speedometer in km/h while driving; null hides it. */
-  setSpeed(kmh: number | null, stalled: boolean): void {
+  /** Speedometer in km/h while driving; null hides it. `warning` replaces the engine notice. */
+  setSpeed(kmh: number | null, warning: string | null): void {
     this.speedoEl.hidden = kmh === null
-    this.stallEl.hidden = !stalled
+    this.stallEl.hidden = warning === null
+    if (warning && this.stallEl.textContent !== warning) this.stallEl.textContent = warning
     const text = String(Math.round(kmh ?? 0))
     if (this.speedEl.textContent !== text) this.speedEl.textContent = text
+  }
+
+  /** Pistol readout while on foot; null hides it and the crosshair. */
+  setWeapon(
+    w: { mag: number; reserve: number; reloading: boolean; raised: boolean; hit: boolean } | null,
+  ): void {
+    this.ammoEl.hidden = w === null
+    this.crosshairEl.hidden = !w?.raised
+    if (!w) return
+    this.hitmarkEl.hidden = !w.hit
+    this.reloadingEl.hidden = !w.reloading
+    this.magEl.classList.toggle('empty', w.mag === 0)
+    text(this.magEl, String(w.mag))
+    text(this.reserveEl, String(w.reserve))
   }
 
   /** Context hint next to the F key, such as "Get in" beside a car; null hides it. */
@@ -68,6 +89,10 @@ export class Hud {
     this.windowStart = now
     if (!this.fpsEl.hidden) this.fpsEl.textContent = `${Math.round(this.fps)} fps`
   }
+}
+
+function text(el: HTMLElement, value: string): void {
+  if (el.textContent !== value) el.textContent = value
 }
 
 function bar(el: HTMLElement, value: number): void {

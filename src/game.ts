@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FollowCamera } from './camera/follow-camera'
+import { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { createPhysics, FIXED_STEP } from './physics'
 import { Avatar } from './player/avatar'
@@ -40,7 +41,9 @@ async function buildScene(canvas: HTMLCanvasElement) {
   const cars = parkCars({ scene, physics }, city, makeCar)
   const driving = new Driving(physics, cars, player, scene)
   const follow = new FollowCamera(camera, physics, player.collider)
-  return { scene, camera, renderer, sky, physics, player, driving, follow, city }
+  const { layout, spawn } = city
+  const combat = new Combat({ scene, physics, player, follow, cars, layout, spawn })
+  return { scene, camera, renderer, sky, physics, player, driving, follow, city, combat }
 }
 
 type World = Awaited<ReturnType<typeof buildScene>>
@@ -68,12 +71,36 @@ function runLoop(w: World, input: Input, onFrame: () => void): void {
     const car = w.driving.car
     w.follow.ignore = car?.collider ?? w.player.collider
     w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chaseOf(car) : undefined)
+    w.combat.update(dt, input, w.driving.mode === 'walking', w.renderer.gl.domElement.height)
     w.sky.follow(w.driving.position)
     w.city.update(dt, w.camera)
     w.sky.setUnderwater(w.city.underwater)
     w.renderer.render(dt)
     onFrame()
   })
+}
+
+// How long the red hit marker stays over the crosshair, in seconds.
+const HIT_MARK = 0.18
+
+function updateHud(hud: Hud, w: World): void {
+  const { vitals } = w.player
+  hud.setVitals(vitals.health / MAX_HEALTH, vitals.breath / MAX_BREATH)
+  hud.setUnderwater(w.city.underwater)
+  const car = w.driving.car
+  const warning = car?.stalled ? 'Engine flooded' : car?.dead ? 'Engine destroyed' : null
+  hud.setSpeed(car ? Math.abs(car.speed) * 3.6 : null, warning)
+  const { pistol, raised, sinceHit } = w.combat.shooter
+  const weapon = {
+    mag: pistol.mag,
+    reserve: pistol.reserve,
+    reloading: pistol.reloading > 0,
+    raised,
+    hit: sinceHit < HIT_MARK,
+  }
+  hud.setWeapon(w.driving.mode === 'walking' ? weapon : null)
+  hud.setPrompt(w.driving.nearest() ? 'Get in' : null)
+  hud.frame()
 }
 
 export async function startGame(canvas: HTMLCanvasElement, input: Input): Promise<void> {
@@ -89,14 +116,8 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
   }
   const hud = new Hud(quality, () => setQuality(quality === 'high' ? 'low' : 'high'))
   setQuality(quality)
-  const { vitals } = w.player
   runLoop(w, input, () => {
-    hud.setVitals(vitals.health / MAX_HEALTH, vitals.breath / MAX_BREATH)
-    hud.setUnderwater(w.city.underwater)
-    const car = w.driving.car
-    hud.setSpeed(car ? Math.abs(car.speed) * 3.6 : null, car?.stalled ?? false)
-    hud.setPrompt(w.driving.nearest() ? 'Get in' : null)
-    hud.frame()
+    updateHud(hud, w)
     frames++
   })
   exposeTestHook({
@@ -104,6 +125,7 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
     driving: w.driving,
     follow: w.follow,
     city: w.city,
+    combat: w.combat,
     input,
     setQuality,
     extra: () => ({
