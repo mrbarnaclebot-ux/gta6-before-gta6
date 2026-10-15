@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { horizonColor, sunDirection } from './sky-analysis'
+import { acesFilmic, horizonColor, sunDirection } from './sky-analysis'
 
 describe('sunDirection', () => {
   it('finds a bright pixel in the top row as a high sun', () => {
@@ -25,5 +25,17 @@ describe('horizonColor', () => {
     const h = 100
     const data = new Float32Array(w * h * 4).fill(0.5)
     expect(horizonColor(data, w, h)).toEqual([0.5, 0.5, 0.5])
+  })
+})
+
+describe('acesFilmic', () => {
+  it('keeps grey neutral, compresses highlights, and clamps to 0..1', () => {
+    const [r, g, b] = acesFilmic([0.18, 0.18, 0.18])
+    // Matches three's GLSL at exposure 1 (its 1 / 0.6 pre-scale lifts mid grey).
+    expect(g).toBeCloseTo(0.213, 3)
+    expect(Math.abs(r - g)).toBeLessThan(0.01)
+    expect(Math.abs(b - g)).toBeLessThan(0.01)
+    expect(acesFilmic([100, 100, 100])).toEqual([1, 1, 1])
+    expect(acesFilmic([0, 0, 0]).every((c) => c >= 0 && c < 0.01)).toBe(true)
   })
 })

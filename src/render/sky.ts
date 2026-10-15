@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js'
 import type { Quality } from '../settings'
-import { horizonColor, sunDirection } from './sky-analysis'
+import { acesFilmic, horizonColor, sunDirection } from './sky-analysis'
 
 const HDRI_URL = '/assets/hdri/day_kloofendal_2k.hdr'
 // Far enough up the sun ray that 200 m towers sit inside the shadow camera's depth range.
@@ -13,6 +13,9 @@ export class Sky {
   readonly sun = new THREE.DirectionalLight(0xffe6c8, 4)
   /** Filled in by load(); shared by reference with the water shader. */
   readonly sunDir = new THREE.Vector3(0.4, 0.8, 0.3).normalize()
+  /** Linear fog color; equals the backdrop below the horizon. */
+  private readonly fogColor = new THREE.Color()
+  private quality: Quality = 'high'
 
   constructor(private readonly scene: THREE.Scene) {
     const cam = this.sun.shadow.camera
@@ -38,11 +41,21 @@ export class Sky {
     const pixels = halfToFloat(data)
     this.sunDir.fromArray(sunDirection(pixels, width, height))
     const [r, g, b] = horizonColor(pixels, width, height)
-    paintGround(data, width, height, [r * 0.8, g * 0.74, b * 0.64])
-    this.scene.background = hdr
+    const fog = new THREE.Color(r, g, b).multiplyScalar(0.85)
+    // Water past camera.far is clipped, so below the horizon the visible backdrop must
+    // match fully fogged sea exactly; the sunlit ground below is for lighting only.
+    const backdrop = hdr.clone()
+    const backdropData = data.slice()
+    paintLowerHalf(backdropData, width, height, fog.toArray())
+    backdrop.source = new THREE.TextureSource({ data: backdropData, width, height })
+    backdrop.needsUpdate = true
+    paintLowerHalf(data, width, height, [r * 0.8, g * 0.74, b * 0.64])
+    this.scene.background = backdrop
     this.scene.environment = hdr
     this.scene.environmentIntensity = 0.9
-    this.scene.fog = new THREE.FogExp2(new THREE.Color(r, g, b).multiplyScalar(0.85), 0.0016)
+    this.fogColor.copy(fog)
+    this.scene.fog = new THREE.FogExp2(fog.clone(), 0.0016)
+    this.applyFogColor()
   }
 
   setQuality(q: Quality): void {
@@ -51,6 +64,20 @@ export class Sky {
     this.sun.shadow.radius = q === 'high' ? 4 : 2
     this.sun.shadow.map?.dispose()
     this.sun.shadow.map = null
+    this.quality = q
+    this.applyFogColor()
+  }
+
+  /**
+   * Low renders straight to the screen, where three mixes fog in after tone mapping
+   * while the backdrop is tone mapped. Give the fog the tone-mapped color there so
+   * fully fogged sea still meets the backdrop without a band.
+   */
+  private applyFogColor(): void {
+    const fog = this.scene.fog
+    if (!fog) return
+    if (this.quality === 'high') fog.color.copy(this.fogColor)
+    else fog.color.fromArray(acesFilmic(this.fogColor.toArray()))
   }
 
   /** Keep the shadow frustum centered on the player so shadows stay sharp near them. */
@@ -66,10 +93,10 @@ export class Sky {
 
 /**
  * A "puresky" HDRI is nearly black below the horizon, which leaves every wall
- * facing away from the sun unlit. Paint the lower half as sunlit pale ground so
- * image-based lighting includes the bounce light a bright city really has.
+ * facing away from the sun unlit. Painting the lower half as sunlit pale ground
+ * gives image-based lighting the bounce light a bright city really has.
  */
-function paintGround(data: Uint16Array, width: number, height: number, rgb: number[]): void {
+function paintLowerHalf(data: Uint16Array, width: number, height: number, rgb: number[]): void {
   const half = rgb.map((v) => THREE.DataUtils.toHalfFloat(v))
   for (let y = Math.ceil(height / 2); y < height; y++) {
     for (let x = 0; x < width; x++) {
