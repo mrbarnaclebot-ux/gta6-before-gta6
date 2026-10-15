@@ -27,7 +27,7 @@ const ADOPT_EVERY = 10
  */
 export class Shadows {
   private csm: CSM | null = null
-  private materials: CsmMaterials | null = null
+  private readonly materials = new CsmMaterials()
   private frame = 0
   private lens = ''
 
@@ -70,20 +70,20 @@ export class Shadows {
       l.shadow.needsUpdate = true
     })
     this.csm = csm
-    this.materials = new CsmMaterials(csm)
-    this.materials.adopt(this.scene)
     csm.updateFrustums()
+    this.materials.use(csm, this.scene)
   }
 
   /** Per frame: follow the camera (CSM) or the player (single map), with the sun's light. */
   update(focus: THREE.Vector3, sunDir: THREE.Vector3): void {
     const csm = this.csm
     if (!csm) return this.follow(focus, sunDir)
-    if (++this.frame % ADOPT_EVERY === 0) this.materials!.adopt(this.scene)
+    if (++this.frame % ADOPT_EVERY === 0) this.materials.adopt(this.scene)
     const lens = `${this.camera.fov.toFixed(1)},${this.camera.aspect.toFixed(3)},${this.camera.far}`
     if (lens !== this.lens) {
       this.lens = lens
       csm.updateFrustums()
+      this.materials.sync()
     }
     csm.lightDirection.copy(sunDir).negate()
     for (const l of csm.lights) {
@@ -126,10 +126,10 @@ export class Shadows {
 
   private dispose(): void {
     if (!this.csm) return
-    this.materials!.release()
+    this.materials.release()
     this.csm.remove()
     for (const l of this.csm.lights) l.shadow.dispose()
-    this.csm = this.materials = null
+    this.csm = null
     this.lens = ''
   }
 }

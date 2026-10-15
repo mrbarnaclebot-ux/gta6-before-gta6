@@ -12,7 +12,7 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 - `lens-flare.ts` lens flare effect, occluded by scene depth
 - `grade.ts` the color grade baked into a 3D LUT
 - `shadows.ts` single follow shadow on Low, cascaded shadow maps (three CSM) above
-- `csm-materials.ts`, `csm-shader.ts` set materials up for CSM without breaking their own patches or r186 lighting
+- `csm-materials.ts`, `csm-shader.ts` set materials up for CSM without breaking their own patches or r186 lighting; all lit programs share one set of CSM uniforms so a rebuilt CSM reaches cached programs
 - `height-fog.ts` swaps three's fog for height fog (aerial perspective)
 - `view-distance.ts` what each render distance reaches
 - `dynamic-res.ts` render scale controller that holds 60 fps
