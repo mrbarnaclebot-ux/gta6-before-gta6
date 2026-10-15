@@ -22,7 +22,6 @@ const EXPOSURE = 1.0
 export class Renderer {
   readonly gl: THREE.WebGLRenderer
   private composer: EffectComposer | null = null
-  private quality: Quality = 'high'
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -45,7 +44,6 @@ export class Renderer {
   }
 
   setQuality(q: Quality): void {
-    this.quality = q
     this.composer?.dispose()
     this.composer = q === 'high' ? this.buildComposer() : null
     this.gl.toneMapping = q === 'high' ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping
@@ -61,7 +59,8 @@ export class Renderer {
   private resize(): void {
     const w = window.innerWidth
     const h = window.innerHeight
-    this.gl.setPixelRatio(Math.min(devicePixelRatio, this.quality === 'high' ? 1.5 : 1))
+    // Retina at 1.5x cost 20+ fps on an M4 with AO and bloom; SMAA keeps 1x edges clean.
+    this.gl.setPixelRatio(1)
     this.gl.setSize(w, h, false)
     this.composer?.setSize(w, h, false)
     this.camera.aspect = w / h
