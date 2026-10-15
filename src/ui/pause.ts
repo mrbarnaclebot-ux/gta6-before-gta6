@@ -8,26 +8,35 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 // A lost pointer lock and the Esc key-down can both arrive for one Esc press.
 const DEBOUNCE_MS = 100
 
-interface PauseOptions {
-  graphics: Graphics
-  prefs: Prefs
+/** What the menu reports. The title screen sets these first; the game replaces them on start. */
+export interface PauseHooks {
   onGraphics: (g: Graphics) => void
   onPref: <K extends keyof Prefs>(name: K, value: Prefs[K]) => void
   /** `fromClick`: the Resume click is a user gesture, so the game can re-lock the mouse. */
   onResume: (fromClick: boolean) => void
+  /** Whether losing the mouse should open the menu: not before the game, not over the map. */
+  autoOpen: () => boolean
 }
 
-/** Esc menu: resume, and the Graphics, Display, and Controls settings tabs. */
+export type Tab = 'graphics' | 'display' | 'controls'
+
+/** Esc menu: resume, and the Graphics, Display, and Controls settings tabs. Also Settings on the title screen. */
 export class PauseMenu {
   open = false
+  /** In game it reads Paused and Resume; on the title screen, Settings and Back. */
+  playing = false
   private openedAt = 0
   private readonly root = $('pause')
   private readonly resume = $<HTMLButtonElement>('resume')
   private readonly tabs = [...this.root.querySelectorAll<HTMLButtonElement>('[role="tab"]')]
   private readonly showGraphics: (v: Record<string, Value>) => void
-  private graphics: Graphics
+  private select: (tab: HTMLButtonElement) => void = () => {}
+  graphics: Graphics
 
-  constructor(private readonly o: PauseOptions) {
+  constructor(
+    o: { graphics: Graphics; prefs: Prefs },
+    public hooks: PauseHooks,
+  ) {
     this.graphics = o.graphics
     this.showGraphics = settingsRows(
       $('tab-graphics'),
@@ -37,7 +46,7 @@ export class PauseMenu {
         const next =
           key !== 'preset' ? { ...g, [key]: v } : v === 'custom' ? g : PRESETS[v as Preset]
         this.setGraphics({ ...next })
-        o.onGraphics(this.graphics)
+        this.hooks.onGraphics(this.graphics)
       },
     )
     this.setGraphics(o.graphics)
@@ -45,7 +54,7 @@ export class PauseMenu {
     const onPref = (key: string, v: Value) => {
       Object.assign(prefs, { [key]: v })
       showPrefs(prefs as unknown as Record<string, Value>)
-      o.onPref(key as keyof Prefs, v as never)
+      this.hooks.onPref(key as keyof Prefs, v as never)
     }
     const showPrefs = (v: Record<string, Value>) => [display, controls].forEach((show) => show(v))
     const display = settingsRows($('tab-display'), DISPLAY_ROWS, onPref)
@@ -55,7 +64,7 @@ export class PauseMenu {
     this.resume.addEventListener('click', () => this.hide(true))
     // Losing the mouse (Esc in a locked browser, or switching windows) pauses the game.
     document.addEventListener('pointerlockchange', () => {
-      if (!document.pointerLockElement && !this.open) this.show()
+      if (!document.pointerLockElement && !this.open && this.hooks.autoOpen()) this.show()
     })
   }
 
@@ -71,30 +80,33 @@ export class PauseMenu {
     if (performance.now() - this.openedAt > DEBOUNCE_MS) this.hide(false)
   }
 
-  show(): void {
+  show(tab?: Tab): void {
     this.open = true
     this.openedAt = performance.now()
+    $('pause-title').textContent = this.playing ? 'Paused' : 'Settings'
+    this.resume.textContent = this.playing ? 'Resume' : 'Back'
+    if (tab) this.select($<HTMLButtonElement>(`tab-btn-${tab}`))
     this.root.hidden = false
     this.resume.focus()
   }
 
-  private hide(fromClick: boolean): void {
+  hide(fromClick: boolean): void {
     this.open = false
     this.root.hidden = true
     this.resume.blur()
-    this.o.onResume(fromClick)
+    this.hooks.onResume(fromClick)
   }
 
   /** Tabs per the ARIA pattern: click or arrow keys switch, only the active tab is tabbable. */
   private wireTabs(): void {
-    const select = (tab: HTMLButtonElement) => {
+    const select = (this.select = (tab: HTMLButtonElement) => {
       for (const t of this.tabs) {
         const on = t === tab
         t.setAttribute('aria-selected', String(on))
         t.tabIndex = on ? 0 : -1
         $(t.getAttribute('aria-controls')!).hidden = !on
       }
-    }
+    })
     this.tabs.forEach((tab, i) => {
       tab.addEventListener('click', () => select(tab))
       tab.addEventListener('keydown', (e) => {

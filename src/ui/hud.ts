@@ -1,6 +1,11 @@
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-/** HUD: FPS readout (the Show FPS setting), wanted stars, health and breath, speedometer, ammo, crosshair, and the death screen. */
+// Where the speedometer ring is full, in km/h.
+const DIAL_MAX = 220
+// How long a help toast stays, in ms; matches the toast-life animation in hud-panels.css.
+const TOAST_MS = 6000
+
+/** HUD: FPS readout (the Show FPS setting), wanted stars, health and breath, speedometer, ammo, crosshair, help toasts, and the death screen. */
 export class Hud {
   fps = 0
   private frames = 0
@@ -15,6 +20,8 @@ export class Hud {
   private readonly underwaterEl = $('underwater')
   private readonly speedoEl = $('speedo')
   private readonly speedEl = $('speed')
+  private readonly arcEl = $('speed-arc')
+  private readonly toastsEl = $('toasts')
   private readonly stallEl = $('stall')
   private readonly promptEl = $('prompt')
   private readonly crosshairEl = $('crosshair')
@@ -49,10 +56,20 @@ export class Hud {
     if (hospital) text(this.deathWhere, `Waking up at ${hospital}`)
   }
 
-  /** Bars appear only while not full, like most open-world HUDs. Values are 0 to 1. */
+  /** Values are 0 to 1. Health pulses red when low. */
   setVitals(health: number, breath: number): void {
     bar(this.healthEl, health)
     bar(this.breathEl, breath)
+    this.healthEl.classList.toggle('low', health < 0.25)
+  }
+
+  /** A short help line top left that fades on its own. */
+  toast(message: string): void {
+    const el = document.createElement('p')
+    el.className = 'toast'
+    el.textContent = message
+    this.toastsEl.append(el)
+    window.setTimeout(() => el.remove(), TOAST_MS)
   }
 
   setUnderwater(on: boolean): void {
@@ -65,7 +82,10 @@ export class Hud {
     this.stallEl.hidden = warning === null
     if (warning && this.stallEl.textContent !== warning) this.stallEl.textContent = warning
     const text = String(Math.round(kmh ?? 0))
-    if (this.speedEl.textContent !== text) this.speedEl.textContent = text
+    if (this.speedEl.textContent === text) return
+    this.speedEl.textContent = text
+    // The ring is three quarters of a circle (75 of its 100 path units), open at the bottom.
+    this.arcEl.style.strokeDasharray = `${Math.min(1, (kmh ?? 0) / DIAL_MAX) * 75} 100`
   }
 
   /** Pistol readout while on foot; null hides it and the crosshair. */
@@ -106,7 +126,6 @@ function text(el: HTMLElement, value: string): void {
 }
 
 function bar(el: HTMLElement, value: number): void {
-  el.hidden = value >= 1
   const pct = Math.round(value * 100)
   if (el.getAttribute('aria-valuenow') === String(pct)) return
   el.style.setProperty('--fill', `${pct}%`)

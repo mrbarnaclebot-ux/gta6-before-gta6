@@ -1,0 +1,208 @@
+/* Main menu: the sunset art full bleed, a dark wash on the left for the wordmark and the list. */
+.menu {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--night);
+}
+
+.menu-art,
+.menu::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.menu-art {
+  background: url('/assets/ui/menu.webp') 70% 50% / cover no-repeat;
+  transform-origin: 72% 55%;
+  animation: menu-drift 40s ease-in-out infinite alternate;
+}
+
+.menu::after {
+  content: '';
+  background:
+    linear-gradient(90deg, rgba(14, 6, 26, 0.9) 0%, rgba(14, 6, 26, 0.62) 28%, transparent 58%),
+    linear-gradient(0deg, rgba(14, 6, 26, 0.7) 0%, transparent 26%);
+}
+
+@keyframes menu-drift {
+  from {
+    transform: scale(1.03);
+  }
+  to {
+    transform: scale(1.13) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+.menu-body {
+  position: absolute;
+  left: clamp(20px, 6vw, 96px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(520px, calc(100% - 40px));
+}
+
+.wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(72px, 10vw, 156px);
+  line-height: 0.84;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  filter: drop-shadow(0 6px 24px rgba(20, 4, 30, 0.55));
+}
+
+.wordmark span {
+  display: block;
+  width: fit-content;
+}
+
+.wordmark span:first-child {
+  background: var(--sunset);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.menu-tag {
+  margin: 14px 0 clamp(24px, 5vh, 48px);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-dim);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.menu-list {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.menu-item {
+  position: relative;
+  min-width: 240px;
+  padding: 6px 18px 6px 22px;
+  text-align: left;
+  border: 0;
+  background: none;
+  color: rgba(255, 247, 240, 0.66);
+  font-family: var(--font-display);
+  font-size: clamp(26px, 2.6vw, 36px);
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-decoration: none;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.2s ease;
+}
+
+.menu-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18%;
+  bottom: 18%;
+  width: 5px;
+  border-radius: 3px;
+  background: var(--sunset);
+  transform: scaleY(0);
+  transition: transform 0.2s ease;
+}
+
+.menu-item:focus {
+  outline: none;
+}
+
+.menu-item:hover,
+.menu-item:focus {
+  color: #fff;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.14), transparent);
+  transform: translateX(8px);
+}
+
+.menu-item:focus::before,
+.menu-item:hover::before {
+  transform: scaleY(1);
+}
+
+.menu-item:disabled {
+  cursor: progress;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 16px 0 0;
+  color: #ffd0d6;
+}
+
+.menu-foot {
+  position: absolute;
+  left: clamp(20px, 6vw, 96px);
+  right: clamp(20px, 4vw, 48px);
+  bottom: clamp(16px, 4vh, 32px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 24px;
+  font-size: 13px;
+  color: var(--ink-dim);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+.menu-keys kbd:last-of-type {
+  margin-left: 12px;
+}
+
+/* Phones and tablets: the game needs a keyboard and mouse, so say it plainly. */
+@media (pointer: coarse) {
+  .menu-keys {
+    display: none;
+  }
+  .desktop-note {
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid rgba(255, 179, 71, 0.6);
+    color: var(--ink);
+    backdrop-filter: var(--glass-blur);
+  }
+}
+
+/* Portrait screens: the player and car fill the frame, the menu sits low over a bottom wash. */
+@media (max-aspect-ratio: 1/1) {
+  .menu-art {
+    background-position: 74% 50%;
+    transform-origin: 74% 60%;
+  }
+  .menu::after {
+    background:
+      linear-gradient(0deg, rgba(14, 6, 26, 0.94) 0%, rgba(14, 6, 26, 0.7) 40%, transparent 70%),
+      linear-gradient(180deg, rgba(14, 6, 26, 0.55) 0%, transparent 22%);
+  }
+  .menu-body {
+    top: auto;
+    bottom: clamp(72px, 10vh, 120px);
+    transform: none;
+  }
+  .wordmark {
+    font-size: clamp(64px, 17vw, 150px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-art {
+    animation: none;
+  }
+  .menu-item,
+  .menu-item::before {
+    transition: none;
+  }
+}

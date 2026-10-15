@@ -1,56 +1,19 @@
-import type { CityLayout, Rect } from '../city/layout'
-import { roadRect } from '../world/ground'
+import type { P } from '../city/route'
+import { carIcon, hospitalIcon, playerArrow, routeLine, waypointIcon } from './map-icons'
+import type { Base } from './map-paint'
 
 // CSS pixels; the canvas backing store is scaled by devicePixelRatio.
-const SIZE = 168
-// Pixels per meter on foot and at speed: about 110 m and 170 m of map around the player.
+const W = 240
+const H = 156
+// The player sits below the middle, so more of the road ahead shows.
+const CX = W / 2
+const CY = H * 0.6
+const RADIUS = 10
+// Pixels per meter on foot and at speed: about 320 m and 480 m across.
 const ZOOM_FOOT = 0.75
 const ZOOM_CAR = 0.5
-const MARGIN = 220
-
-const COLORS = {
-  sea: '#1d5874',
-  sand: '#c2b088',
-  land: '#3b3f47',
-  building: '#2e3138',
-  park: '#46703f',
-  road: '#8d939c',
-}
-
-type Bounds = { x0: number; z0: number }
-
-// ponytail: about 2440 px square (24 MB) at one pixel per meter; halve it if mobile ever matters.
-/** The whole map painted once, one pixel per meter. */
-function paintBase(c: CityLayout): { canvas: HTMLCanvasElement; origin: Bounds } {
-  const origin = { x0: c.land.x0 - MARGIN, z0: c.land.z0 - MARGIN }
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.ceil(c.land.x1 - c.land.x0 + 2 * MARGIN)
-  canvas.height = Math.ceil(c.land.z1 - c.land.z0 + 2 * MARGIN)
-  const g = canvas.getContext('2d')!
-  const fill = (r: Rect, color: string) => {
-    g.fillStyle = color
-    g.fillRect(r.x0 - origin.x0, r.z0 - origin.z0, r.x1 - r.x0, r.z1 - r.z0)
-  }
-  g.fillStyle = COLORS.sea
-  g.fillRect(0, 0, canvas.width, canvas.height)
-  // Where the seabed rises above sea level: about 15 m off most shores, 60 m on the beach.
-  const { land } = c
-  fill({ x0: land.x0 - 15, z0: land.z0 - 15, x1: land.x1 + 60, z1: land.z1 + 15 }, COLORS.sand)
-  fill(land, COLORS.land)
-  fill(c.canal, COLORS.sea)
-  for (const b of c.blocks) {
-    if (b.park) fill(b.lot, COLORS.park)
-    for (const g2 of b.gardens) fill(g2, COLORS.park)
-    for (const h of b.buildings) {
-      fill(
-        { x0: h.x - h.w / 2, z0: h.z - h.d / 2, x1: h.x + h.w / 2, z1: h.z + h.d / 2 },
-        COLORS.building,
-      )
-    }
-  }
-  for (const r of c.roads) fill(roadRect(r), COLORS.road)
-  return { canvas, origin }
-}
+// How fast the map turns after the camera, per second: smooth, but never lagging far behind.
+const TURN_RATE = 12
 
 /** What the minimap marks besides the map itself. */
 export interface MapMarks {
@@ -63,118 +26,133 @@ export interface MapMarks {
   driving: boolean
   /** The wanted search area, when there is one. */
   search: { x: number; z: number; r: number; blink: boolean } | null
+  /** Parked cars: ground position and facing. */
+  cars: { x: number; z: number; heading: number }[]
+  /** The GPS route after the player's position, ending at the waypoint; empty for none. */
+  route: P[]
 }
 
-/** A round, rotating map in the corner: roads, water, parks, hospitals, the player arrow. */
+const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a))
+
+/** A rounded, rotating map in the corner: roads, water, parks, hospitals, cars, the route. */
 export class Minimap {
   private readonly g: CanvasRenderingContext2D
-  private readonly base: ReturnType<typeof paintBase>
   private readonly dpr = Math.min(devicePixelRatio || 1, 2)
   private zoom = ZOOM_FOOT
+  private yaw = NaN
   /** What the last frame drew, so a still player costs no redraw. */
-  private readonly last = new Float64Array(8).fill(NaN)
-  private readonly now = new Float64Array(8)
+  private last = ''
 
   constructor(
     canvas: HTMLCanvasElement,
-    layout: CityLayout,
+    private readonly base: Base,
     private readonly hospitals: { x: number; z: number }[],
   ) {
-    canvas.width = canvas.height = SIZE * this.dpr
+    canvas.width = W * this.dpr
+    canvas.height = H * this.dpr
     this.g = canvas.getContext('2d')!
-    this.base = paintBase(layout)
   }
 
   draw(m: MapMarks, dt: number): void {
-    const g = this.g
     this.zoom += ((m.driving ? ZOOM_CAR : ZOOM_FOOT) - this.zoom) * Math.min(1, dt * 2)
-    if (this.unchanged(m)) return
+    this.yaw = Number.isNaN(this.yaw)
+      ? m.yaw
+      : this.yaw + wrap(m.yaw - this.yaw) * Math.min(1, dt * TURN_RATE)
+    const s = m.search?.blink ? m.search : null
+    const key = [
+      m.x,
+      m.z,
+      this.yaw,
+      m.heading,
+      this.zoom,
+      s?.r,
+      s?.x,
+      m.route.length,
+      m.route[m.route.length - 1]?.x,
+    ].join()
+    if (key === this.last) return
+    this.last = key
+    const g = this.g
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0)
-    g.clearRect(0, 0, SIZE, SIZE)
+    g.clearRect(0, 0, W, H)
     g.save()
     g.beginPath()
-    g.arc(SIZE / 2, SIZE / 2, SIZE / 2, 0, Math.PI * 2)
+    g.roundRect(0, 0, W, H, RADIUS)
     g.clip()
-    g.translate(SIZE / 2, SIZE / 2)
-    g.rotate(m.yaw)
+    this.ground(m, s)
+    this.marks(m)
+    g.restore()
+    this.north()
+  }
+
+  /** Route, cars, hospitals, the waypoint, and the player, in screen pixels. */
+  private marks(m: MapMarks): void {
+    const g = this.g
+    const at = (x: number, z: number) => this.toScreen(m, x, z)
+    if (m.route.length) routeLine(g, [{ x: CX, y: CY }, ...m.route.map((p) => at(p.x, p.z))], 3)
+    for (const c of m.cars) {
+      const p = at(c.x, c.z)
+      carIcon(g, p.x, p.y, Math.PI - c.heading + this.yaw)
+    }
+    for (const h of this.hospitals) {
+      const p = at(h.x, h.z)
+      hospitalIcon(g, p.x, p.y, 0.85)
+    }
+    const end = m.route[m.route.length - 1]
+    if (end) {
+      const p = this.pinned(at(end.x, end.z))
+      waypointIcon(g, p.x, p.y)
+    }
+    playerArrow(g, CX, CY, Math.PI - (m.heading - this.yaw))
+  }
+
+  /** The base map and the search area, in world space turned by the camera yaw. */
+  private ground(m: MapMarks, s: { x: number; z: number; r: number } | null): void {
+    const g = this.g
+    g.save()
+    g.translate(CX, CY)
+    g.rotate(this.yaw)
     g.scale(this.zoom, this.zoom)
     g.translate(-m.x, -m.z)
-    g.drawImage(this.base.canvas, this.base.origin.x0, this.base.origin.z0)
-    if (m.search && m.search.blink) this.searchArea(m.search)
-    for (const h of this.hospitals) this.hospital(h.x, h.z, m.yaw)
+    g.drawImage(this.base.canvas, this.base.x0, this.base.z0)
+    if (s) {
+      g.beginPath()
+      g.arc(s.x, s.z, s.r, 0, Math.PI * 2)
+      g.fillStyle = 'rgba(230, 40, 60, 0.18)'
+      g.fill()
+    }
     g.restore()
-    this.arrow(Math.PI - (m.heading - m.yaw))
-    this.north(m.yaw)
   }
 
-  private unchanged(m: MapMarks): boolean {
-    const s = m.search?.blink ? m.search : null
-    const now = this.now
-    now[0] = m.x
-    now[1] = m.z
-    now[2] = m.yaw
-    now[3] = m.heading
-    now[4] = this.zoom
-    now[5] = s ? s.r : -1
-    now[6] = s ? s.x : 0
-    now[7] = s ? s.z : 0
-    let same = true
-    for (let i = 0; i < now.length; i++) if (now[i] !== this.last[i]) same = false
-    this.last.set(now)
-    return same
+  private toScreen(m: MapMarks, x: number, z: number) {
+    const dx = (x - m.x) * this.zoom
+    const dz = (z - m.z) * this.zoom
+    const c = Math.cos(this.yaw)
+    const s = Math.sin(this.yaw)
+    return { x: CX + dx * c - dz * s, y: CY + dx * s + dz * c }
   }
 
-  private searchArea(s: { x: number; z: number; r: number }): void {
+  /** A far waypoint sticks to the edge, so it still shows which way to go. The pin's tip is at p. */
+  private pinned(p: { x: number; y: number }) {
+    return { x: Math.min(W - 12, Math.max(12, p.x)), y: Math.min(H - 4, Math.max(28, p.y)) }
+  }
+
+  /** A dark disc with "N" on the rim where north (-z) lies after turning by the camera yaw. */
+  private north(): void {
     const g = this.g
+    const dx = Math.sin(this.yaw)
+    const dy = -Math.cos(this.yaw)
+    const t = Math.min((W / 2 - 11) / Math.abs(dx || 1e-6), (H / 2 - 11) / Math.abs(dy || 1e-6))
+    const x = W / 2 + dx * t
+    const y = H / 2 + dy * t
     g.beginPath()
-    g.arc(s.x, s.z, s.r, 0, Math.PI * 2)
-    g.fillStyle = 'rgba(230, 40, 60, 0.14)'
+    g.arc(x, y, 8.5, 0, Math.PI * 2)
+    g.fillStyle = 'rgba(10, 8, 20, 0.85)'
     g.fill()
-  }
-
-  /** A red cross badge that stays upright and the same size at any zoom. */
-  private hospital(x: number, z: number, yaw: number): void {
-    const g = this.g
-    g.save()
-    g.translate(x, z)
-    g.rotate(-yaw)
-    g.scale(1 / this.zoom, 1 / this.zoom)
-    g.fillStyle = '#e8eef2'
-    g.fillRect(-6, -6, 12, 12)
-    g.fillStyle = '#d6283c'
-    g.fillRect(-1.6, -4.5, 3.2, 9)
-    g.fillRect(-4.5, -1.6, 9, 3.2)
-    g.restore()
-  }
-
-  private arrow(angle: number): void {
-    const g = this.g
-    g.save()
-    g.translate(SIZE / 2, SIZE / 2)
-    g.rotate(angle)
-    g.beginPath()
-    g.moveTo(0, -8)
-    g.lineTo(6, 7)
-    g.lineTo(0, 3.5)
-    g.lineTo(-6, 7)
-    g.closePath()
-    g.fillStyle = '#ffffff'
-    g.strokeStyle = 'rgba(0, 0, 0, 0.7)'
-    g.lineWidth = 1.5
-    g.fill()
-    g.stroke()
-    g.restore()
-  }
-
-  /** "N" on the rim where -z (north on the map plan) lies after turning by the camera yaw. */
-  private north(yaw: number): void {
-    const g = this.g
-    const a = yaw - Math.PI / 2
-    const r = SIZE / 2 - 10
-    g.font = '700 11px system-ui, sans-serif'
+    g.font = '700 10px system-ui, sans-serif'
     g.textAlign = 'center'
     g.textBaseline = 'middle'
     g.fillStyle = '#ffffff'
-    g.fillText('N', SIZE / 2 + Math.cos(a) * r, SIZE / 2 + Math.sin(a) * r)
+    g.fillText('N', x, y + 0.5)
   }
 }

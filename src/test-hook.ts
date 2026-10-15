@@ -9,6 +9,7 @@ import type { Sky } from './render/sky'
 import { PRESETS, type Graphics, type Preset } from './render/graphics'
 import type { Driving } from './vehicle/driving'
 import type { City } from './world/city'
+import type { Ui } from './ui/hud-sync'
 
 interface HookDeps {
   player: Player
@@ -23,6 +24,7 @@ interface HookDeps {
   setGraphics: (g: Graphics) => void
   graphics: () => Graphics
   paused: () => boolean
+  ui: Pick<Ui, 'worldMap' | 'nav'>
   extra: () => {
     fps: number
     frames: number
@@ -55,6 +57,7 @@ function snapshot(deps: HookDeps) {
     /** Unit vector toward the sun by day, the moon by night. */
     sun: sky.ambient.sunDir.toArray(),
     paused: deps.paused(),
+    mapOpen: deps.ui.worldMap.open,
     sensitivity: follow.sensitivity,
     underwater: city.underwater,
     ammo: pistol.mag,
@@ -151,6 +154,11 @@ export function exposeTestHook(deps: HookDeps): void {
     aimAt: (x: number, y: number, z: number) => follow.aimAt(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
+    /** The waypoint and the GPS route to it (road points ending at the waypoint), or null. */
+    waypoint: () => {
+      const { target, path } = deps.ui.nav
+      return target && { ...target, route: path.map((p) => ({ ...p })) }
+    },
     ...lifeHelpers(deps),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })

@@ -1,6 +1,5 @@
 /* Pause menu: a blurred night skyline behind dark glass panels with pink and cyan accents. */
 .pause {
-  --cyan: #2de2e6;
   --glass: rgba(14, 10, 32, 0.66);
   --line: rgba(255, 255, 255, 0.09);
   position: fixed;
@@ -57,11 +56,13 @@
 
 .pause-head h2 {
   margin: 0 0 14px;
-  font-size: 34px;
-  font-weight: 900;
-  font-style: italic;
-  letter-spacing: -0.02em;
-  background: linear-gradient(90deg, var(--pink), var(--orange));
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--sunset);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

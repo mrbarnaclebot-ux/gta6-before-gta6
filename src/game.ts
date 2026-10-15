@@ -11,13 +11,15 @@ import { loadFigures } from './player/figure'
 import { Player } from './player/player'
 import { Look } from './look'
 import { advance, START_HOUR } from './render/daynight'
-import { loadGraphics, presetOf } from './render/graphics'
+import { presetOf } from './render/graphics'
 import { installHeightFog } from './render/height-fog'
 import { Renderer } from './render/renderer'
 import { Shadows } from './render/shadows'
 import { Sky } from './render/sky'
 import { exposeTestHook } from './test-hook'
-import { createUi, updateHud, type Ui } from './ui/hud-sync'
+import { createUi, menuKeys, updateHud, type Ui } from './ui/hud-sync'
+import type { Loading } from './ui/loading'
+import type { PauseMenu } from './ui/pause'
 import { CarModels } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
@@ -33,7 +35,7 @@ function startHour(): number {
 }
 
 /** Renderer, physics, sky, city, and the loaded models. */
-async function loadWorld(canvas: HTMLCanvasElement) {
+async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   installHeightFog()
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
@@ -42,6 +44,10 @@ async function loadWorld(canvas: HTMLCanvasElement) {
   const sky = new Sky(scene)
   const shadows = new Shadows(scene, camera, sky.sun)
   const physics = await createPhysics()
+  loading.finish('physics')
+  // Every loader here uses three's default manager, so it sees each glb, hdr, and texture.
+  const files = THREE.DefaultLoadingManager
+  files.onProgress = (_url, loaded, total) => loading.files(loaded, total)
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
   const [figures, city] = await Promise.all([
@@ -49,6 +55,8 @@ async function loadWorld(canvas: HTMLCanvasElement) {
     buildCity({ scene, physics }, load, sky.ambient),
     sky.load(renderer.gl),
   ])
+  files.onProgress = () => {}
+  loading.finish('files')
   // Car bodies load after the first frame (see startGame); box bodies stand in till then.
   const carModels = new CarModels(scene)
   return { scene, camera, renderer, sky, shadows, physics, figures, city, carModels, load }
@@ -64,8 +72,8 @@ function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
   return { player, cars, driving: new Driving(physics, cars, player, scene) }
 }
 
-async function buildScene(canvas: HTMLCanvasElement) {
-  const world = await loadWorld(canvas)
+async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
+  const world = await loadWorld(canvas, loading)
   const { scene, camera, renderer, sky, shadows, physics, figures, city, carModels } = world
   const makeCar = carModels.make
   const { player, cars, driving } = spawnPlayer(world)
@@ -143,8 +151,7 @@ function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: numbe
     // compiles) delays it, so a negative step is clamped too, or the world would stall.
     const dt = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME)
     last = now
-    if (input.consume('pause')) ui.pause.toggle()
-    if (!ui.pause.open) acc = simulate(w, input, dt, acc)
+    if (!menuKeys(ui, w, input)) acc = simulate(w, input, dt, acc)
     w.carModels.newFrame()
     look.update(dt)
     w.renderer.render(dt)
@@ -152,16 +159,33 @@ function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: numbe
   })
 }
 
-export async function startGame(canvas: HTMLCanvasElement, input: Input): Promise<void> {
-  const w = await buildScene(canvas)
+/** What the title screen hands over: its settings menu and the loading screen. */
+export interface Boot {
+  pause: PauseMenu
+  loading: Loading
+}
+
+export async function startGame(
+  canvas: HTMLCanvasElement,
+  input: Input,
+  boot: Boot,
+): Promise<void> {
+  const { loading } = boot
+  const w = await buildScene(canvas, loading)
   w.sky.setTime(w.clock.hours)
-  const look = new Look(w, loadGraphics())
-  const ui = createUi(w, input, look)
+  const look = new Look(w, boot.pause.graphics)
+  const ui = createUi(w, input, look, boot.pause)
+  loading.finish('world')
   let frames = 0
   runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
+    if (frames++ > 0) return
+    // The first frame (and its shader compiles) is drawn: lift the loading screen.
+    loading.ready()
+    ui.tip('map', 'Press M for the map. Click on it to set a waypoint.')
+    ui.tip('car', 'Walk up to a parked car and press F to get in.')
     // The car bodies are the heaviest download; fetch them once the city is on screen.
-    if (frames++ === 0) void w.upgradeCars()
+    void w.upgradeCars()
   })
   exposeTestHook({
     ...w,
@@ -169,6 +193,7 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
     setGraphics: ui.setGraphics,
     graphics: () => look.graphics,
     paused: () => ui.pause.open,
+    ui,
     extra: () => ({
       fps: Math.round(ui.hud.fps),
       frames,

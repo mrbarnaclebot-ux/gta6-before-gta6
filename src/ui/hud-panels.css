@@ -1,0 +1,228 @@
+/* HUD panels: weapon and ammo, speedometer, the key prompt, and help toasts. */
+.weapon {
+  position: fixed;
+  right: var(--edge);
+  bottom: var(--edge);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 16px;
+  padding: 10px 18px 10px 16px;
+  border-radius: 14px;
+  pointer-events: none;
+}
+
+.pistol {
+  grid-row: 1 / 3;
+  width: 64px;
+  height: 40px;
+  fill: var(--ink);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+
+.pistol .guard {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.weapon-name {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.ammo-count {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.mag {
+  font-family: var(--font-display);
+  font-size: 34px;
+  letter-spacing: 0.02em;
+}
+
+.mag.empty {
+  color: var(--danger);
+}
+
+.reserve {
+  font-family: var(--font-display);
+  font-size: 17px;
+  color: var(--ink-dim);
+}
+
+.reserve::before {
+  content: '/ ';
+}
+
+.reloading {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sunset);
+  color: #1a0c22;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Speedometer: a three-quarter ring that fills with speed, the number in the middle. */
+.speedo {
+  position: fixed;
+  right: var(--edge);
+  bottom: var(--edge);
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(9, 10, 20, 0.72) 0 58%,
+    rgba(9, 10, 20, 0.35) 70%,
+    transparent 71%
+  );
+  pointer-events: none;
+}
+
+.speed-dial {
+  position: absolute;
+  inset: 0;
+  transform: rotate(135deg);
+}
+
+.speed-dial circle {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.dial-track {
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-dasharray: 75 100;
+}
+
+.dial-fill {
+  stroke: url(#dial-grad);
+  stroke-dasharray: 0 100;
+  transition: stroke-dasharray 0.15s linear;
+}
+
+.speed-value {
+  font-family: var(--font-display);
+  font-size: 42px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-unit {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.stall {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--danger);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Context prompt: a key cap and the action, low in the middle. */
+.prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--edge) + 96px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 7px 16px 7px 8px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 650;
+  pointer-events: none;
+}
+
+.prompt kbd {
+  font-size: 13px;
+}
+
+/* Help toasts, top left: each fades in, holds, and fades out over six seconds. */
+.toasts {
+  position: fixed;
+  top: var(--edge);
+  left: var(--edge);
+  display: grid;
+  gap: 8px;
+  width: min(340px, calc(100% - 2 * var(--edge) - 120px));
+  pointer-events: none;
+}
+
+.toast {
+  margin: 0;
+  padding: 11px 14px 11px 16px;
+  border-radius: 10px;
+  border-left: 3px solid #ff8a5c;
+  font-size: 14px;
+  line-height: 1.4;
+  animation: toast-life 6s ease both;
+}
+
+@keyframes toast-life {
+  0% {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  6%,
+  88% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation-name: fade-life;
+  }
+  @keyframes fade-life {
+    0%,
+    100% {
+      opacity: 0;
+    }
+    6%,
+    88% {
+      opacity: 1;
+    }
+  }
+}

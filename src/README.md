@@ -1,10 +1,10 @@
 # src
 
-- `main.ts` title screen wiring; lazy-loads the game on Play
+- `main.ts` title screen, settings, and loading screen wiring; lazy-loads the game and starts it on Play
 - `game.ts` builds the scene and runs the fixed-step loop, the clock, and pause
 - `physics.ts` Rapier init and the fixed timestep
 - `settings.ts` display and control preferences (FOV, HUD scale, FPS, sensitivity, invert Y), saved in localStorage
 - `look.ts` applies graphics settings and feeds shadows, sun glare, focus, and motion blur each frame
 - `test-hook.ts` `window.__game` for Playwright and debugging
-- `style.css` base styles and the title screen (HUD, death, and pause styles live in `ui`)
-- Subfolders: `input`, `player`, `vehicle`, `combat`, `camera`, `render` (renderer, post chain, shadows, sky, graphics presets), `life` (people, traffic, wanted level, death), `city` (pure seeded map plan), `world` (meshes and colliders for it), `ui` (HUD, minimap, pause and settings menu)
+- `style.css` shared design tokens, the display font, and key caps (screen styles live in `ui`)
+- Subfolders: `input`, `player`, `vehicle`, `combat`, `camera`, `render` (renderer, post chain, shadows, sky, graphics presets), `life` (people, traffic, wanted level, death), `city` (pure seeded map plan), `world` (meshes and colliders for it), `ui` (menu, loading screen, HUD, maps, pause and settings menu)

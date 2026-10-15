@@ -7,8 +7,11 @@ import type { Look } from '../look'
 import { saveGraphics, type Graphics } from '../render/graphics'
 import { loadPrefs, savePref, type Prefs } from '../settings'
 import { Hud } from './hud'
+import { paintBase } from './map-paint'
 import { Minimap } from './minimap'
-import { PauseMenu } from './pause'
+import { Nav } from './nav'
+import type { PauseMenu } from './pause'
+import { WorldMap } from './worldmap'
 
 // How long the red hit marker stays over the crosshair, in seconds.
 const HIT_MARK = 0.18
@@ -17,6 +20,10 @@ export interface Ui {
   hud: Hud
   pause: PauseMenu
   map: Minimap
+  worldMap: WorldMap
+  nav: Nav
+  /** Shows a help toast the first time `key` comes up. */
+  tip: (key: string, message: string) => void
   /** Apply, show, and save graphics settings (also used by the test hook). */
   setGraphics: (g: Graphics) => void
 }
@@ -30,8 +37,8 @@ function applyPref(w: World, hud: Hud, name: keyof Prefs, value: Prefs[keyof Pre
   if (name === 'hudScale') document.documentElement.style.setProperty('--hud-scale', String(value))
 }
 
-/** The HUD, minimap, and pause menu, with settings loaded from and saved to localStorage. */
-export function createUi(w: World, input: Input, look: Look): Ui {
+/** The HUD, maps, and pause menu, with settings loaded from and saved to localStorage. */
+export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): Ui {
   const hud = new Hud()
   const prefs = loadPrefs()
   for (const name of Object.keys(prefs) as (keyof Prefs)[]) applyPref(w, hud, name, prefs[name])
@@ -40,9 +47,11 @@ export function createUi(w: World, input: Input, look: Look): Ui {
     pause.setGraphics(g)
     saveGraphics(g)
   }
-  const pause = new PauseMenu({
-    graphics: look.graphics,
-    prefs,
+  const nav = new Nav(w.city.layout)
+  const base = paintBase(w.city.layout)
+  const worldMap = new WorldMap(base, w.city.layout, w.life.hospitals, nav)
+  pause.playing = true
+  pause.hooks = {
     onGraphics: (g) => {
       look.apply(g)
       saveGraphics(g)
@@ -55,13 +64,52 @@ export function createUi(w: World, input: Input, look: Look): Ui {
       input.reset()
       if (fromClick) input.lockPointer()
     },
-  })
+    autoOpen: () => !worldMap.open,
+  }
   const map = new Minimap(
     document.getElementById('minimap') as HTMLCanvasElement,
-    w.city.layout,
+    base,
     w.life.hospitals,
   )
-  return { hud, pause, map, setGraphics }
+  const seen = new Set<string>()
+  const tip = (key: string, message: string) => {
+    if (!seen.has(key)) hud.toast(message)
+    seen.add(key)
+  }
+  return { hud, pause, map, worldMap, nav, tip, setGraphics }
+}
+
+/** Esc and M: the pause menu and the map. Returns whether the world should hold still. */
+export function menuKeys(ui: Ui, w: World, input: Input): boolean {
+  const map = input.consume('map')
+  if (input.consume('pause')) {
+    if (ui.worldMap.open) closeMap(ui, input)
+    else ui.pause.toggle()
+  } else if (map && !ui.pause.open && !w.life.dead) {
+    if (ui.worldMap.open) closeMap(ui, input)
+    else ui.worldMap.show(mapPlayer(w))
+  }
+  return ui.pause.open || ui.worldMap.open
+}
+
+function closeMap(ui: Ui, input: Input): void {
+  ui.worldMap.close()
+  input.reset()
+  // M is a user gesture, so the mouse can be captured again straight away.
+  input.lockPointer()
+}
+
+function mapPlayer(w: World) {
+  const car = w.driving.car
+  const p = w.driving.position
+  return {
+    x: p.x,
+    z: p.z,
+    heading: car ? chase(car).heading : w.player.avatar.root.rotation.y,
+    cars: w.driving.cars
+      .filter((c) => c !== car)
+      .map((c) => ({ x: c.position.x, z: c.position.z, heading: chase(c).heading })),
+  }
 }
 
 export function updateHud(ui: Ui, w: World, dt: number): void {
@@ -91,24 +139,34 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
   const p = w.driving.position
   hud.setDeath(w.life.dead ? nearest(w.life.hospitals, p.x, p.z).name : null)
   drawMap(ui, w, dt)
+  helpTips(ui, w)
   hud.frame()
 }
 
-function drawMap(ui: Ui, w: World, dt: number): void {
-  const car = w.driving.car
-  const { wanted } = w.life
+/** First-time hints, top left. */
+function helpTips(ui: Ui, w: World): void {
   const p = w.driving.position
+  if (ui.nav.update(p)) ui.hud.toast('You have arrived.')
+  const mode = w.driving.mode
+  if (mode === 'driving') ui.tip('drive', 'Space is the handbrake. Press F to get out.')
+  if (mode === 'swimming') ui.tip('swim', 'Ctrl or C dives. Space comes back up.')
+  if (stars(w.life.wanted) > 0)
+    ui.tip('wanted', 'Police are searching the red area. Get out of it to lose them.')
+}
+
+function drawMap(ui: Ui, w: World, dt: number): void {
+  if (ui.worldMap.open) return ui.worldMap.draw()
+  const { wanted } = w.life
   const level = stars(wanted)
   // The search area blinks while the player is outside it, like the stars.
   const blink = !cooling(wanted) || Math.floor(performance.now() / 450) % 2 === 0
   ui.map.draw(
     {
-      x: p.x,
-      z: p.z,
+      ...mapPlayer(w),
       yaw: w.follow.yaw,
-      heading: car ? chase(car).heading : w.player.avatar.root.rotation.y,
-      driving: car !== null,
+      driving: w.driving.car !== null,
       search: level ? { x: wanted.x, z: wanted.z, r: searchRadius(wanted), blink } : null,
+      route: ui.nav.path,
     },
     dt,
   )
