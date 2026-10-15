@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { BAY, type Style } from '../city/lots'
 import { rng, type Rand } from '../city/rng'
+import { GLOW_BAYS, GLOW_FLOORS, windowGlow } from './night-windows'
 
 /*
  * Procedural PBR facade textures. No CC0 window texture fit Miami, so each style
@@ -167,11 +168,17 @@ export function facadeMaterial(style: Style): THREE.MeshStandardMaterial {
     for (let fy = 0; fy < TILE_FLOORS; fy++) PAINTERS[style](l, r, bx, fy)
   }
   const orm = texture(l.orm.canvas, false)
+  const glow = windowGlow(style)
+  glow.repeat.set(TILE_BAYS / GLOW_BAYS, TILE_FLOORS / GLOW_FLOORS)
   return new THREE.MeshStandardMaterial({
     map: texture(l.albedo.canvas, true),
     roughnessMap: orm,
     metalnessMap: orm,
     normalMap: texture(canvasOf(normalFrom(l.height, 6)), false),
+    // Lit windows; the day and night cycle raises the intensity after dusk.
+    emissiveMap: glow,
+    emissive: 0xffffff,
+    emissiveIntensity: 0,
     // The maps hold the real values; these scalars just pass them through.
     roughness: 1,
     metalness: 1,

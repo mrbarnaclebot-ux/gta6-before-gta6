@@ -4,6 +4,8 @@ import { SEA_LEVEL } from '../city/layout'
 // Fog hides everything past about 50 m, so the underside only has to cover the play area.
 const EXTENT = 4000
 const RIPPLE = 5
+const SKY = new THREE.Color(0xc8fff4)
+const MIRROR = new THREE.Color(0x0b4f58)
 
 const VERTEX = /* glsl */ `
 #include <fog_pars_vertex>
@@ -53,8 +55,8 @@ function sheetMaterial(normals: THREE.Texture) {
       ripples: { value: ripples },
       repeat: { value: EXTENT / RIPPLE },
       offset: { value: new THREE.Vector2() },
-      sky: { value: new THREE.Color(0xc8fff4) },
-      mirror: { value: new THREE.Color(0x0b4f58) },
+      sky: { value: SKY.clone() },
+      mirror: { value: MIRROR.clone() },
     },
     vertexShader: VERTEX,
     fragmentShader: FRAGMENT,
@@ -90,8 +92,12 @@ export function buildUnderwater(
     get active() {
       return under.visible
     },
-    update(camera: THREE.Camera, dt: number) {
+    /** `day` dims the sheet at night, from 1 at full daylight to 0. */
+    update(camera: THREE.Camera, dt: number, day: number) {
       material.uniforms.offset.value.x += dt * 0.02
+      const k = 0.08 + 0.92 * day
+      material.uniforms.sky.value.copy(SKY).multiplyScalar(k)
+      material.uniforms.mirror.value.copy(MIRROR).multiplyScalar(k)
       const p = camera.position
       const below = p.y < SEA_LEVEL && isWater(p.x, p.z)
       surface.visible = !below

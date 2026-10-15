@@ -2,9 +2,12 @@ import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
 import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
+import { RESPAWN_AFTER, type Life } from './life/life'
+import { cooling, stars } from './life/wanted'
 import type { Player } from './player/player'
-import type { Driving } from './vehicle/driving'
+import type { Sky } from './render/sky'
 import type { Quality } from './settings'
+import type { Driving } from './vehicle/driving'
 import type { City } from './world/city'
 
 interface HookDeps {
@@ -14,7 +17,11 @@ interface HookDeps {
   input: Input
   city: City
   combat: Combat
+  life: Life
+  sky: Sky
+  clock: { hours: number }
   setQuality: (q: Quality) => void
+  paused: () => boolean
   extra: () => {
     fps: number
     frames: number
@@ -24,12 +31,14 @@ interface HookDeps {
   }
 }
 
+const xyz = (p: THREE.Vector3) => ({ x: p.x, y: p.y, z: p.z })
+
 /** A fresh copy of the game state each call, so callers cannot mutate the game. */
 function snapshot(deps: HookDeps) {
-  const { player, driving, follow, city, combat, input, extra } = deps
+  const { player, driving, follow, city, combat, input, life, sky, clock, extra } = deps
   const { pistol } = combat.shooter
   return {
-    position: { x: driving.position.x, y: driving.position.y, z: driving.position.z },
+    position: xyz(driving.position),
     mode: driving.mode,
     /** Forward speed of the driven car in m/s, 0 on foot. */
     speed: driving.car?.speed ?? 0,
@@ -37,6 +46,13 @@ function snapshot(deps: HookDeps) {
     grounded: player.grounded,
     health: player.vitals.health,
     breath: player.vitals.breath,
+    dead: life.dead,
+    wanted: stars(life.wanted),
+    wantedCooling: cooling(life.wanted),
+    hours: clock.hours,
+    night: sky.ambient.night,
+    paused: deps.paused(),
+    sensitivity: follow.sensitivity,
     underwater: city.underwater,
     ammo: pistol.mag,
     reserve: pistol.reserve,
@@ -46,6 +62,42 @@ function snapshot(deps: HookDeps) {
     pointerLocked: input.locked,
     camera: follow.camera.position.toArray(),
     ...extra(),
+  }
+}
+
+/** Helpers for people, traffic, death, and the clock. */
+function lifeHelpers(deps: HookDeps) {
+  const { life, player, clock, sky } = deps
+  return {
+    /** Visible people: chest point (feet + 1.2 m), health, and state. */
+    peds: () =>
+      life.crowd.people
+        .filter((p) => p.root.visible)
+        .map((p) => ({
+          ...xyz(p.position),
+          y: p.position.y + 1.2,
+          health: p.health.hp,
+          state: p.state,
+        })),
+    /** Visible traffic cars: position, speed in m/s, health. */
+    traffic: () =>
+      life.traffic.cars
+        .filter((c) => c.visual.root.visible)
+        .map((c) => ({ ...xyz(c.position), speed: c.speed, health: c.health.hp })),
+    hospitals: () => life.hospitals.map((h) => ({ ...h })),
+    /** Take damage, as from a fall. Enough of it kills. */
+    hurt: (amount: number) => {
+      player.vitals.health = Math.max(0, player.vitals.health - amount)
+    },
+    /** Skip the rest of the death screen: wake up at the hospital next frame. */
+    skipDeath: () => {
+      if (life.deadFor !== null) life.deadFor = RESPAWN_AFTER
+    },
+    /** Jump the clock to an hour from 0 to 24. */
+    setTime: (hours: number) => {
+      clock.hours = ((hours % 24) + 24) % 24
+      sky.setTime(clock.hours)
+    },
   }
 }
 
@@ -64,12 +116,10 @@ export function exposeTestHook(deps: HookDeps): void {
      */
     landmarks: () => {
       const door = driving.door(driving.cars[0])
-      const { x, y, z } = city.spawn
-      const car = { x: door.x, y: door.y, z: door.z }
-      return { ...structuredClone(city.landmarks), car, range: { x, y, z } }
+      return { ...structuredClone(city.landmarks), car: xyz(door), range: xyz(city.spawn) }
     },
-    /** Every car's position, parked or driven. */
-    cars: () => driving.cars.map(({ position: p }) => ({ x: p.x, y: p.y, z: p.z })),
+    /** Every parked or driven car's position. */
+    cars: () => driving.cars.map(({ position }) => xyz(position)),
     teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
     /** Target dummies: chest point (feet + 1.2 m) and health. */
     dummies: () =>
@@ -83,6 +133,7 @@ export function exposeTestHook(deps: HookDeps): void {
     aimAt: (x: number, y: number, z: number) => follow.aimAt(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
+    ...lifeHelpers(deps),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }

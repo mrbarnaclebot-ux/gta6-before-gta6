@@ -6,8 +6,17 @@ export const GRAVITY = -20
 const ACCEL = 14
 const TURN_RATE = 12
 const COYOTE_TIME = 0.12
+// Landing faster than this hurts: about a 5 m drop at this gravity.
+const SAFE_LANDING = 14
+const FALL_DAMAGE = 7
 
-export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'swim' | 'tread' | 'drive'
+/** Health lost landing at vertical speed `vy` (negative is down): a two-story drop stings, a roof kills. */
+export function fallDamage(vy: number): number {
+  return Math.max(0, -vy - SAFE_LANDING) * FALL_DAMAGE
+}
+
+export type AnimState =
+  'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'swim' | 'tread' | 'drive' | 'dead'
 
 export interface Motion {
   vx: number

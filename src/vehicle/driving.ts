@@ -13,6 +13,8 @@ const CAPSULE = { halfHeight: 0.55, radius: 0.35 }
 /** Who is in control: the player on foot, or the player driving one of the cars. */
 export class Driving {
   car: Car | null = null
+  /** 0 by day, 1 at night: how hard the headlight throws. Set by the game each frame. */
+  night = 0
   private readonly headlight = new THREE.SpotLight(0xf2f6ff, 0, 70, 0.5, 0.55, 1.6)
 
   constructor(
@@ -59,34 +61,36 @@ export class Driving {
   }
 
   fixedUpdate(dt: number, input: Input, cameraYaw: number): void {
-    if (input.consume('use')) this.toggle()
+    if (input.consume('use') && !this.player.dead) this.toggle()
     const controls = this.car ? readControls(input) : null
     for (const c of this.cars) c.fixedUpdate(dt, c === this.car ? controls : null)
     if (!this.car) this.player.fixedUpdate(dt, input, cameraYaw)
   }
 
+  /** Step out of the car, if in one, onto the driver's side. */
+  leave(): void {
+    if (!this.car) return
+    this.player.teleport(this.door(this.car))
+    this.player.collider.setEnabled(true)
+    this.car = null
+    this.headlight.intensity = 0
+  }
+
   private toggle(): void {
-    if (this.car) {
-      this.player.teleport(this.door(this.car))
-      this.player.collider.setEnabled(true)
-      this.car = null
-      this.headlight.intensity = 0
-      return
-    }
+    if (this.car) return this.leave()
     this.car = this.nearest()
     if (!this.car) return
     this.player.collider.setEnabled(false)
     this.car.visual.root.add(this.headlight, this.headlight.target)
     this.headlight.position.set(0, 0.75, 2.2)
     this.headlight.target.position.set(0, 0, 14)
-    // ponytail: daytime strength; the night cycle in Phase 6 should raise it.
-    this.headlight.intensity = 60
   }
 
   /** Render-rate update: cars, and either the walking player or the seated driver. */
   update(dt: number, alpha: number): void {
     for (const c of this.cars) c.update(alpha, c === this.car)
     if (!this.car) return this.player.update(dt, alpha)
+    this.headlight.intensity = this.car.dead ? 0 : 60 + 340 * this.night
     const avatar = this.player.avatar
     avatar.root.quaternion.copy(this.car.quaternion)
     avatar.root.position.copy(SEAT).applyQuaternion(this.car.quaternion).add(this.car.position)

@@ -4,8 +4,8 @@ import type { CityLayout } from '../city/layout'
 import type { Input } from '../input/input'
 import type { PhysicsWorld } from '../physics'
 import type { Player } from '../player/player'
-import type { Car } from '../vehicle/car'
-import { carCondition } from './damage'
+import type { RAPIER } from '../physics'
+import { carCondition, type Health } from './damage'
 import { placeDummies, type Dummy } from './dummy'
 import { Effects } from './effects'
 import { Shooter, type Target } from './shooter'
@@ -13,12 +13,21 @@ import { Shooter, type Target } from './shooter'
 // Puffs per second from a damaged engine.
 const SMOKE_RATE = { smoking: 6, wrecked: 14 }
 
+interface Smoker extends Target {
+  health: Health
+  collider: InstanceType<typeof RAPIER.Collider>
+  hood(out: THREE.Vector3): THREE.Vector3
+}
+
 interface CombatDeps {
   scene: THREE.Scene
   physics: PhysicsWorld
   player: Player
   follow: FollowCamera
-  cars: Car[]
+  /** Anything that smokes when shot up: parked and traffic cars. */
+  cars: Smoker[]
+  /** Other things bullets hit, such as people. */
+  targets: (Target & { collider: InstanceType<typeof RAPIER.Collider> })[]
   layout: CityLayout
   spawn: THREE.Vector3
 }
@@ -28,7 +37,7 @@ export class Combat {
   readonly shooter: Shooter
   readonly dummies: Dummy[]
   private readonly effects: Effects
-  private readonly cars: Car[]
+  private readonly cars: Smoker[]
   private readonly hood = new THREE.Vector3()
 
   constructor(d: CombatDeps) {
@@ -38,7 +47,7 @@ export class Combat {
     this.effects = new Effects(d.scene)
     this.cars = d.cars
     const targets = new Map<number, Target>()
-    for (const t of [...this.dummies, ...d.cars]) targets.set(t.collider.handle, t)
+    for (const t of [...this.dummies, ...d.cars, ...d.targets]) targets.set(t.collider.handle, t)
     this.shooter = new Shooter(d.physics, d.player, d.follow, targets, this.effects)
   }
 

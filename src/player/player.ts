@@ -8,6 +8,7 @@ import { findLedge } from './ledge'
 import {
   animState,
   fall,
+  fallDamage,
   RUN_SPEED,
   steer,
   turnToward,
@@ -97,10 +98,15 @@ export class Player {
     return surface === null ? -Infinity : surface - this.curr.y
   }
 
+  get dead(): boolean {
+    return this.vitals.health <= 0
+  }
+
   /** One fixed physics step of movement. Call before world.step(). */
   fixedUpdate(dt: number, input: Input, cameraYaw: number): void {
     const depth = this.feetDepth
     this.setMode(nextMode(this.mode, depth))
+    if (this.dead) return this.lie(dt, depth)
     const axes = moveAxes(input.held)
     const wish = cameraRelative(cameraYaw, axes.x, axes.z)
     const swimming = this.mode === 'swimming'
@@ -108,8 +114,7 @@ export class Player {
     const climbed = swimming ? this.swim(dt, input, wish, depth) : this.walk(dt, input, wish, depth)
     if (!climbed) this.move(dt)
     breathe(this.vitals, depth > HEAD_HEIGHT, dt)
-    // ponytail: zero health just respawns; real death and a respawn screen arrive in Phase 6.
-    if (this.curr.y < KILL_Y || this.vitals.health <= 0) return this.respawn()
+    if (this.curr.y < KILL_Y) return this.teleport(this.spawn)
     const target = this.facing ?? (axes.x || axes.z ? Math.atan2(wish.x, wish.z) : null)
     if (target !== null) this.heading = turnToward(this.heading, target, dt)
   }
@@ -118,6 +123,8 @@ export class Player {
     const run = input.held.has('run') && this.facing === null
     const speed = (run ? RUN_SPEED : WALK_SPEED) * wadeFactor(depth)
     steer(this.motion, wish.x * speed, wish.z * speed, dt)
+    if (this.grounded)
+      this.vitals.health = Math.max(0, this.vitals.health - fallDamage(this.motion.vy))
     fall(this.motion, this.grounded, input.consume('jump'), dt)
     return false
   }
@@ -154,6 +161,15 @@ export class Player {
     })
   }
 
+  /** Dead: no input, the body just settles on the ground or floats. */
+  private lie(dt: number, depth: number): void {
+    const m = this.motion
+    steer(m, 0, 0, dt)
+    if (this.mode === 'swimming') m.vy = buoyancy(m.vy, depth, false, false, dt)
+    else fall(m, this.grounded, false, dt)
+    this.move(dt)
+  }
+
   /** Floating needs free vertical motion; snapping to the ground would pull a swimmer down. */
   private setMode(mode: Mode): void {
     if (mode === this.mode) return
@@ -178,6 +194,7 @@ export class Player {
 
   /** Below the surface, tread upright only while rising; otherwise swim pitched nose-down. */
   private pose(speed: number): { state: AnimState; pitch: number } {
+    if (this.dead) return { state: 'dead', pitch: 0 }
     if (this.mode !== 'swimming') return { state: animState(this.motion), pitch: 0 }
     const deep = this.feetDepth > FLOAT_DEPTH + 0.5
     const diving = this.diveHeld || (deep && this.motion.vy < 0.3)
@@ -193,8 +210,10 @@ export class Player {
     this.body.setTranslation({ x: feet.x, y: feet.y + CENTER, z: feet.z }, true)
   }
 
-  private respawn(): void {
+  /** Wake up at `feet` with full health and breath. */
+  revive(feet: THREE.Vector3): void {
     Object.assign(this.vitals, { health: MAX_HEALTH, breath: MAX_BREATH })
-    this.teleport(this.spawn)
+    this.facing = null
+    this.teleport(feet)
   }
 }

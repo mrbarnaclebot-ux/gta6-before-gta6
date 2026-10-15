@@ -15,6 +15,7 @@ const CLIPS: Record<AnimState, string> = {
   swim: 'Swim_Fwd_Loop',
   tread: 'Swim_Idle_Loop',
   drive: 'Driving_Loop',
+  dead: 'Death01',
 }
 
 // ponytail: estimated in-place stride speeds; measure foot travel if sliding shows.
@@ -79,7 +80,7 @@ export class Avatar {
       const clip = THREE.AnimationClip.findByName(clips, name)
       if (!clip) continue
       const action = this.mixer.clipAction(clip)
-      if (state === 'jump') {
+      if (state === 'jump' || state === 'dead') {
         action.setLoop(THREE.LoopOnce, 1)
         action.clampWhenFinished = true
       }

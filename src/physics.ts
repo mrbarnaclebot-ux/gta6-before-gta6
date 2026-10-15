@@ -5,6 +5,14 @@ export type PhysicsWorld = InstanceType<typeof RAPIER.World>
 
 export const FIXED_STEP = 1 / 60
 
+/*
+ * Collision groups: the high 16 bits say which groups a collider is in, the low 16
+ * which groups it interacts with. People and traffic sit in group 2 so the camera's
+ * wall probe can look straight through them.
+ */
+export const ACTOR_GROUPS = 0x0002ffff
+export const CAMERA_PROBE_GROUPS = 0x0001fffd
+
 export async function createPhysics(): Promise<PhysicsWorld> {
   await RAPIER.init()
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 })

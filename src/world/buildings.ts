@@ -144,8 +144,11 @@ function partsFor(list: Building[]): Parts {
   return p
 }
 
-/** All buildings, merged per 250 m chunk and per material, with box colliders for each solid part. */
-export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
+/**
+ * All buildings, merged per 250 m chunk and per material, with box colliders for each
+ * solid part. Returns the facade materials so night can light their windows.
+ */
+export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMaterial[] {
   const styles: Style[] = ['deco', 'residential', 'glass']
   const facades = new Map(styles.map((s) => [s, facadeMaterial(s)]))
   const trim = pbr('white_stucco', 0.5, { vertexColors: true })
@@ -164,4 +167,5 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
       ctx.physics.createCollider(desc.setTranslation(at.x, at.y, at.z))
     }
   }
+  return [...facades.values()]
 }

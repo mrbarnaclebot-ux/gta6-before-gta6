@@ -57,7 +57,8 @@ export function hospitals(c: CityLayout): Hospital[] {
     const d = (i: number) => Math.hypot(mid[i].x - mx, mid[i].z - mz)
     const best = blocks.reduce((a, _, i) => (d(i) < d(a) ? i : a), 0)
     const r = blocks[best].rect
-    return [{ name, x: mid[best].x + 4, z: r.z1 - 2 }]
+    // Between the lamp posts (0.8 m in) and the people walking by (3 m in).
+    return [{ name, x: mid[best].x + 4, z: r.z1 - 1.6 }]
   })
 }
 

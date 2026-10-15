@@ -103,7 +103,9 @@ h1 span {
 }
 
 #play:focus-visible,
-.quality:focus-visible {
+.quality:focus-visible,
+.resume:focus-visible,
+#sensitivity:focus-visible {
   outline: 3px solid var(--teal);
   outline-offset: 3px;
 }
@@ -175,14 +177,29 @@ h1 span {
   cursor: pointer;
 }
 
-.vitals {
+/* Minimap with the health and breath bars under it, bottom left. */
+.corner {
   position: fixed;
   left: 16px;
   bottom: 16px;
   display: grid;
-  gap: 6px;
-  width: min(220px, 40vw);
+  gap: 8px;
+  width: 168px;
   pointer-events: none;
+}
+
+.minimap {
+  width: 168px;
+  height: 168px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  background: #1d5874;
+}
+
+.vitals {
+  display: grid;
+  gap: 6px;
 }
 
 .bar {
@@ -345,4 +362,176 @@ kbd {
 
 .mag.empty {
   color: #ff6b6b;
+}
+
+/* Five stars drawn with clip-path: no font or image needed. */
+.wanted {
+  display: flex;
+  gap: 4px;
+  padding: 4px 2px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.wanted span {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.22);
+  clip-path: polygon(
+    50% 0%,
+    61% 35%,
+    98% 35%,
+    68% 57%,
+    79% 91%,
+    50% 70%,
+    21% 91%,
+    32% 57%,
+    2% 35%,
+    39% 35%
+  );
+}
+
+.wanted span.on {
+  background: #fff3c4;
+}
+
+.wanted.cooling span.on {
+  animation: blink 0.9s steps(2, jump-none) infinite;
+}
+
+@keyframes blink {
+  from {
+    background: #fff3c4;
+  }
+  to {
+    background: rgba(255, 255, 255, 0.22);
+  }
+}
+
+.death {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(40, 0, 0, 0.25), rgba(10, 0, 0, 0.7));
+  animation: fade-in 1.2s ease-out both;
+}
+
+.death-title {
+  margin: 0;
+  font-size: clamp(56px, 12vw, 120px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: #e8323f;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+}
+
+.death-where {
+  margin: 8px 0 0;
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.pause {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  background: rgba(14, 8, 30, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.pause-card {
+  width: min(440px, 100%);
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(18, 12, 36, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.pause-card h2 {
+  margin: 0 0 16px;
+  font-size: 40px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.pause-card h3 {
+  margin: 20px 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.resume {
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--night);
+  background: var(--ink);
+  cursor: pointer;
+}
+
+.settings {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.setting {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.setting output {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-dim);
+}
+
+#sensitivity {
+  width: 100%;
+  accent-color: var(--teal);
+}
+
+.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 14px;
+}
+
+.keys dt {
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+
+.keys dd {
+  margin: 0;
+}
+
+.keys kbd + kbd {
+  margin-left: 2px;
 }

@@ -1,14 +1,15 @@
-import type { Quality } from '../settings'
-
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-/** HUD: FPS readout (dev builds or ?debug), graphics toggle, health and breath, speedometer, ammo, and crosshair. */
+/** HUD: FPS readout (dev builds or ?debug), wanted stars, health and breath, speedometer, ammo, crosshair, and the death screen. */
 export class Hud {
   fps = 0
   private frames = 0
   private windowStart = performance.now()
   private readonly fpsEl = $('fps')
-  private readonly qualityEl = $<HTMLButtonElement>('quality')
+  private readonly wantedEl = $('wanted')
+  private readonly stars = [...this.wantedEl.children] as HTMLElement[]
+  private readonly deathEl = $('death')
+  private readonly deathWhere = $('death-where')
   private readonly healthEl = $('health')
   private readonly breathEl = $('breath')
   private readonly underwaterEl = $('underwater')
@@ -23,20 +24,26 @@ export class Hud {
   private readonly reserveEl = $('reserve')
   private readonly reloadingEl = $('reloading')
 
-  constructor(quality: Quality, onToggle: () => void) {
+  constructor() {
     $('hud').hidden = false
+    $('corner').hidden = false
     this.fpsEl.hidden = !(import.meta.env.DEV || location.search.includes('debug'))
-    this.qualityEl.addEventListener('click', (e) => {
-      e.stopPropagation()
-      // Hand the keyboard back to the game; game keys ignore a focused button.
-      this.qualityEl.blur()
-      onToggle()
-    })
-    this.setQuality(quality)
   }
 
-  setQuality(q: Quality): void {
-    this.qualityEl.textContent = `Graphics: ${q === 'high' ? 'High' : 'Low'}`
+  /** Five stars, hidden at zero. They blink while the player is out of sight and they cool. */
+  setWanted(level: number, cooling: boolean): void {
+    this.wantedEl.hidden = level === 0
+    this.wantedEl.classList.toggle('cooling', cooling)
+    this.stars.forEach((s, i) => s.classList.toggle('on', i < level))
+    const label = `Wanted level ${level} of 5`
+    if (this.wantedEl.getAttribute('aria-label') !== label)
+      this.wantedEl.setAttribute('aria-label', label)
+  }
+
+  /** The death screen naming the hospital the player will wake up at; null hides it. */
+  setDeath(hospital: string | null): void {
+    this.deathEl.hidden = hospital === null
+    if (hospital) text(this.deathWhere, `Waking up at ${hospital}`)
   }
 
   /** Bars appear only while not full, like most open-world HUDs. Values are 0 to 1. */

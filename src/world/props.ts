@@ -6,19 +6,17 @@ import type { WorldCtx } from './blocks'
 import { instanceParts, type Part } from './instancing'
 
 const POLE_H = 8
+/** Where the lamp head hangs: its height, and how far out over the road from the pole. */
+export const LAMP_HEIGHT = CURB_H + POLE_H - 0.1
+export const LAMP_REACH = 2.25
 
 /**
  * Modern cobra-head streetlight, about 150 triangles. The CC0 lamp post on hand is a
  * Victorian model at about 1,500 triangles; with 800 lights it cost more than
  * every building combined. Local +z points over the road.
  */
-function streetlight(): Part[] {
+function streetlight(lens: THREE.MeshStandardMaterial): Part[] {
   const metal = new THREE.MeshStandardMaterial({ color: 0x8e9294, metalness: 0.8, roughness: 0.4 })
-  const lens = new THREE.MeshStandardMaterial({
-    color: 0xf4f1e8,
-    emissive: 0x2a2620,
-    roughness: 0.2,
-  })
   const body = mergeGeometries([
     new THREE.CylinderGeometry(0.16, 0.19, 0.5, 8).translate(0, 0.25, 0),
     new THREE.CylinderGeometry(0.07, 0.11, POLE_H, 8).translate(0, POLE_H / 2, 0),
@@ -34,11 +32,17 @@ function streetlight(): Part[] {
   ]
 }
 
-/** Streetlights along every curb, each with a thin pole collider. */
-export function placeProps(ctx: WorldCtx, c: CityLayout): void {
-  instanceParts(ctx, streetlight(), c.lights, { scale: () => 1, ground: () => CURB_H })
+/** Streetlights along every curb, each with a thin pole collider. Returns the lens, which glows at night. */
+export function placeProps(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMaterial {
+  const lens = new THREE.MeshStandardMaterial({
+    color: 0xf4f1e8,
+    emissive: 0x2a2620,
+    roughness: 0.2,
+  })
+  instanceParts(ctx, streetlight(lens), c.lights, { scale: () => 1, ground: () => CURB_H })
   for (const s of c.lights) {
     const pole = RAPIER.ColliderDesc.cylinder(POLE_H / 2, 0.15)
     ctx.physics.createCollider(pole.setTranslation(s.x, CURB_H + POLE_H / 2, s.z))
   }
+  return lens
 }

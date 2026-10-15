@@ -2,17 +2,17 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { FollowCamera } from './camera/follow-camera'
 import { Combat } from './combat/combat'
+import { newPistol } from './combat/weapon'
 import type { Input } from './input/input'
+import { Life } from './life/life'
 import { createPhysics, FIXED_STEP } from './physics'
 import { Avatar } from './player/avatar'
 import { Player } from './player/player'
-import { MAX_BREATH, MAX_HEALTH } from './player/swim'
+import { advance, START_HOUR } from './render/daynight'
 import { Renderer } from './render/renderer'
 import { Sky } from './render/sky'
-import { loadQuality, saveQuality, type Quality } from './settings'
 import { exposeTestHook } from './test-hook'
-import { Hud } from './ui/hud'
-import type { Car } from './vehicle/car'
+import { createUi, updateHud, type Ui } from './ui/hud-sync'
 import { loadCarModel } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
@@ -21,7 +21,14 @@ import { DETAIL_LAYER } from './world/instancing'
 
 const MAX_FRAME = 0.1
 
-async function buildScene(canvas: HTMLCanvasElement) {
+/** ?time=21.5 starts the clock at that hour: handy for checking night by hand. */
+function startHour(): number {
+  const t = Number(new URLSearchParams(location.search).get('time'))
+  return t >= 0 && t < 24 && location.search.includes('time=') ? t : START_HOUR
+}
+
+/** Renderer, physics, sky, city, and the loaded models. */
+async function loadWorld(canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene()
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
   camera.layers.enable(DETAIL_LAYER)
@@ -32,106 +39,122 @@ async function buildScene(canvas: HTMLCanvasElement) {
   const load = (url: string) => gltf.loadAsync(url)
   const [avatar, city, makeCar] = await Promise.all([
     Avatar.load(load),
-    buildCity({ scene, physics }, load, sky.sunDir),
+    buildCity({ scene, physics }, load, sky.ambient),
     loadCarModel(load),
-    sky.load(),
+    sky.load(renderer.gl),
   ])
+  return { scene, camera, renderer, sky, physics, avatar, city, makeCar }
+}
+
+async function buildScene(canvas: HTMLCanvasElement) {
+  const { scene, camera, renderer, sky, physics, avatar, city, makeCar } = await loadWorld(canvas)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
   const cars = parkCars({ scene, physics }, city, makeCar)
   const driving = new Driving(physics, cars, player, scene)
   const follow = new FollowCamera(camera, physics, player.collider)
   const { layout, spawn } = city
-  const combat = new Combat({ scene, physics, player, follow, cars, layout, spawn })
-  return { scene, camera, renderer, sky, physics, player, driving, follow, city, combat }
+  // People are clones of the player's mannequin: make them before the gun goes into its hand.
+  const life = new Life({ scene, physics, layout, avatar, makeCar, player, driving })
+  const smokers = [...cars, ...life.traffic.cars]
+  const targets = life.crowd.people
+  const combat = new Combat({
+    scene,
+    physics,
+    player,
+    follow,
+    cars: smokers,
+    targets,
+    layout,
+    spawn,
+  })
+  life.onRevive = () => Object.assign(combat.shooter.pistol, newPistol())
+  const clock = { hours: startHour() }
+  return {
+    scene,
+    camera,
+    renderer,
+    sky,
+    physics,
+    player,
+    driving,
+    follow,
+    city,
+    combat,
+    life,
+    clock,
+  }
 }
 
-type World = Awaited<ReturnType<typeof buildScene>>
+export type World = Awaited<ReturnType<typeof buildScene>>
+
+const VIEW = new THREE.Vector3()
+
+/** One frame of play: fixed 60 Hz physics with render-rate interpolation, then everything that follows it. */
+function simulate(w: World, input: Input, dt: number, acc: number): number {
+  for (acc += dt; acc >= FIXED_STEP; acc -= FIXED_STEP) {
+    w.driving.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
+    w.physics.step()
+  }
+  const { ambient } = w.sky
+  w.driving.night = ambient.night
+  w.driving.update(dt, acc / FIXED_STEP)
+  const car = w.driving.car
+  w.follow.ignore = car?.collider ?? w.player.collider
+  w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chase(car) : undefined)
+  const armed = w.driving.mode === 'walking' && !w.life.dead
+  w.combat.update(dt, input, armed, w.renderer.gl.domElement.height)
+  const { shots, lastShot } = w.combat.shooter
+  w.camera.getWorldDirection(VIEW)
+  w.life.update(dt, VIEW, { count: shots, ...lastShot }, ambient.night)
+  w.clock.hours = advance(w.clock.hours, dt)
+  w.sky.setTime(w.clock.hours)
+  w.sky.follow(w.driving.position)
+  w.city.update(dt, w.camera)
+  w.sky.setUnderwater(w.city.underwater)
+  return acc
+}
 
 const FORWARD = new THREE.Vector3()
-function chaseOf(car: Car) {
+export function chase(car: { quaternion: THREE.Quaternion; speed: number }) {
   FORWARD.set(0, 0, 1).applyQuaternion(car.quaternion)
   return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed }
 }
 
-/** Fixed 60 Hz physics with render-rate interpolation; long frames are clamped, not caught up. */
-function runLoop(w: World, input: Input, onFrame: () => void): void {
+/** Long frames are clamped, not caught up. While paused the world holds still but still draws. */
+function runLoop(w: World, input: Input, ui: Ui, onFrame: (dt: number) => void): void {
   let acc = 0
   let last = performance.now()
   w.renderer.gl.setAnimationLoop((now) => {
-    const dt = Math.min((now - last) / 1000, MAX_FRAME)
+    // The first animation frame can be stamped before `last` when a long task (shader
+    // compiles) delays it, so a negative step is clamped too, or the world would stall.
+    const dt = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME)
     last = now
-    acc += dt
-    while (acc >= FIXED_STEP) {
-      w.driving.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
-      w.physics.step()
-      acc -= FIXED_STEP
-    }
-    w.driving.update(dt, acc / FIXED_STEP)
-    const car = w.driving.car
-    w.follow.ignore = car?.collider ?? w.player.collider
-    w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chaseOf(car) : undefined)
-    w.combat.update(dt, input, w.driving.mode === 'walking', w.renderer.gl.domElement.height)
-    w.sky.follow(w.driving.position)
-    w.city.update(dt, w.camera)
-    w.sky.setUnderwater(w.city.underwater)
+    if (input.consume('pause')) ui.pause.toggle()
+    if (!ui.pause.open) acc = simulate(w, input, dt, acc)
     w.renderer.render(dt)
-    onFrame()
+    onFrame(dt)
   })
-}
-
-// How long the red hit marker stays over the crosshair, in seconds.
-const HIT_MARK = 0.18
-
-function updateHud(hud: Hud, w: World): void {
-  const { vitals } = w.player
-  hud.setVitals(vitals.health / MAX_HEALTH, vitals.breath / MAX_BREATH)
-  hud.setUnderwater(w.city.underwater)
-  const car = w.driving.car
-  const warning = car?.stalled ? 'Engine flooded' : car?.dead ? 'Engine destroyed' : null
-  hud.setSpeed(car ? Math.abs(car.speed) * 3.6 : null, warning)
-  const { pistol, raised, sinceHit } = w.combat.shooter
-  const weapon = {
-    mag: pistol.mag,
-    reserve: pistol.reserve,
-    reloading: pistol.reloading > 0,
-    raised,
-    hit: sinceHit < HIT_MARK,
-  }
-  hud.setWeapon(w.driving.mode === 'walking' ? weapon : null)
-  hud.setPrompt(w.driving.nearest() ? 'Get in' : null)
-  hud.frame()
 }
 
 export async function startGame(canvas: HTMLCanvasElement, input: Input): Promise<void> {
   const w = await buildScene(canvas)
-  let quality = loadQuality()
+  w.sky.setTime(w.clock.hours)
+  const ui = createUi(w, input)
   let frames = 0
-  const setQuality = (q: Quality) => {
-    quality = q
-    w.renderer.setQuality(q)
-    w.sky.setQuality(q)
-    hud.setQuality(q)
-    saveQuality(q)
-  }
-  const hud = new Hud(quality, () => setQuality(quality === 'high' ? 'low' : 'high'))
-  setQuality(quality)
-  runLoop(w, input, () => {
-    updateHud(hud, w)
+  runLoop(w, input, ui, (dt) => {
+    updateHud(ui, w, dt)
     frames++
   })
   exposeTestHook({
-    player: w.player,
-    driving: w.driving,
-    follow: w.follow,
-    city: w.city,
-    combat: w.combat,
+    ...w,
     input,
-    setQuality,
+    setQuality: ui.setQuality,
+    paused: () => ui.pause.open,
     extra: () => ({
-      fps: Math.round(hud.fps),
+      fps: Math.round(ui.hud.fps),
       frames,
-      quality,
+      quality: ui.quality(),
       drawCalls: w.renderer.gl.info.render.calls,
       triangles: w.renderer.gl.info.render.triangles,
     }),

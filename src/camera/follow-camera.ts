@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RAPIER, type PhysicsWorld } from '../physics'
+import { CAMERA_PROBE_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import { chaseFov } from '../vehicle/drive'
 import { behind, clampPitch, easeAngle, nextDistance, orbitDirection } from './orbit-math'
 
@@ -31,6 +31,8 @@ export interface ChaseTarget {
 export class FollowCamera {
   yaw = 0
   pitch = 0.18
+  /** Mouse look speed multiplier from the settings menu. */
+  sensitivity = 1
   /** Over-the-shoulder aim on foot; eases in and out. */
   aiming = false
   private aimBlend = 0
@@ -59,7 +61,7 @@ export class FollowCamera {
     const aim = (this.aimBlend +=
       (Number(this.aiming && !chase) - this.aimBlend) * Math.min(1, dt * AIM_RATE))
     // Finer mouse while zoomed in, as a scope would be.
-    const sens = SENSITIVITY * (1 - 0.4 * aim)
+    const sens = SENSITIVITY * this.sensitivity * (1 - 0.4 * aim)
     this.yaw -= look.x * sens
     this.pitch = clampPitch(this.pitch + look.y * sens)
     this.idle = look.x || look.y ? 0 : this.idle + dt
@@ -123,7 +125,7 @@ export class FollowCamera {
       max,
       true,
       undefined,
-      undefined,
+      CAMERA_PROBE_GROUPS,
       this.ignore,
     )
     return hit ? Math.max(MIN_DISTANCE, hit.time_of_impact) : max

@@ -4,12 +4,17 @@ import { generateCity, SEA_LEVEL, type CityLayout } from '../city/layout'
 import { buildingHeight } from '../city/lots'
 import { surfaceAt, waterSurfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
+import type { Ambient } from '../render/sky'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
+import { hospitals } from '../life/places'
 import { buildGround } from './ground'
+import { buildHospitalSigns } from './hospital-signs'
 import { buildMarkings } from './markings'
+import { buildNeon } from './neon'
 import { placeProps } from './props'
+import { buildStreetGlow } from './street-glow'
 import { buildSand } from './sand'
 import { plantVegetation } from './vegetation'
 import { buildUnderwater } from './underwater'
@@ -55,20 +60,32 @@ function landmarks(c: CityLayout): Record<string, Point> {
   }
 }
 
+/** Everything that lights up after dark: windows, neon, street lamps, hospital signs. */
+function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStandardMaterial[]) {
+  const neon = buildNeon(ctx, c)
+  const glow = buildStreetGlow(ctx, c, placeProps(ctx, c))
+  const signs = buildHospitalSigns(ctx, hospitals(c))
+  return (k: number, focus: THREE.Vector3) => {
+    for (const w of windows) w.emissiveIntensity = 1.3 * k
+    signs.emissiveIntensity = 0.1 + 1.6 * k
+    neon.setNight(k)
+    glow.update(k, focus)
+  }
+}
+
 /** Generates the seeded city and builds every visual and collider for it. */
 export async function buildCity(
   ctx: WorldCtx,
   load: (url: string) => Promise<GLTF>,
-  sunDir: THREE.Vector3,
+  light: Ambient,
 ): Promise<City> {
   const layout = generateCity(CITY_SEED, CITY_SIZE)
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
-  buildBuildings(ctx, layout)
+  const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
   buildSand(ctx, layout)
-  const water = buildWater(ctx, layout, sunDir)
-  placeProps(ctx, layout)
+  const water = buildWater(ctx, layout, light)
   await plantVegetation(ctx, layout, load)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
   const underwater = buildUnderwater(
@@ -87,8 +104,9 @@ export async function buildCity(
       return underwater.active
     },
     update(dt, camera) {
+      night(light.night, camera.position)
       water.update(dt)
-      underwater.update(camera, dt)
+      underwater.update(camera, dt, light.day)
     },
   }
 }

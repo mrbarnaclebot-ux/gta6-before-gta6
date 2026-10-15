@@ -15,8 +15,8 @@
         <p id="status" class="status" role="status"></p>
         <p class="controls">
           WASD move &middot; Shift run &middot; Space jump or surface &middot; Ctrl or C dive
-          &middot; F get in or out of a car &middot; Space handbrake &middot; Mouse look &middot;
-          Esc release mouse
+          &middot; F get in or out of a car &middot; Right mouse aim &middot; Left mouse fire
+          &middot; R reload &middot; Esc pause
         </p>
       </div>
       <footer class="title-foot">
@@ -26,7 +26,9 @@
     </section>
     <div id="hud" class="hud" hidden>
       <span id="fps" class="fps" hidden></span>
-      <button id="quality" type="button" class="quality"></button>
+      <div id="wanted" class="wanted" role="img" aria-label="Wanted level 0 of 5" hidden>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
     </div>
     <div id="underwater" class="underwater" hidden></div>
     <p id="prompt" class="prompt" hidden><kbd>F</kbd> <span></span></p>
@@ -43,12 +45,68 @@
       <span id="reserve" class="reserve">96</span>
       <span id="reloading" class="reloading" hidden>Reloading</span>
     </div>
-    <div class="vitals">
-      <div id="health" class="bar health" role="meter" aria-label="Health" hidden>
-        <span></span>
+    <div id="corner" class="corner" hidden>
+      <canvas id="minimap" class="minimap" aria-label="Minimap" role="img"></canvas>
+      <div class="vitals">
+        <div id="health" class="bar health" role="meter" aria-label="Health" hidden>
+          <span></span>
+        </div>
+        <div id="breath" class="bar breath" role="meter" aria-label="Breath" hidden>
+          <span></span>
+        </div>
       </div>
-      <div id="breath" class="bar breath" role="meter" aria-label="Breath" hidden>
-        <span></span>
+    </div>
+    <div id="death" class="death" hidden>
+      <p class="death-title">Wasted</p>
+      <p id="death-where" class="death-where"></p>
+    </div>
+    <div
+      id="pause"
+      class="pause"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pause-title"
+      hidden
+    >
+      <div class="pause-card">
+        <h2 id="pause-title">Paused</h2>
+        <button id="resume" type="button" class="resume">Resume</button>
+        <section class="settings" aria-label="Settings">
+          <label class="setting" for="sensitivity">
+            <span>Mouse sensitivity</span>
+            <output id="sensitivity-value" for="sensitivity"></output>
+          </label>
+          <input id="sensitivity" type="range" />
+          <div class="setting">
+            <span>Graphics</span>
+            <button id="quality" type="button" class="quality"></button>
+          </div>
+        </section>
+        <section aria-labelledby="controls-title">
+          <h3 id="controls-title">Controls</h3>
+          <dl class="keys">
+            <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
+            <dd>Move, or drive</dd>
+            <dt><kbd>Shift</kbd></dt>
+            <dd>Run, swim faster</dd>
+            <dt><kbd>Space</kbd></dt>
+            <dd>Jump, surface, climb out, handbrake</dd>
+            <dt><kbd>Ctrl</kbd> or <kbd>C</kbd></dt>
+            <dd>Dive</dd>
+            <dt><kbd>F</kbd></dt>
+            <dd>Get in or out of a car</dd>
+            <dt>Right mouse</dt>
+            <dd>Aim</dd>
+            <dt>Left mouse</dt>
+            <dd>Fire</dd>
+            <dt><kbd>R</kbd></dt>
+            <dd>Reload</dd>
+            <dt>Mouse</dt>
+            <dd>Look</dd>
+            <dt><kbd>Esc</kbd></dt>
+            <dd>Pause and resume</dd>
+          </dl>
+        </section>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

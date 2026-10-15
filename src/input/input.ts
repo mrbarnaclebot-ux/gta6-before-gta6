@@ -10,6 +10,8 @@ export class Input {
   private pressed = new Set<Action>()
   private lookX = 0
   private lookY = 0
+  /** This browser grants pointer lock, so a click while unlocked only re-captures the mouse. */
+  private everLocked = false
 
   constructor(private readonly target: HTMLElement) {
     window.addEventListener('keydown', (e) => this.onKey(e, true))
@@ -21,6 +23,9 @@ export class Input {
     // Release anywhere, so letting go over the HUD or outside the window does not stick.
     window.addEventListener('mouseup', (e) => this.onButton(e.button, false))
     target.addEventListener('contextmenu', (e) => e.preventDefault())
+    document.addEventListener('pointerlockchange', () => {
+      if (this.locked) this.everLocked = true
+    })
   }
 
   /** Must be called from a user gesture such as the Play click. */
@@ -61,7 +66,9 @@ export class Input {
     if (!action) return
     if (!down) this.held.delete(action)
     // Let Space and Enter activate focused buttons and links: browsers click on key-up.
-    if ((e.target as Element).closest?.('button, a, input, select, textarea')) return
+    // Esc always reaches the game, so it closes the pause menu from any control.
+    const control = (e.target as Element).closest?.('button, a, input, select, textarea')
+    if (control && action !== 'pause') return
     e.preventDefault()
     if (down && !e.repeat) this.pressed.add(action)
     if (down) this.held.add(action)
@@ -71,6 +78,8 @@ export class Input {
     const action = MOUSE_BINDINGS[button]
     if (!action) return
     if (!down) return void this.held.delete(action)
+    // The click that re-captures the mouse after Esc should not also fire.
+    if (this.everLocked && !this.locked) return
     this.pressed.add(action)
     this.held.add(action)
   }
