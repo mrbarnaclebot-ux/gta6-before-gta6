@@ -106,7 +106,7 @@ export class Minimap {
     const g = this.g
     g.beginPath()
     g.arc(s.x, s.z, s.r, 0, Math.PI * 2)
-    g.fillStyle = 'rgba(230, 40, 60, 0.22)'
+    g.fillStyle = 'rgba(230, 40, 60, 0.14)'
     g.fill()
   }
 
