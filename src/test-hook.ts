@@ -72,9 +72,8 @@ function snapshot(deps: HookDeps) {
   }
 }
 
-/** Helpers for people, traffic, death, and the clock. */
-function lifeHelpers(deps: HookDeps) {
-  const { life, player, clock, sky } = deps
+/** Visible people and traffic, for checks on what the player can see. */
+function actorHelpers({ life }: HookDeps) {
   return {
     /** Visible people: chest point (feet + 1.2 m), health, and state. */
     peds: () =>
@@ -101,6 +100,13 @@ function lifeHelpers(deps: HookDeps) {
             ]
           : [],
       ),
+  }
+}
+
+/** Helpers for death and the clock. */
+function lifeHelpers(deps: HookDeps) {
+  const { life, player, clock, sky } = deps
+  return {
     hospitals: () => life.hospitals.map((h) => ({ ...h })),
     /** Take damage, as from a fall. Enough of it kills. */
     hurt: (amount: number) => {
@@ -123,7 +129,7 @@ function lifeHelpers(deps: HookDeps) {
  * tests need because headless browsers cannot pointer-lock or play by hand.
  */
 export function exposeTestHook(deps: HookDeps): void {
-  const { driving, follow, city, combat, setGraphics, graphics } = deps
+  const { setGraphics, graphics } = deps
   const api = {
     state: () => snapshot(deps),
     /** Switch to a quality preset, as the settings menu does. */
@@ -132,6 +138,17 @@ export function exposeTestHook(deps: HookDeps): void {
     graphics: () => ({ ...graphics() }),
     /** Change some graphics settings, keeping the rest. */
     setGraphics: (patch: Partial<Graphics>) => setGraphics({ ...graphics(), ...patch }),
+    ...worldHelpers(deps),
+    ...actorHelpers(deps),
+    ...lifeHelpers(deps),
+  }
+  Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
+}
+
+/** Places, the camera, targets, and the GPS route. */
+function worldHelpers(deps: HookDeps) {
+  const { driving, follow, city, combat } = deps
+  return {
     /**
      * City landmarks plus `car` (the driver's door of the parked car nearest the spawn)
      * and `range` (the spawn, which faces the target dummies on the beach).
@@ -162,7 +179,5 @@ export function exposeTestHook(deps: HookDeps): void {
       const { target, path } = deps.ui.nav
       return target && { ...target, route: path.map((p) => ({ ...p })) }
     },
-    ...lifeHelpers(deps),
   }
-  Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }
