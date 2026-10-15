@@ -15,7 +15,7 @@ import { groupByChunk } from '../world/chunks'
  */
 
 const PASTELS = [0xf29bb2, 0x5fc6c0, 0xf6d06b, 0xf2a35e, 0x9fc3f0, 0xc7a6e8]
-const WHITE = 0xf3f1ea
+const WHITE = 0xe2ded4
 const TOWER_GAP = 160
 const TOWER_D = 34
 

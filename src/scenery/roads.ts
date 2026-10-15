@@ -34,5 +34,11 @@ export function buildRoads(ctx: WorldCtx, land: Land): void {
   addMerged(ctx, markingGeometry(paved), paint, { cast: false, receive: true })
   const concrete = pbr('white_stucco', 0.3, { color: 0xcdc8c0, roughness: 0.92 })
   const under = paved.filter((p) => p.kind !== 'highway' && p.kind !== 'ramp')
-  addMerged(ctx, bridgeGeometry(ctx, land, elevated, under), concrete)
+  // Facet normals: concrete has hard edges, and smooth ones made the barrier look like a tube.
+  const crisp = (g: THREE.BufferGeometry) => {
+    const flat = g.toNonIndexed()
+    flat.computeVertexNormals()
+    return flat
+  }
+  addMerged(ctx, bridgeGeometry(ctx, land, elevated, under).map(crisp), concrete)
 }

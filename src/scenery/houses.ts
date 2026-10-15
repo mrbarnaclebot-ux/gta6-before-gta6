@@ -13,11 +13,11 @@ import { FLOOR_H, houseParts, type HouseParts } from './house-parts'
 import { strip, sweep, type Section } from './sweep'
 
 const FENCE: Section = [
-  [0.04, 1.4],
-  [-0.04, 1.4],
+  [0.04, 1.2],
+  [-0.04, 1.2],
   [-0.04, -0.3],
   [0.04, -0.3],
-  [0.04, 1.4],
+  [0.04, 1.2],
 ]
 const YARD = 11
 
@@ -108,7 +108,11 @@ function collide(ctx: WorldCtx, h: House): void {
 
 /** Every house, merged per 250 m chunk and material, with drives, back-yard fences, and colliders. */
 export function buildHouses(ctx: WorldCtx, land: Land): void {
-  const wall = pbr('white_stucco', 0.5, { vertexColors: true })
+  // Above 1 on purpose: the stucco texture is mid-grey, and Florida houses read bright white and pastel.
+  const wall = pbr('white_stucco', 0.5, {
+    vertexColors: true,
+    color: new THREE.Color(1.22, 1.2, 1.17),
+  })
   const roof = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.78,
@@ -132,7 +136,7 @@ export function buildHouses(ctx: WorldCtx, land: Land): void {
     addMerged(ctx, p.glass, glass)
     const fences = group.map((h) => fence(land, h))
     trimeshCollider(ctx, mergeGeometries(fences))
-    addMerged(ctx, [...p.trim, ...fences.map((f) => tinted(f, 0xededed))], trim)
+    addMerged(ctx, [...p.trim, ...fences.map((f) => tinted(f, 0xe6dfd2))], trim)
     addMerged(
       ctx,
       group.map((h) => driveway(land, h)),

@@ -111,7 +111,8 @@ export function buildVillas(ctx: WorldCtx, land: Land): void {
     villaParts(land, v, p)
     collide(ctx, v)
   }
-  addMerged(ctx, p.white, pbr('white_stucco', 0.5, { vertexColors: true }))
+  const bright = new THREE.Color(1.22, 1.2, 1.17)
+  addMerged(ctx, p.white, pbr('white_stucco', 0.5, { vertexColors: true, color: bright }))
   addMerged(ctx, p.stone, pbr('white_stucco', 0.35, { vertexColors: true, roughness: 0.95 }))
   addMerged(
     ctx,

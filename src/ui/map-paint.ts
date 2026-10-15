@@ -1,4 +1,5 @@
-import type { District, Rect } from '../city/layout'
+import { SEA_LEVEL, type District, type Rect } from '../city/layout'
+import { beachHeight, coastX } from '../land/shape'
 import { AREA_LABELS } from '../land/districts'
 import { CELL, gridRect } from '../land/grid'
 import type { Kind, Path } from '../land/path'
@@ -13,6 +14,7 @@ export const MAP_COLORS = {
   sea: '#2b6f8e',
   shallows: '#3f8fa6',
   land: '#3b3e46',
+  sand: '#d8c497',
   building: '#565a65',
   house: '#d9d2c4',
   park: '#4c7a45',
@@ -35,6 +37,25 @@ const grow = (r: Rect, by: number): Rect => ({
   x1: r.x1 + by,
   z1: r.z1 + by,
 })
+
+/** The beach as a smooth band from the coast line to the waterline, over the 4 m terrain raster. */
+function paintBeach(g: CanvasRenderingContext2D, o: Base, c: Land): void {
+  const r = gridRect(c.ground)
+  const zs: number[] = []
+  for (let z = r.z0; z <= r.z1; z += 8) zs.push(z)
+  const wet = (z: number) => {
+    let d = 0
+    while (d < 200 && beachHeight(d, z) > SEA_LEVEL) d += 1
+    return d
+  }
+  g.beginPath()
+  // From a little inland, covering the raster's 4 m steps at the coast line.
+  zs.forEach((z) => g.lineTo(coastX(c.frame, z) - 6 - o.x0, z - o.z0))
+  for (const z of [...zs].reverse()) g.lineTo(coastX(c.frame, z) + wet(z) - o.x0, z - o.z0)
+  g.closePath()
+  g.fillStyle = MAP_COLORS.sand
+  g.fill()
+}
 
 /** The paved city: blocks, parks, buildings, and the grid roads over a dark casing. */
 function paintCity(g: CanvasRenderingContext2D, o: Base, c: Land): void {
@@ -114,6 +135,7 @@ export function paintBase(c: Land): Base {
   const g = canvas.getContext('2d')!
   g.imageSmoothingEnabled = true
   g.drawImage(paintTerrain(c), -CELL / 2, -CELL / 2, canvas.width + CELL, canvas.height + CELL)
+  paintBeach(g, o, c)
   paintCity(g, o, c)
   paintPaths(g, o, c.paths)
   g.fillStyle = MAP_COLORS.house

@@ -28,7 +28,7 @@ function bladeTexture(): THREE.CanvasTexture {
     const top = 30 + r() * 110
     const grad = g.createLinearGradient(0, 256, 0, top)
     grad.addColorStop(0, `hsl(${80 + r() * 20}, 30%, ${30 + r() * 10}%)`)
-    grad.addColorStop(1, `hsl(${48 + r() * 10}, 45%, ${62 + r() * 12}%)`)
+    grad.addColorStop(1, `hsl(${50 + r() * 12}, 38%, ${44 + r() * 10}%)`)
     g.strokeStyle = grad
     g.lineWidth = 2 + r() * 2
     g.beginPath()
