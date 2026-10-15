@@ -1,0 +1,32 @@
+.death {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(40, 0, 0, 0.25), rgba(10, 0, 0, 0.7));
+  animation: fade-in 1.2s ease-out both;
+}
+
+.death-title {
+  margin: 0;
+  font-size: clamp(56px, 12vw, 120px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: #e8323f;
+  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.8);
+}
+
+.death-where {
+  margin: 8px 0 0;
+  font-size: 16px;
+  color: var(--ink-dim);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}

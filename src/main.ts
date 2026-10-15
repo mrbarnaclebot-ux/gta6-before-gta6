@@ -1,4 +1,7 @@
 import './style.css'
+import './ui/hud.css'
+import './ui/death.css'
+import './ui/pause.css'
 import { Input } from './input/input'
 
 const canvas = document.getElementById('view') as HTMLCanvasElement
