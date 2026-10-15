@@ -5,6 +5,8 @@ import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from '../vehicle/car-model'
 import { CAR_SPECS } from '../vehicle/car-specs'
+import { corners, restOnCorners } from '../land/footing'
+import { CAR_HALF } from '../city/parking'
 import { CRUISE, type Driver, type Start, type Waypoint } from './lanes'
 
 const HP = 160
@@ -37,6 +39,16 @@ export class TrafficCar {
   private pitch = 0
   /** The grade of the current path step, which `pitch` eases toward. */
   private slope = 0
+  /** Right-side-down tilt from the road under the wheels, eased like the pitch. */
+  private roll = 0
+  /** Where the body stands: the lane position lifted or lowered onto the ground under the wheels. */
+  readonly feet = new THREE.Vector3()
+  /**
+   * Height of the solid ground under (x, z), looking down from just above `y`, or null.
+   * Set by the traffic manager; lanes give heights, but the road (a deck, a crowned
+   * street, a ramp's edge) is what the wheels stand on.
+   */
+  ground: (x: number, y: number, z: number) => number | null = () => null
 
   constructor(
     physics: PhysicsWorld,
@@ -65,11 +77,12 @@ export class TrafficCar {
     this.collider.setEnabled(true)
     this.position.set(s.x, s.y, s.z)
     this.heading = s.yaw
-    this.pitch = this.slope = 0
+    this.pitch = this.slope = this.roll = 0
     this.speed = CRUISE * 0.7
     this.refill()
+    this.settle(1)
     this.pose()
-    this.body.setTranslation(this.position, true)
+    this.body.setTranslation(this.feet, true)
     this.body.setRotation(this.quaternion, true)
   }
 
@@ -85,7 +98,7 @@ export class TrafficCar {
   hood(out: THREE.Vector3): THREE.Vector3 {
     const b = this.visual.bounds
     out.set(0, b.max.y * 0.75, b.max.z * 0.65)
-    return out.applyQuaternion(this.quaternion).add(this.position)
+    return out.applyQuaternion(this.quaternion).add(this.feet)
   }
 
   /**
@@ -99,11 +112,11 @@ export class TrafficCar {
     this.speed += Math.max(-rate * dt, Math.min(rate * dt, target - this.speed))
     this.braking = this.speed < before - 1e-3 || (this.speed < 0.1 && !this.dead)
     const yaw = this.drive(this.speed * dt)
-    this.pitch += (this.slope - this.pitch) * (1 - Math.exp(-13 * dt))
     if (this.path.length) this.heading = easeAngle(this.heading, yaw, 1 - Math.exp(-6 * dt))
+    this.settle(1 - Math.exp(-13 * dt))
     this.refill()
     this.pose()
-    this.body.setNextKinematicTranslation(this.position)
+    this.body.setNextKinematicTranslation(this.feet)
     this.body.setNextKinematicRotation(this.quaternion)
     this.lights(dt, night, siren)
   }
@@ -145,6 +158,18 @@ export class TrafficCar {
     return this.heading
   }
 
+  /** Rests the body on the ground found under its four corners, easing its tilt. */
+  private settle(k: number): void {
+    const { x, y, z } = this.position
+    const feet = corners(x, z, this.heading, CAR_HALF.l, CAR_HALF.w)
+    const h = feet.map((c) => this.ground(c.x, y, c.z) ?? y)
+    const rest = restOnCorners(h, CAR_HALF.l, CAR_HALF.w)
+    const found = h.some((v) => v !== y)
+    this.feet.set(x, found ? rest.y : y, z)
+    this.pitch += ((found ? rest.pitch : this.slope) - this.pitch) * k
+    this.roll += ((found ? rest.roll : 0) - this.roll) * k
+  }
+
   private refill(): void {
     while (this.path.length < 10) {
       const leg = this.driver.next()
@@ -154,8 +179,8 @@ export class TrafficCar {
   }
 
   private pose(): void {
-    this.quaternion.setFromEuler(EULER.set(-this.pitch, this.heading, 0, 'YXZ'))
-    this.visual.root.position.copy(this.position)
+    this.quaternion.setFromEuler(EULER.set(-this.pitch, this.heading, this.roll, 'YXZ'))
+    this.visual.root.position.copy(this.feet)
     this.visual.root.quaternion.copy(this.quaternion)
   }
 

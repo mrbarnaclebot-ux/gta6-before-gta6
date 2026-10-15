@@ -37,6 +37,7 @@ export type Game = {
   skipDeath: () => void
   setTime: (hours: number) => void
   waypoint: () => (Point & { route: { x: number; z: number }[] }) | null
+  groundGaps: () => { kind: string; x: number; y: number; z: number; gap: number | null }[]
 }
 
 /** SwiftShader on a 2-core CI runner is a few times slower than on a dev machine. */

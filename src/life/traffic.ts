@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { CityLayout } from '../city/layout'
 import { rng } from '../city/rng'
-import type { PhysicsWorld } from '../physics'
+import { RAPIER, type PhysicsWorld } from '../physics'
 import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import { PAINT_COUNT, type CarFactory } from '../vehicle/car-model'
 import { laneGraph, type LaneEdge } from '../land/lane-graph'
@@ -36,6 +36,25 @@ export interface Obstacle {
 // Things farther apart than this in height are on different levels: a bridge and the road under it.
 const LEVEL = 3
 
+const DOWN = { x: 0, y: -1, z: 0 }
+const NUDGE = 0.0013
+// Only fixed colliders are ground: not cars, people, or the traffic itself.
+const SOLID_ONLY =
+  RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC |
+  RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC |
+  RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
+
+/** The road surface under a wheel: a ray down from 1.5 m above the lane, at most 4 m long. */
+export function groundProbe(physics: PhysicsWorld) {
+  const ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, DOWN)
+  return (x: number, y: number, z: number): number | null => {
+    // Rapier's heightfield misses rays that run exactly down a grid line (lanes sit on whole meters).
+    ray.origin = { x: x + NUDGE, y: y + 1.5, z: z + NUDGE }
+    const hit = physics.castRay(ray, 4, true, SOLID_ONLY)
+    return hit ? y + 1.5 - hit.timeOfImpact : null
+  }
+}
+
 /** The AI cars driving the lanes around the player. */
 export class Traffic {
   readonly cars: TrafficCar[]
@@ -63,6 +82,7 @@ export class Traffic {
       const kind = i % POLICE_EVERY === 0 ? 'police' : 'sports'
       const car = new TrafficCar(physics, make(i % PAINT_COUNT, kind))
       car.onShot = onShot
+      car.ground = groundProbe(physics)
       car.visual.root.visible = false
       scene.add(car.visual.root)
       return car

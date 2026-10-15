@@ -5,6 +5,8 @@ import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { RESPAWN_AFTER, type Life } from './life/life'
 import { cooling, stars } from './life/wanted'
+import { groundProbe } from './life/traffic'
+import type { PhysicsWorld } from './physics'
 import type { Player } from './player/player'
 import type { Sky } from './render/sky'
 import { PRESETS, type Graphics, type Preset } from './render/graphics'
@@ -13,6 +15,7 @@ import type { City } from './world/city'
 import type { Ui } from './ui/hud-sync'
 
 interface HookDeps {
+  physics: PhysicsWorld
   player: Player
   driving: Driving
   follow: FollowCamera
@@ -103,6 +106,23 @@ function actorHelpers({ life }: HookDeps) {
   }
 }
 
+/**
+ * How far each parked car, traffic car, and visible person stands above (+) or sunk into (-)
+ * the solid ground found by a ray straight down: null where no ground was found.
+ */
+function groundGaps({ physics, driving, life }: HookDeps) {
+  const probe = groundProbe(physics)
+  const gap = (kind: string, p: THREE.Vector3) => {
+    const g = probe(p.x, p.y, p.z)
+    return { kind, x: p.x, y: p.y, z: p.z, gap: g === null ? null : p.y - g }
+  }
+  return () => [
+    ...driving.cars.map((c) => gap('parked', c.position)),
+    ...life.traffic.cars.filter((c) => c.visual.root.visible).map((c) => gap('traffic', c.feet)),
+    ...life.crowd.people.filter((p) => p.root.visible).map((p) => gap('person', p.position)),
+  ]
+}
+
 /** Helpers for death and the clock. */
 function lifeHelpers(deps: HookDeps) {
   const { life, player, clock, sky } = deps
@@ -141,6 +161,7 @@ export function exposeTestHook(deps: HookDeps): void {
     ...worldHelpers(deps),
     ...actorHelpers(deps),
     ...lifeHelpers(deps),
+    groundGaps: groundGaps(deps),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }
