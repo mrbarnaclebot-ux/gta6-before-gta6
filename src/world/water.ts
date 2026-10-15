@@ -102,24 +102,27 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
   const surface = new THREE.Group()
   surface.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
   ctx.scene.add(surface)
-  let water = makeWater(look, 1024)
-  surface.add(water)
+  // Built on the first setReflection, at the mirror size the graphics settings ask for.
+  let water: Water | null = null
   let time = 0
   return {
     surface: surface as THREE.Object3D,
     normals,
     /** Rebuilds the sea with a `size`-pixel mirror. */
     setReflection(size: number) {
-      if (water.material.uniforms.mirrorSampler.value.image.width === size) return
-      surface.remove(water)
-      // ponytail: Water keeps its mirror target private, so only its texture can be freed;
-      // the framebuffer leaks a few MB per change. Fork Water.js if settings churn matters.
-      water.material.uniforms.mirrorSampler.value.dispose()
-      water.material.dispose()
-      water.geometry.dispose()
+      if (water) {
+        if (water.material.uniforms.mirrorSampler.value.image.width === size) return
+        surface.remove(water)
+        // ponytail: Water keeps its mirror target private, so only its texture can be freed;
+        // the framebuffer leaks a few MB per change. Fork Water.js if settings churn matters.
+        water.material.uniforms.mirrorSampler.value.dispose()
+        water.material.dispose()
+        water.geometry.dispose()
+      }
       surface.add((water = makeWater(look, size)))
     },
     update(dt: number) {
+      if (!water) return
       const u = water.material.uniforms
       u.time.value = time += dt * 0.6
       // Body color is lit by the sky, not the sun: dark blue at night instead of glowing turquoise.
