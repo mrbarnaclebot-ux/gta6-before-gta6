@@ -1,8 +1,7 @@
 import type * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { Spot } from '../city/layout'
+import type { Grounded } from '../city/layout'
 import type { Land } from '../land/plan'
-import { surfaceAt } from '../city/terrain'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from './blocks'
 import { impostor } from './impostor'
@@ -22,18 +21,16 @@ const FERN_RANGE = 140
 type Update = (eye: THREE.Vector3, reach?: number) => void
 
 /** Spreads spots across variants so neighbors rarely match. */
-function plant(ctx: WorldCtx, c: Land, variants: Part[][], spots: Spot[]) {
-  const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
+function plant(ctx: WorldCtx, variants: Part[][], spots: Grounded[]) {
   variants.forEach((parts, i) => {
     const mine = spots.filter((_, k) => k % variants.length === i)
-    instanceParts(ctx, parts, mine, { scale: (s) => s.s, ground })
+    instanceParts(ctx, parts, mine, { scale: (s) => s.s })
   })
 }
 
 /** Ferns, drawn only near the camera. */
-function plantFerns(ctx: WorldCtx, c: Land, variants: Part[][], spots: Spot[]): Update[] {
-  const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
-  const place = { scale: (s: Spot) => s.s, ground, ranges: [FERN_RANGE], detail: true }
+function plantFerns(ctx: WorldCtx, variants: Part[][], spots: Grounded[]): Update[] {
+  const place = { scale: (s: Grounded) => s.s, ranges: [FERN_RANGE], detail: true }
   return variants.map((parts, i) => {
     const mine = spots.filter((_, k) => k % variants.length === i)
     return instanceByDistance(ctx, [parts, []], mine, place)
@@ -43,19 +40,18 @@ function plantFerns(ctx: WorldCtx, c: Land, variants: Part[][], spots: Spot[]): 
 /** The generated palm, detailed near the camera and decimated far off; procedural ones if it fails. */
 async function plantPalms(
   ctx: WorldCtx,
-  c: Land,
+  palms: Grounded[],
   load: (url: string) => Promise<GLTF>,
   gl: THREE.WebGLRenderer,
 ): Promise<Update> {
-  const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
   try {
     const [near, far] = await Promise.all([PALM, PALM_FAR].map(load))
     const parts = [modelParts(near.scene), modelParts(far.scene)]
-    const place = { scale: (s: Spot) => s.s, ground, ranges: PALM_RANGES }
-    return instanceByDistance(ctx, [...parts, impostor(gl, parts[1])], c.palms, place)
+    const place = { scale: (s: Grounded) => s.s, ranges: PALM_RANGES, shadowLevels: 2 }
+    return instanceByDistance(ctx, [...parts, impostor(gl, parts[1])], palms, place)
   } catch (err) {
     console.warn('Palm model failed to load, using procedural palms', err)
-    plant(ctx, c, palmVariants(4), c.palms)
+    plant(ctx, palmVariants(4), palms)
     return () => {}
   }
 }
@@ -65,17 +61,20 @@ function fernVariants(gltf: GLTF): Part[][] {
   return gltf.scene.children.map((child: THREE.Object3D) => modelParts(child))
 }
 
+/** The city's palms and ferns, plus the palms outside it (`more`). */
 export async function plantVegetation(
   ctx: WorldCtx,
   c: Land,
+  more: Grounded[],
   load: (url: string) => Promise<GLTF>,
   gl: THREE.WebGLRenderer,
 ): Promise<Update> {
-  const palms = await plantPalms(ctx, c, load, gl)
-  const updates = [palms, ...plantFerns(ctx, c, fernVariants(await load(FERN)), c.bushes)]
-  for (const p of c.palms) {
+  const all = [...c.palms, ...more]
+  const palms = await plantPalms(ctx, all, load, gl)
+  const updates = [palms, ...plantFerns(ctx, fernVariants(await load(FERN)), c.bushes)]
+  for (const p of all) {
     const trunk = RAPIER.ColliderDesc.cylinder(2, 0.25)
-    ctx.physics.createCollider(trunk.setTranslation(p.x, surfaceAt(c, p.x, p.z) + 2, p.z))
+    ctx.physics.createCollider(trunk.setTranslation(p.x, p.y + 2, p.z))
   }
   return (eye, reach) => updates.forEach((u) => u(eye, reach))
 }

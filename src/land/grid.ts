@@ -31,7 +31,11 @@ export function emptyGrid(r: Rect): HeightGrid {
   return { x0: r.x0, z0: r.z0, nx, nz, h: new Float32Array((nx + 1) * (nz + 1)) }
 }
 
-/** Height at (x, z), bilinear between the four nearest vertices; clamped to the grid's edge. */
+/**
+ * Height at (x, z) on the same two triangles per cell that the terrain mesh and Rapier's
+ * heightfield draw (split along the (i+1, j)-(i, j+1) diagonal), so whatever stands on this
+ * height stands on what is drawn and collided with. Clamped to the grid's edge.
+ */
 export function sampleGrid(g: HeightGrid, x: number, z: number): number {
   const fx = Math.min(g.nx - 1e-6, Math.max(0, (x - g.x0) / CELL))
   const fz = Math.min(g.nz - 1e-6, Math.max(0, (z - g.z0) / CELL))
@@ -41,11 +45,14 @@ export function sampleGrid(g: HeightGrid, x: number, z: number): number {
   const tz = fz - iz
   const n = g.nz + 1
   const h = g.h
-  const a = h[ix * n + iz]
   const b = h[(ix + 1) * n + iz]
   const c = h[ix * n + iz + 1]
+  if (tx + tz <= 1) {
+    const a = h[ix * n + iz]
+    return a + (b - a) * tx + (c - a) * tz
+  }
   const d = h[(ix + 1) * n + iz + 1]
-  return a + (b - a) * tx + (c - a) * tz + (a - b - c + d) * tx * tz
+  return d + (c - d) * (1 - tx) + (b - d) * (1 - tz)
 }
 
 /** Ground slope at (x, z) as rise over run, from neighbouring samples one cell apart. */

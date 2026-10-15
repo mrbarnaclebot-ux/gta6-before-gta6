@@ -1,4 +1,4 @@
-import { generateCity, inset, type CityLayout, type Rect } from '../city/layout'
+import { generateCity, inset, type CityLayout, type Grounded, type Rect } from '../city/layout'
 import { emptyGrid, CELL, type HeightGrid } from './grid'
 import { buildHighway, EAST_X } from './highway'
 import { buildHillside, HILL_ROAD_Z, LOOKOUT_R, type Villa } from './hillside'
@@ -7,6 +7,9 @@ import { closest, type P2, type P3 } from './polyline'
 import { AVENUE_Z, buildResidential, type House } from './residential'
 import { natural, type Frame } from './shape'
 import { Shaper } from './stamp'
+import { surfaceAt } from '../city/terrain'
+import { stand, type Surface } from './footing'
+import { SINK } from './plant'
 
 /*
  * The whole 2 x 2 km map as plain data: the city plan, every road outside it with its
@@ -28,6 +31,10 @@ export interface Land extends CityLayout {
   houses: House[]
   villas: Villa[]
   lookout: P3
+  /** The city's greenery, set on the ground. */
+  palms: Grounded[]
+  bushes: Grounded[]
+  lights: Grounded[]
 }
 
 function frameOf(c: CityLayout): Frame {
@@ -101,6 +108,19 @@ const heightOn = (roads: Path[], p: P2) => {
   return best.r.pts[best.c.i].y
 }
 
+/** The city's palms, ferns, and lamps set on the sidewalks, lawns, and sand they stand on. */
+function settleCity(c: CityLayout, surface: Surface) {
+  const on = (radius: number, sink: number) => (p: CityLayout['palms'][number]) => ({
+    ...p,
+    y: stand(surface, p.x, p.z, radius, sink),
+  })
+  return {
+    palms: c.palms.map(on(0.3, SINK.palm)),
+    bushes: c.bushes.map(on(0.1, SINK.bush)),
+    lights: c.lights.map(on(0.2, 0)),
+  }
+}
+
 /** Generates the city and everything around it, and bakes the terrain. Same seed, same world. */
 export function generateLand(seed = 7, size = 1000): Land {
   const city = generateCity(seed, size, { west: [HILL_ROAD_Z, AVENUE_Z], beach: true })
@@ -127,6 +147,7 @@ export function generateLand(seed = 7, size = 1000): Land {
   underCity(grid, city)
   return {
     ...city,
+    ...settleCity(city, (x, z) => surfaceAt({ ...city, ground: grid }, x, z)),
     frame,
     ground: grid,
     dirt: Uint8Array.from(dirt, (d) => Math.round(Math.min(1, d) * 255)),

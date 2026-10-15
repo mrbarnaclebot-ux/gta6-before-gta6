@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { keepCardNormals } from '../render/card-normals'
 import type { Part } from './instancing'
 
 // Pixels per view; the texture holds two views side by side.
@@ -28,6 +29,7 @@ function bake(gl: THREE.WebGLRenderer, parts: Part[], width: number): THREE.Text
     const mat = new THREE.MeshBasicMaterial({
       map: src.map,
       color: src.color,
+      vertexColors: src.vertexColors,
       alphaTest: Math.max(0.5, src.alphaTest),
       side: THREE.DoubleSide,
     })
@@ -74,11 +76,13 @@ function cross(width: number): THREE.BufferGeometry {
  */
 export function impostor(gl: THREE.WebGLRenderer, parts: Part[]): Part[] {
   const width = extent(parts)
-  const material = new THREE.MeshStandardMaterial({
-    map: bake(gl, parts, width),
-    alphaTest: 0.5,
-    side: THREE.DoubleSide,
-    roughness: 0.9,
-  })
+  const material = keepCardNormals(
+    new THREE.MeshStandardMaterial({
+      map: bake(gl, parts, width),
+      alphaTest: 0.5,
+      side: THREE.DoubleSide,
+      roughness: 0.9,
+    }),
+  )
   return [{ geometry: cross(width), material }]
 }

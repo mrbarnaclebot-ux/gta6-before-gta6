@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { SEA_LEVEL, type CityLayout } from '../city/layout'
+import { SEA_LEVEL } from '../city/layout'
 import { outerLandmarks } from '../land/landmarks'
 import { generateLand, type Land } from '../land/plan'
 import { buildingHeight } from '../city/lots'
@@ -13,6 +13,9 @@ import { buildHouses } from '../scenery/houses'
 import { buildRoads } from '../scenery/roads'
 import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
+import { buildForest } from '../scenery/forest'
+import { plantGrass } from '../scenery/grass'
+import { generateFlora } from '../land/flora'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -32,6 +35,7 @@ export const CITY_SEED = 7
 export const CITY_SIZE = 1000
 
 type Point = { x: number; y: number; z: number }
+type Load = (url: string) => Promise<GLTF>
 
 export interface City {
   layout: Land
@@ -71,7 +75,7 @@ function landmarks(c: Land): Record<string, Point> {
 }
 
 /** Everything that lights up after dark: windows, neon, street lamps, hospital signs. */
-function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStandardMaterial[]) {
+function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMaterial[]) {
   const neon = buildNeon(ctx, c)
   const glow = buildStreetGlow(ctx, c, placeProps(ctx, c))
   const signs = buildHospitalSigns(ctx, hospitals(c))
@@ -83,20 +87,31 @@ function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStand
   }
 }
 
-/** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the dune grass update. */
+/** Everything outside the city grid: terrain, roads, homes, and the beach. */
 async function buildScenery(ctx: WorldCtx, layout: Land) {
   await buildTerrain(ctx, layout)
   buildRoads(ctx, layout)
   buildHouses(ctx, layout)
   buildVillas(ctx, layout)
   buildBeach(ctx, layout)
-  return plantDuneGrass(ctx, layout)
+}
+
+/** Every plant: palms, ferns, the forest, bushes, rocks, dune grass, and grass. Returns their per-frame update. */
+async function buildPlants(ctx: WorldCtx, layout: Land, load: Load, gl: THREE.WebGLRenderer) {
+  const flora = generateFlora(layout)
+  const updates = [
+    await plantVegetation(ctx, layout, flora.palms, load, gl),
+    await buildForest(ctx, gl, load, layout, flora),
+    plantDuneGrass(ctx, layout),
+    plantGrass(ctx, layout, flora.clear),
+  ]
+  return (eye: THREE.Vector3, reach: number) => updates.forEach((u) => u(eye, reach))
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
 export async function buildCity(
   ctx: WorldCtx,
-  load: (url: string) => Promise<GLTF>,
+  load: Load,
   light: Ambient,
   gl: THREE.WebGLRenderer,
 ): Promise<City> {
@@ -105,9 +120,9 @@ export async function buildCity(
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  const dunes = await buildScenery(ctx, layout)
+  await buildScenery(ctx, layout)
   const water = buildWater(ctx, layout, light)
-  const palms = await plantVegetation(ctx, layout, load, gl)
+  const plants = await buildPlants(ctx, layout, load, gl)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
   const wet = (x: number, z: number) => waterAt(x, z) !== null
   const underwater = buildUnderwater(ctx.scene, water.surface, water.normals, wet)
@@ -123,8 +138,7 @@ export async function buildCity(
     },
     update(dt, camera) {
       night(light.night, camera.position)
-      palms(camera.position, reach)
-      dunes(camera.position, reach)
+      plants(camera.position, reach)
       water.update(dt)
       underwater.update(camera, dt, light.day)
     },

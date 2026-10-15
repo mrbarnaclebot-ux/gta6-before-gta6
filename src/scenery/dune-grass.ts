@@ -2,11 +2,13 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { heightAt } from '../city/terrain'
 import { rng, range } from '../city/rng'
-import type { Spot } from '../city/layout'
+import type { Grounded } from '../city/layout'
+import { stand } from '../land/footing'
 import { gridRect } from '../land/grid'
 import { fbm } from '../land/noise'
 import type { Land } from '../land/plan'
 import { beachHeight, coastX } from '../land/shape'
+import { keepCardNormals } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { instanceByDistance } from '../world/lod-instances'
 
@@ -14,6 +16,8 @@ import { instanceByDistance } from '../world/lod-instances'
 // and this density): drawn to 75 m, a clump every 3.2 m at most, with gaps.
 const RANGE = 75
 const STEP = 3.2
+/** A clump's base radius per meter of height. */
+export const CLUMP_FOOT = 0.2
 
 /** Sea-oat blades painted on a canvas: pale green stems with straw-colored tips. */
 function bladeTexture(): THREE.CanvasTexture {
@@ -54,21 +58,20 @@ function clump(): THREE.BufferGeometry {
 }
 
 /** Spots on the dune crests, where the dunes stand proud of the plain beach slope. */
-function spots(land: Land): Spot[] {
+export function duneGrassSpots(land: Land): Grounded[] {
   const g = gridRect(land.ground)
   const r = rng(13)
-  const out: Spot[] = []
+  const sand = (x: number, z: number) => heightAt(land, x, z)
+  const out: Grounded[] = []
   for (let z = g.z0 + 20; z < g.z1 - 20; z += STEP) {
     const coast = coastX(land.frame, z)
     for (let d = 6; d < 44; d += STEP) {
       const dune = beachHeight(d, z) - plainBeach(d)
       if (dune < 0.3 || fbm(z / 18, d / 9, 61, 2) < -0.1 || r() < 0.4) continue
-      out.push({
-        x: coast + d + range(r, -1, 1),
-        z: z + range(r, -1, 1),
-        s: range(r, 0.55, 1.1),
-        r: r() * Math.PI * 2,
-      })
+      const x = coast + d + range(r, -1, 1)
+      const zz = z + range(r, -1, 1)
+      const s = range(r, 0.55, 1.1)
+      out.push({ x, y: stand(sand, x, zz, CLUMP_FOOT * s), z: zz, s, r: r() * Math.PI * 2 })
     }
   }
   return out
@@ -82,17 +85,15 @@ export function plantDuneGrass(
   ctx: WorldCtx,
   land: Land,
 ): (eye: THREE.Vector3, reach?: number) => void {
-  const material = new THREE.MeshStandardMaterial({
-    map: bladeTexture(),
-    alphaTest: 0.45,
-    side: THREE.DoubleSide,
-    roughness: 0.9,
-  })
-  const place = {
-    scale: (s: Spot) => s.s,
-    ground: (s: Spot) => heightAt(land, s.x, s.z),
-    ranges: [RANGE],
-    detail: true,
-  }
-  return instanceByDistance(ctx, [[{ geometry: clump(), material }], []], spots(land), place)
+  const material = keepCardNormals(
+    new THREE.MeshStandardMaterial({
+      map: bladeTexture(),
+      alphaTest: 0.45,
+      side: THREE.DoubleSide,
+      roughness: 0.9,
+    }),
+  )
+  const place = { scale: (s: Grounded) => s.s, ranges: [RANGE], detail: true }
+  const parts = [[{ geometry: clump(), material }], []]
+  return instanceByDistance(ctx, parts, duneGrassSpots(land), place)
 }

@@ -1,5 +1,5 @@
 import { buildingsFor, type Building } from './lots'
-import { greenery, type Spot } from './greenery'
+import { greenery, type Grounded, type Spot } from './greenery'
 import { pick, rng } from './rng'
 
 /*
@@ -64,7 +64,7 @@ export interface CityLayout {
   spawn: { x: number; z: number }
 }
 
-export type { Building, Spot }
+export type { Building, Grounded, Spot }
 
 export const inset = (r: Rect, by: number): Rect => ({
   x0: r.x0 + by,
