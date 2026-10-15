@@ -10,10 +10,11 @@ export default defineConfig({
   // SwiftShader on a shared runner stalls now and then; one retry tells a flake from a break.
   retries: CI ? 1 : 0,
   workers: CI ? 1 : undefined,
+  reporter: CI ? 'list' : undefined,
   use: {
     baseURL: `http://localhost:${PORT}`,
     // A smaller frame in CI: SwiftShader's cost is per pixel and the runner has 2 cores.
-    viewport: CI ? { width: 960, height: 540 } : { width: 1280, height: 720 },
+    viewport: CI ? { width: 640, height: 360 } : { width: 1280, height: 720 },
     trace: CI ? 'retain-on-failure' : 'off',
     // Headless Chromium needs SwiftShader allowed explicitly to expose WebGL2.
     launchOptions: {

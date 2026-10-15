@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { game, LOAD_TIMEOUT, play, settle, SLOW, visit, type Game } from './helpers'
 
-test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
+test('loads, plays, walks, and stands on the city', async ({ page }) => {
   // The default Medium preset in SwiftShader with people and traffic runs near 1 fps.
   test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
@@ -59,7 +59,7 @@ test('swims in the ocean and dives under', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('gets into a parked car and drives it', { tag: '@smoke' }, async ({ page }) => {
+test('gets into a parked car and drives it', async ({ page }) => {
   // SwiftShader draws a dozen detailed cars at well under 1 fps; Low skips post-processing.
   test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
@@ -92,7 +92,7 @@ test('gets into a parked car and drives it', { tag: '@smoke' }, async ({ page })
   expect(errors).toEqual([])
 })
 
-test('aims and shoots a target dummy', { tag: '@smoke' }, async ({ page }) => {
+test('aims and shoots a target dummy', async ({ page }) => {
   test.setTimeout(180_000 * SLOW)
   const errors = await play(page, '/?quality=low')
 
