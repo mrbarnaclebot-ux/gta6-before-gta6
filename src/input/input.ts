@@ -1,4 +1,4 @@
-import { BINDINGS, type Action } from './bindings'
+import { BINDINGS, MOUSE_BINDINGS, type Action } from './bindings'
 
 /**
  * Keyboard and mouse state. Pointer lock is preferred for mouse look, but
@@ -17,6 +17,10 @@ export class Input {
     window.addEventListener('blur', () => this.held.clear())
     window.addEventListener('mousemove', (e) => this.onMouseMove(e))
     target.addEventListener('click', () => this.lockPointer())
+    target.addEventListener('mousedown', (e) => this.onButton(e.button, true))
+    // Release anywhere, so letting go over the HUD or outside the window does not stick.
+    window.addEventListener('mouseup', (e) => this.onButton(e.button, false))
+    target.addEventListener('contextmenu', (e) => e.preventDefault())
   }
 
   /** Must be called from a user gesture such as the Play click. */
@@ -61,6 +65,14 @@ export class Input {
     e.preventDefault()
     if (down && !e.repeat) this.pressed.add(action)
     if (down) this.held.add(action)
+  }
+
+  private onButton(button: number, down: boolean): void {
+    const action = MOUSE_BINDINGS[button]
+    if (!action) return
+    if (!down) return void this.held.delete(action)
+    this.pressed.add(action)
+    this.held.add(action)
   }
 
   private onMouseMove(e: MouseEvent): void {

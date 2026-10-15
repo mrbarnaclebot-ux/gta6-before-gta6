@@ -1,4 +1,15 @@
-export type Action = 'forward' | 'back' | 'left' | 'right' | 'run' | 'jump' | 'dive' | 'use'
+export type Action =
+  | 'forward'
+  | 'back'
+  | 'left'
+  | 'right'
+  | 'run'
+  | 'jump'
+  | 'dive'
+  | 'use'
+  | 'fire'
+  | 'aim'
+  | 'reload'
 
 // KeyboardEvent.code, so WASD stays in place on AZERTY and other layouts.
 export const BINDINGS: Readonly<Record<string, Action>> = {
@@ -18,7 +29,11 @@ export const BINDINGS: Readonly<Record<string, Action>> = {
   // Ctrl+W closes the tab on Windows and Linux and pages cannot block it, so C dives too.
   KeyC: 'dive',
   KeyF: 'use',
+  KeyR: 'reload',
 }
+
+/** MouseEvent.button: left fires, right aims. */
+export const MOUSE_BINDINGS: Readonly<Record<number, Action>> = { 0: 'fire', 2: 'aim' }
 
 /** Movement intent in camera space: x is right, z is forward. Diagonals are not faster. */
 export function moveAxes(held: ReadonlySet<Action>): { x: number; z: number } {
