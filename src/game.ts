@@ -48,31 +48,30 @@ async function loadWorld(canvas: HTMLCanvasElement) {
   return { scene, camera, renderer, sky, physics, figures, city, carModels, load }
 }
 
+/** The player on foot, the parked cars, and who is driving what. */
+function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
+  const { scene, physics, figures, city } = world
+  const avatar = new Avatar(figures.male)
+  scene.add(avatar.root)
+  const player = new Player(physics, avatar, city.spawn, city.water)
+  const cars = parkCars({ scene, physics }, city, world.carModels.make)
+  return { player, cars, driving: new Driving(physics, cars, player, scene) }
+}
+
 async function buildScene(canvas: HTMLCanvasElement) {
   const world = await loadWorld(canvas)
   const { scene, camera, renderer, sky, physics, figures, city, carModels } = world
   const makeCar = carModels.make
-  const avatar = new Avatar(figures.male)
-  scene.add(avatar.root)
-  const player = new Player(physics, avatar, city.spawn, city.water)
-  const cars = parkCars({ scene, physics }, city, makeCar)
-  const driving = new Driving(physics, cars, player, scene)
+  const { player, cars, driving } = spawnPlayer(world)
   const follow = new FollowCamera(camera, physics, player.collider)
   const { layout, spawn } = city
   const people = [figures.male, figures.female]
   const life = new Life({ scene, physics, layout, people, makeCar, player, driving })
-  const smokers = [...cars, ...life.traffic.cars]
-  const targets = life.crowd.people
   const combat = new Combat({
-    scene,
-    physics,
-    player,
+    ...{ scene, physics, player, follow, layout, spawn },
     mannequin: figures.mannequin,
-    follow,
-    cars: smokers,
-    targets,
-    layout,
-    spawn,
+    cars: [...cars, ...life.traffic.cars],
+    targets: life.crowd.people,
   })
   life.onRevive = () => Object.assign(combat.shooter.pistol, newPistol())
   const clock = { hours: startHour() }
