@@ -102,6 +102,16 @@ export class Player {
     return this.vitals.health <= 0
   }
 
+  /** True once the body has turned to within `tolerance` radians of `facing`. */
+  faces(tolerance: number): boolean {
+    if (this.facing === null) return false
+    return (
+      Math.abs(
+        Math.atan2(Math.sin(this.facing - this.heading), Math.cos(this.facing - this.heading)),
+      ) < tolerance
+    )
+  }
+
   /** One fixed physics step of movement. Call before world.step(). */
   fixedUpdate(dt: number, input: Input, cameraYaw: number): void {
     const depth = this.feetDepth

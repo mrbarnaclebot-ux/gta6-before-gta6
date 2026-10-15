@@ -70,6 +70,11 @@ export class AimPose {
     this.reloading = sampler('Pistol_Reload')
   }
 
+  /** The gun is (nearly) all the way up. */
+  get raised(): boolean {
+    return this.blend > 0.8
+  }
+
   fire(): void {
     this.shootT = 0
   }

@@ -16,6 +16,8 @@ export interface Target {
 
 // After a hip-fire shot, keep the gun raised and the body turned this long.
 const READY_TIME = 1.2
+// A hip-fire click waits until the body faces the aim this closely (about 15 degrees).
+const FACING_TOLERANCE = 0.26
 const CHEST = 1.35
 
 const eye = new THREE.Vector3()
@@ -36,6 +38,8 @@ export class Shooter {
   /** The latest shot: from the shooter's feet to where it landed (or 60 m out on a miss). */
   readonly lastShot = { from: new THREE.Vector3(), to: new THREE.Vector3() }
   private sinceShot = Infinity
+  /** A click is waiting for the body to turn and the gun to come up. */
+  private queued = false
 
   constructor(
     private readonly physics: PhysicsWorld,
@@ -53,8 +57,10 @@ export class Shooter {
     this.sinceShot += dt
     this.sinceHit += dt
     this.aiming = armed && input.held.has('aim')
-    this.raised = armed && (this.aiming || this.sinceShot < READY_TIME)
+    this.queued &&= armed
+    this.raised = armed && (this.aiming || this.queued || this.sinceShot < READY_TIME)
     this.follow.aiming = this.aiming
+    this.follow.raised = this.raised
     this.gun.visible = armed
     this.player.facing = this.raised ? behind(this.follow.yaw) : null
     const avatar = this.player.avatar
@@ -68,8 +74,11 @@ export class Shooter {
     if (input.consume('reload') && reload(this.pistol)) avatar.pistol?.reload()
     const reloading = this.pistol.reloading
     // Only take the click once the cooldown allows it, so a fast double-click still fires twice.
-    if (this.pistol.cooldown > 0 || !input.consume('fire')) return
-    if (!fire(this.pistol)) return
+    if (this.pistol.cooldown > 0) return
+    if (!this.queued && !input.consume('fire')) return
+    // Hold the shot until the gun points where the crosshair does.
+    this.queued = !this.player.faces(FACING_TOLERANCE) || !(avatar.pistol?.raised ?? true)
+    if (this.queued || !fire(this.pistol)) return
     if (!reloading && this.pistol.reloading) avatar.pistol?.reload()
     this.shoot()
   }

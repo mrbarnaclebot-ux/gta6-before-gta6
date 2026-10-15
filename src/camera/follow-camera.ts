@@ -15,6 +15,8 @@ type Collider = InstanceType<typeof RAPIER.Collider>
 const RIGS = {
   foot: { height: 1.55, distance: 4.6, shoulder: 0 },
   car: { height: 1.35, distance: 7.2, shoulder: 0 },
+  // Gun raised for hip fire: over the shoulder so the crosshair clears the head, no zoom.
+  ready: { height: 1.55, distance: 3.6, shoulder: 0.62 },
   // Over the right shoulder, close in, so the crosshair clears the body.
   aim: { height: 1.55, distance: 2.5, shoulder: 0.72 },
 }
@@ -35,7 +37,11 @@ export class FollowCamera {
   sensitivity = 1
   /** Over-the-shoulder aim on foot; eases in and out. */
   aiming = false
+  /** Gun raised without aiming (hip fire): the shoulder offset without the zoom. */
+  raised = false
   private aimBlend = 0
+  private readyBlend = 0
+  private readonly focus = new THREE.Vector3()
   /** The collider the wall probe looks through: the player's capsule or the driven car. */
   ignore: Collider
   private distance = RIGS.foot.distance
@@ -58,15 +64,18 @@ export class FollowCamera {
     focus: THREE.Vector3,
     chase?: ChaseTarget,
   ): void {
-    const aim = (this.aimBlend +=
-      (Number(this.aiming && !chase) - this.aimBlend) * Math.min(1, dt * AIM_RATE))
+    const k = Math.min(1, dt * AIM_RATE)
+    const aim = (this.aimBlend += (Number(this.aiming && !chase) - this.aimBlend) * k)
+    const ready = (this.readyBlend +=
+      (Number((this.aiming || this.raised) && !chase) - this.readyBlend) * k)
     // Finer mouse while zoomed in, as a scope would be.
     const sens = SENSITIVITY * this.sensitivity * (1 - 0.4 * aim)
     this.yaw -= look.x * sens
     this.pitch = clampPitch(this.pitch + look.y * sens)
     this.idle = look.x || look.y ? 0 : this.idle + dt
     if (chase) this.recenter(chase, dt)
-    const rig = chase ? RIGS.car : mixRig(RIGS.foot, RIGS.aim, aim)
+    const rig = chase ? RIGS.car : mixRig(mixRig(RIGS.foot, RIGS.ready, ready), RIGS.aim, aim)
+    this.focus.copy(focus)
     this.place(focus, rig)
     this.distance = nextDistance(this.distance, this.clearance(rig.distance), dt)
     this.camera.position.copy(this.pivot).addScaledVector(this.dir, this.distance)
@@ -90,16 +99,13 @@ export class FollowCamera {
 
   /**
    * Turn so the screen center looks straight at `target` (tests and debugging).
+   * Solved for the gun-raised rig, since the camera moves there as soon as one fires.
    * The camera sits off the pivot, so a few fixed-point passes settle the angles.
    */
   aimAt(target: THREE.Vector3): void {
-    const focus = this.pivot.clone()
-    const rig = this.aiming ? RIGS.aim : RIGS.foot
-    focus.x -= Math.cos(this.yaw) * rig.shoulder
-    focus.z += Math.sin(this.yaw) * rig.shoulder
-    focus.y -= rig.height
+    const rig = this.aiming ? RIGS.aim : RIGS.ready
     for (let i = 0; i < 6; i++) {
-      this.place(focus, rig)
+      this.place(this.focus, rig)
       const eye = this.pivot.clone().addScaledVector(this.dir, this.distance)
       const to = target.clone().sub(eye).normalize()
       this.yaw = Math.atan2(-to.x, -to.z)
@@ -132,7 +138,9 @@ export class FollowCamera {
   }
 }
 
-function mixRig(a: typeof RIGS.foot, b: typeof RIGS.foot, t: number) {
+type Rig = (typeof RIGS)['foot']
+
+function mixRig(a: Rig, b: Rig, t: number): Rig {
   const mix = (k: keyof typeof a) => a[k] + (b[k] - a[k]) * t
   return { height: mix('height'), distance: mix('distance'), shoulder: mix('shoulder') }
 }

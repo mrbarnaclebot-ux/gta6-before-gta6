@@ -37,7 +37,8 @@ async function shootPasserBy(page: Page) {
   await page.mouse.move(640, 360)
   await page.mouse.down()
   await page.mouse.up()
-  await settle(page, 3)
+  // A hip-fire click waits for the body to turn and the gun to come up.
+  await settle(page, 8)
   expect((await game(page)).wanted).toBeGreaterThan(0)
   await expect(page.locator('#wanted')).toBeVisible()
   const states = (await hook(page, (g) => g.peds())).map((p) => p.state)
