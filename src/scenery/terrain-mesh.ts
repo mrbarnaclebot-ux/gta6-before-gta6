@@ -16,6 +16,8 @@ const LEVELS = [
 ]
 // Skirts hang below every tile edge, hiding cracks where neighbours differ in detail.
 const SKIRT = 6
+// Tiles with less height range than this cast no shadows.
+const RELIEF = 6
 
 /**
  * Splat inputs per grid vertex, worked out once for every level: sand near the coast,
@@ -50,6 +52,20 @@ const FLOOR = Math.fround(UNDER_CITY)
 const hidden = (land: Land, x: number, z: number, y: number) => {
   const c = land.land
   return y === FLOOR && x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1
+}
+
+/** Height range within a tile. */
+function relief(g: HeightGrid, r: Range): number {
+  let lo = Infinity
+  let hi = -Infinity
+  for (let i = r.i0; i <= r.i1; i++) {
+    for (let j = r.j0; j <= r.j1; j++) {
+      const h = g.h[index(g, i, j)]
+      lo = Math.min(lo, h)
+      hi = Math.max(hi, h)
+    }
+  }
+  return hi - lo
 }
 
 interface Range {
@@ -158,7 +174,10 @@ export function buildTerrainMesh(scene: THREE.Scene, land: Land, material: THREE
         const geo = tileGeometry(land, splat, r, level.step, center)
         if (!geo) break
         const mesh = new THREE.Mesh(geo, material)
-        mesh.castShadow = mesh.receiveShadow = true
+        mesh.receiveShadow = true
+        // Flat tiles (the beach, the fields by the city) cannot shade themselves: skip them
+        // in every shadow cascade, which was a fifth of the beach view's draw calls.
+        mesh.castShadow = relief(g, r) > RELIEF
         lod.addLevel(mesh, level.from)
       }
       if (lod.levels.length) scene.add(lod)

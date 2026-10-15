@@ -33,28 +33,38 @@ varying vec3 vGroundNormal;
 const vec4 TILE = vec4(6.0, 5.0, 11.0, 4.0);
 vec4 groundWeights;
 vec3 groundN;
+// Gradients are taken once, outside the branches below: layers with no weight are skipped
+// (most ground is one or two layers), and explicit gradients keep that legal.
+vec2 gdx;
+vec2 gdy;
 
-vec4 layer(float i, float tile) {
+vec4 layer(float i, float tile, float w) {
+  if (w < 0.004) return vec4(0.0);
   vec2 p = vGroundPos.xz;
-  vec4 a = texture(groundAlbedo, vec3(p / tile, i));
-  vec4 b = texture(groundAlbedo, vec3(p / (tile * 4.7) + 0.31, i));
-  return mix(a, b, 0.42);
+  float far = tile * 4.7;
+  vec4 a = textureGrad(groundAlbedo, vec3(p / tile, i), gdx / tile, gdy / tile);
+  vec4 b = textureGrad(groundAlbedo, vec3(p / far + 0.31, i), gdx / far, gdy / far);
+  return mix(a, b, 0.42) * w;
 }
-vec3 layerNormal(float i, float tile) {
-  return texture(groundNormal, vec3(vGroundPos.xz / tile, i)).xyz * 2.0 - 1.0;
+vec3 layerNormal(float i, float tile, float w) {
+  if (w < 0.004) return vec3(0.0);
+  vec3 n = textureGrad(groundNormal, vec3(vGroundPos.xz / tile, i), gdx / tile, gdy / tile).xyz;
+  return (n * 2.0 - 1.0) * w;
 }
 `
 
 const MAP = /* glsl */ `
 groundN = normalize(vGroundNormal);
+gdx = dFdx(vGroundPos.xz);
+gdy = dFdy(vGroundPos.xz);
 float slope = 1.0 - groundN.y;
 float rock = smoothstep(0.17, 0.32, slope + (vSplat.w - 0.5) * 0.12);
 float sand = clamp(vSplat.x, 0.0, 1.0) * (1.0 - rock);
 float dirt = clamp(vSplat.y, 0.0, 1.0) * (1.0 - rock) * (1.0 - sand);
 float grass = max(0.0, 1.0 - rock - sand - dirt);
 groundWeights = vec4(grass, dirt, rock, sand);
-vec4 ground = layer(0.0, TILE.x) * grass + layer(1.0, TILE.y) * dirt
-  + layer(2.0, TILE.z) * rock + layer(3.0, TILE.w) * sand;
+vec4 ground = layer(0.0, TILE.x, grass) + layer(1.0, TILE.y, dirt)
+  + layer(2.0, TILE.z, rock) + layer(3.0, TILE.w, sand);
 // Large patches of lusher and drier grass, so a field never reads as one flat tint.
 vec3 grassTint = mix(vec3(0.82, 0.86, 0.62), vec3(1.05, 1.08, 0.86), vSplat.w);
 vec3 tint = grassTint * grass + vec3(1.0) * (dirt + rock) + vec3(1.3, 1.26, 1.18) * sand;
@@ -68,8 +78,9 @@ float groundRough = mix(ground.a, 0.35, wet);
 
 const NORMAL = /* glsl */ `
 {
-  vec3 tn = layerNormal(0.0, TILE.x) * groundWeights.x + layerNormal(1.0, TILE.y) * groundWeights.y
-    + layerNormal(2.0, TILE.z) * groundWeights.z + layerNormal(3.0, TILE.w) * groundWeights.w;
+  vec4 w = groundWeights;
+  vec3 tn = layerNormal(0.0, TILE.x, w.x) + layerNormal(1.0, TILE.y, w.y)
+    + layerNormal(2.0, TILE.z, w.z) + layerNormal(3.0, TILE.w, w.w);
   vec3 T = normalize(vec3(1.0, 0.0, 0.0) - groundN * groundN.x);
   vec3 B = cross(T, groundN);
   vec3 worldN = normalize(T * tn.x + B * tn.y + groundN * max(tn.z, 0.2));
