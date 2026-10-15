@@ -137,9 +137,11 @@ export class Sky {
   }
 
   setQuality(q: Quality): void {
-    const size = q === 'high' ? 4096 : 1024
+    // 2048 on High: 7 cm texels over the 140 m frustum, softened by a 2-texel filter.
+    // 4096 looked the same through the filter and cost a few fps on an M4.
+    const size = q === 'high' ? 2048 : 1024
     this.sun.shadow.mapSize.set(size, size)
-    this.sun.shadow.radius = q === 'high' ? 4 : 2
+    this.sun.shadow.radius = 2
     this.sun.shadow.map?.dispose()
     this.sun.shadow.map = null
     this.quality = q

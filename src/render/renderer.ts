@@ -76,6 +76,10 @@ export class Renderer {
     ao.configuration.intensity = 2.2
     ao.configuration.halfRes = true
     ao.setQualityMode('Medium')
+    // The sea is transparent, so N8AO would turn on its transparency mode: two more scene
+    // renders a frame, each re-drawing the water's reflection. AO on the water itself is invisible.
+    // The flag exists at runtime but not in n8ao's typings.
+    Object.assign(ao, { autoDetectTransparency: false })
     composer.addPass(ao)
     const bloom = new BloomEffect({
       mipmapBlur: true,
