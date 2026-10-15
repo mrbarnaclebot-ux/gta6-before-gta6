@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { cameraRelative, clampPitch, nextDistance, orbitDirection, PITCH_MAX } from './orbit-math'
+import {
+  behind,
+  cameraRelative,
+  clampPitch,
+  easeAngle,
+  nextDistance,
+  orbitDirection,
+  PITCH_MAX,
+} from './orbit-math'
 
 describe('orbit math', () => {
   it('clamps pitch', () => {
@@ -25,5 +33,13 @@ describe('orbit math', () => {
     const out = nextDistance(2, 5, 0.016)
     expect(out).toBeGreaterThan(2)
     expect(out).toBeLessThan(5)
+  })
+
+  it('chases from behind a heading and eases the short way round', () => {
+    const heading = 0.7
+    const [cx, , cz] = orbitDirection(behind(heading), 0)
+    expect(cx * Math.sin(heading) + cz * Math.cos(heading)).toBeCloseTo(-1)
+    expect(easeAngle(3, -3, 0.5)).toBeGreaterThan(3)
+    expect(easeAngle(0, 1, 1)).toBeCloseTo(1)
   })
 })

@@ -1,4 +1,4 @@
-export type Action = 'forward' | 'back' | 'left' | 'right' | 'run' | 'jump' | 'dive'
+export type Action = 'forward' | 'back' | 'left' | 'right' | 'run' | 'jump' | 'dive' | 'use'
 
 // KeyboardEvent.code, so WASD stays in place on AZERTY and other layouts.
 export const BINDINGS: Readonly<Record<string, Action>> = {
@@ -17,6 +17,7 @@ export const BINDINGS: Readonly<Record<string, Action>> = {
   ControlRight: 'dive',
   // Ctrl+W closes the tab on Windows and Linux and pages cannot block it, so C dives too.
   KeyC: 'dive',
+  KeyF: 'use',
 }
 
 /** Movement intent in camera space: x is right, z is forward. Diagonals are not faster. */

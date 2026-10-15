@@ -13,6 +13,7 @@ const CLIPS: Record<AnimState, string> = {
   fall: 'Jump_Loop',
   swim: 'Swim_Fwd_Loop',
   tread: 'Swim_Idle_Loop',
+  drive: 'Driving_Loop',
 }
 
 // ponytail: estimated in-place stride speeds; measure foot travel if sliding shows.

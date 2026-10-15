@@ -12,6 +12,10 @@ export class Hud {
   private readonly healthEl = $('health')
   private readonly breathEl = $('breath')
   private readonly underwaterEl = $('underwater')
+  private readonly speedoEl = $('speedo')
+  private readonly speedEl = $('speed')
+  private readonly stallEl = $('stall')
+  private readonly promptEl = $('prompt')
 
   constructor(quality: Quality, onToggle: () => void) {
     $('hud').hidden = false
@@ -37,6 +41,21 @@ export class Hud {
 
   setUnderwater(on: boolean): void {
     this.underwaterEl.hidden = !on
+  }
+
+  /** Speedometer in km/h while driving; null hides it. */
+  setSpeed(kmh: number | null, stalled: boolean): void {
+    this.speedoEl.hidden = kmh === null
+    this.stallEl.hidden = !stalled
+    const text = String(Math.round(kmh ?? 0))
+    if (this.speedEl.textContent !== text) this.speedEl.textContent = text
+  }
+
+  /** Context hint next to the F key, such as "Get in" beside a car; null hides it. */
+  setPrompt(action: string | null): void {
+    this.promptEl.hidden = action === null
+    const label = this.promptEl.querySelector('span')!
+    if (action && label.textContent !== action) label.textContent = action
   }
 
   /** Frames counted over half-second wall-clock windows: readable, and immune to zero-length frames. */

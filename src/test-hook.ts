@@ -2,11 +2,13 @@ import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
 import type { Input } from './input/input'
 import type { Player } from './player/player'
+import type { Driving } from './vehicle/driving'
 import type { Quality } from './settings'
 import type { City } from './world/city'
 
 interface HookDeps {
   player: Player
+  driving: Driving
   follow: FollowCamera
   input: Input
   city: City
@@ -26,11 +28,14 @@ interface HookDeps {
  * state() returns a fresh copy each call so callers cannot mutate the game.
  */
 export function exposeTestHook(deps: HookDeps): void {
-  const { player, follow, city, input, setQuality, extra } = deps
+  const { player, driving, follow, city, input, setQuality, extra } = deps
   const api = {
     state: () => ({
-      position: { x: player.position.x, y: player.position.y, z: player.position.z },
-      mode: player.mode,
+      position: { x: driving.position.x, y: driving.position.y, z: driving.position.z },
+      mode: driving.mode,
+      /** Forward speed of the driven car in m/s, 0 on foot. */
+      speed: driving.car?.speed ?? 0,
+      stalled: driving.car?.stalled ?? false,
       grounded: player.grounded,
       health: player.vitals.health,
       breath: player.vitals.breath,
@@ -41,8 +46,14 @@ export function exposeTestHook(deps: HookDeps): void {
       ...extra(),
     }),
     setQuality,
-    landmarks: () => structuredClone(city.landmarks),
-    teleport: (x: number, y: number, z: number) => player.teleport(new THREE.Vector3(x, y, z)),
+    /** City landmarks plus `car`: the driver's door of the parked car nearest the spawn. */
+    landmarks: () => {
+      const door = driving.door(driving.cars[0])
+      return { ...structuredClone(city.landmarks), car: { x: door.x, y: door.y, z: door.z } }
+    },
+    /** Every car's position, parked or driven. */
+    cars: () => driving.cars.map(({ position: p }) => ({ x: p.x, y: p.y, z: p.z })),
+    teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
   }

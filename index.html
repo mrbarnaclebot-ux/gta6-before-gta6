@@ -15,7 +15,8 @@
         <p id="status" class="status" role="status"></p>
         <p class="controls">
           WASD move &middot; Shift run &middot; Space jump or surface &middot; Ctrl or C dive
-          &middot; Mouse look &middot; Esc release mouse
+          &middot; F get in or out of a car &middot; Space handbrake &middot; Mouse look &middot;
+          Esc release mouse
         </p>
       </div>
       <footer class="title-foot">
@@ -28,6 +29,12 @@
       <button id="quality" type="button" class="quality"></button>
     </div>
     <div id="underwater" class="underwater" hidden></div>
+    <p id="prompt" class="prompt" hidden><kbd>F</kbd> <span></span></p>
+    <div id="speedo" class="speedo" hidden>
+      <span id="speed" class="speed-value">0</span>
+      <span class="speed-unit">km/h</span>
+      <span id="stall" class="stall" hidden>Engine flooded</span>
+    </div>
     <div class="vitals">
       <div id="health" class="bar health" role="meter" aria-label="Health" hidden>
         <span></span>

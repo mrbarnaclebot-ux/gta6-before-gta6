@@ -6,4 +6,4 @@
 - `settings.ts` graphics quality, saved in localStorage
 - `test-hook.ts` `window.__game` for Playwright and debugging
 - `style.css` title screen and HUD styles
-- Subfolders: `input`, `player`, `camera`, `render`, `city` (pure seeded map plan), `world` (meshes and colliders for it), `ui`
+- Subfolders: `input`, `player`, `vehicle`, `camera`, `render`, `city` (pure seeded map plan), `world` (meshes and colliders for it), `ui`

@@ -26,3 +26,13 @@ export function nextDistance(current: number, allowed: number, dt: number): numb
   if (allowed < current) return allowed
   return Math.min(allowed, current + (allowed - current) * Math.min(1, dt * 4))
 }
+
+/** Yaw that puts the camera behind something facing `heading` (yaw 0 faces +Z). */
+export function behind(heading: number): number {
+  return heading + Math.PI
+}
+
+/** Move an angle a fraction `t` of the way to a target along the shortest arc. */
+export function easeAngle(current: number, target: number, t: number): number {
+  return current + Math.atan2(Math.sin(target - current), Math.cos(target - current)) * t
+}

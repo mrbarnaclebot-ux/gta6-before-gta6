@@ -11,6 +11,10 @@ import { Sky } from './render/sky'
 import { loadQuality, saveQuality, type Quality } from './settings'
 import { exposeTestHook } from './test-hook'
 import { Hud } from './ui/hud'
+import type { Car } from './vehicle/car'
+import { loadCarModel } from './vehicle/car-model'
+import { Driving } from './vehicle/driving'
+import { parkCars } from './vehicle/fleet'
 import { buildCity } from './world/city'
 import { DETAIL_LAYER } from './world/instancing'
 
@@ -25,18 +29,27 @@ async function buildScene(canvas: HTMLCanvasElement) {
   const physics = await createPhysics()
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
-  const [avatar, city] = await Promise.all([
+  const [avatar, city, makeCar] = await Promise.all([
     Avatar.load(load),
     buildCity({ scene, physics }, load, sky.sunDir),
+    loadCarModel(load),
     sky.load(),
   ])
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
+  const cars = parkCars({ scene, physics }, city, makeCar)
+  const driving = new Driving(physics, cars, player, scene)
   const follow = new FollowCamera(camera, physics, player.collider)
-  return { scene, camera, renderer, sky, physics, player, follow, city }
+  return { scene, camera, renderer, sky, physics, player, driving, follow, city }
 }
 
 type World = Awaited<ReturnType<typeof buildScene>>
+
+const FORWARD = new THREE.Vector3()
+function chaseOf(car: Car) {
+  FORWARD.set(0, 0, 1).applyQuaternion(car.quaternion)
+  return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed }
+}
 
 /** Fixed 60 Hz physics with render-rate interpolation; long frames are clamped, not caught up. */
 function runLoop(w: World, input: Input, onFrame: () => void): void {
@@ -47,13 +60,15 @@ function runLoop(w: World, input: Input, onFrame: () => void): void {
     last = now
     acc += dt
     while (acc >= FIXED_STEP) {
-      w.player.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
+      w.driving.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
       w.physics.step()
       acc -= FIXED_STEP
     }
-    w.player.update(dt, acc / FIXED_STEP)
-    w.follow.update(dt, input.consumeLook(), w.player.position)
-    w.sky.follow(w.player.position)
+    w.driving.update(dt, acc / FIXED_STEP)
+    const car = w.driving.car
+    w.follow.ignore = car?.collider ?? w.player.collider
+    w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chaseOf(car) : undefined)
+    w.sky.follow(w.driving.position)
     w.city.update(dt, w.camera)
     w.sky.setUnderwater(w.city.underwater)
     w.renderer.render(dt)
@@ -78,11 +93,15 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
   runLoop(w, input, () => {
     hud.setVitals(vitals.health / MAX_HEALTH, vitals.breath / MAX_BREATH)
     hud.setUnderwater(w.city.underwater)
+    const car = w.driving.car
+    hud.setSpeed(car ? Math.abs(car.speed) * 3.6 : null, car?.stalled ?? false)
+    hud.setPrompt(w.driving.nearest() ? 'Get in' : null)
     hud.frame()
     frames++
   })
   exposeTestHook({
     player: w.player,
+    driving: w.driving,
     follow: w.follow,
     city: w.city,
     input,
