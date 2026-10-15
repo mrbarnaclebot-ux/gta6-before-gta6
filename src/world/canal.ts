@@ -12,9 +12,10 @@ const RAIL_H = 1.05
 const POST_GAP = 2.4
 const STAIR_W = 1.4
 const STEP_RUN = 0.4
-// Steps start just under the surface, so a floating swimmer can reach them, and rise to the bank.
-const STEP_COUNT = 10
-const STEP_RISE = (CURB_H - (SEA_LEVEL - 1.15)) / STEP_COUNT
+// Ten steps reach from the bank to just under the surface; two more continue below
+// a floating swimmer's feet, so the ramp over them catches the swimmer from the water.
+const STEP_RISE = (CURB_H - (SEA_LEVEL - 1.15)) / 10
+const STEP_COUNT = 12
 
 /** Seawalls along both banks and across both ends of the canal. */
 function walls(c: CityLayout): Rect[] {
@@ -59,23 +60,21 @@ function stairs(wallX: number, side: 1 | -1, z: number) {
 }
 
 /**
- * The flight collides as a smooth ramp over the step nosings, carried on
- * two meters past the last step so a swimmer slides up it out of the water.
- * Capsules snag on 0.4 m treads; a ramp under visible steps is the usual trick.
+ * The flight collides as a solid wedge from the canal floor up to a smooth
+ * slope over the step nosings. Capsules snag on 0.4 m treads; a ramp under
+ * visible steps is the usual trick.
  */
 function stairRamp(ctx: WorldCtx, landing: Rect, z: number): void {
-  const run = STEP_COUNT * STEP_RUN + 2
-  const drop = (run / STEP_RUN) * STEP_RISE
-  const len = Math.hypot(run, drop)
-  const angle = Math.atan2(drop, run)
-  const t = 0.4
-  // Midpoint of the slope line, pushed down half the slab thickness along its normal.
-  const y = CURB_H - drop / 2 - (Math.cos(angle) * t) / 2
-  const zc = z + run / 2 - (Math.sin(angle) * t) / 2
-  const desc = RAPIER.ColliderDesc.cuboid((landing.x1 - landing.x0) / 2, t / 2, len / 2)
-    .setTranslation((landing.x0 + landing.x1) / 2, y, zc)
-    .setRotation({ x: Math.sin(angle / 2), y: 0, z: 0, w: Math.cos(angle / 2) })
-  ctx.physics.createCollider(desc)
+  const end = z + STEP_COUNT * STEP_RUN
+  const low = CURB_H - STEP_COUNT * STEP_RISE
+  const points = [landing.x0, landing.x1].flatMap((x) => [
+    [x, CURB_H, z],
+    [x, low, end],
+    [x, CANAL_FLOOR, end],
+    [x, CANAL_FLOOR, z],
+  ])
+  const desc = RAPIER.ColliderDesc.convexHull(new Float32Array(points.flat()))
+  if (desc) ctx.physics.createCollider(desc)
 }
 
 /** White railing (posts and two rails) along one bank between two bridges. */
@@ -124,13 +123,13 @@ function buildBanks(ctx: WorldCtx, c: CityLayout, stone: THREE.Material, metal: 
     rectCollider(ctx, flight.steps[0].r, CANAL_FLOOR, CURB_H)
     stairRamp(ctx, flight.steps[0].r, (z0 + z1) / 2)
     for (const x of [k.x0 - 0.15, k.x1 + 0.15]) {
-      const runs =
-        x < k.x0 === west
-          ? [
-              [z0, flight.gap[0]],
-              [flight.gap[1], z1],
-            ]
-          : [[z0, z1]]
+      const stairBank = x < k.x0 === west
+      const runs = stairBank
+        ? [
+            [z0, flight.gap[0]],
+            [flight.gap[1], z1],
+          ]
+        : [[z0, z1]]
       for (const [a, b] of runs) {
         rails.push(...railing(x, a, b))
         rectCollider(ctx, { x0: x - 0.05, x1: x + 0.05, z0: a, z1: b }, CURB_H, CURB_H + RAIL_H)
