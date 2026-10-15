@@ -55,12 +55,12 @@ export class Input {
   private onKey(e: KeyboardEvent, down: boolean): void {
     const action = BINDINGS[e.code]
     if (!action) return
-    // Let Space and Enter activate focused buttons and links; key-ups still release held actions.
-    if (down && (e.target as Element).closest?.('button, a, input, select, textarea')) return
+    if (!down) this.held.delete(action)
+    // Let Space and Enter activate focused buttons and links: browsers click on key-up.
+    if ((e.target as Element).closest?.('button, a, input, select, textarea')) return
     e.preventDefault()
     if (down && !e.repeat) this.pressed.add(action)
     if (down) this.held.add(action)
-    else this.held.delete(action)
   }
 
   private onMouseMove(e: MouseEvent): void {
