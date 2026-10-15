@@ -16,6 +16,7 @@ play.addEventListener('click', async () => {
     // Lazy so the title screen paints before three.js and the physics WASM download.
     const { startGame } = await import('./game')
     await startGame(canvas, input)
+    input.reset()
     title.hidden = true
     canvas.focus()
   } catch (err) {

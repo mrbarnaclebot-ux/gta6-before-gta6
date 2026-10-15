@@ -18,6 +18,8 @@ export class Hud {
     this.fpsEl.hidden = !(import.meta.env.DEV || location.search.includes('debug'))
     this.qualityEl.addEventListener('click', (e) => {
       e.stopPropagation()
+      // Hand the keyboard back to the game; game keys ignore a focused button.
+      this.qualityEl.blur()
       onToggle()
     })
     this.setQuality(quality)

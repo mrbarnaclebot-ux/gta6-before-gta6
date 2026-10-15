@@ -45,9 +45,18 @@ export class Input {
     return look
   }
 
+  /** Forget keys and mouse motion from before the game started, such as the Play key press. */
+  reset(): void {
+    this.held.clear()
+    this.pressed.clear()
+    this.consumeLook()
+  }
+
   private onKey(e: KeyboardEvent, down: boolean): void {
     const action = BINDINGS[e.code]
     if (!action) return
+    // Let Space and Enter activate focused buttons and links; key-ups still release held actions.
+    if (down && (e.target as Element).closest?.('button, a, input, select, textarea')) return
     e.preventDefault()
     if (down && !e.repeat) this.pressed.add(action)
     if (down) this.held.add(action)
