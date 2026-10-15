@@ -79,11 +79,19 @@ function lifeHelpers(deps: HookDeps) {
           health: p.health.hp,
           state: p.state,
         })),
-    /** Visible traffic cars: a stable id, position, speed in m/s, and health. */
+    /** Visible traffic cars: a stable id, position, speed in m/s, health, and whether it is police. */
     traffic: () =>
       life.traffic.cars.flatMap((c, id) =>
         c.visual.root.visible
-          ? [{ id, ...xyz(c.position), speed: c.speed, health: c.health.hp }]
+          ? [
+              {
+                id,
+                ...xyz(c.position),
+                speed: c.speed,
+                health: c.health.hp,
+                police: c.visual.police,
+              },
+            ]
           : [],
       ),
     hospitals: () => life.hospitals.map((h) => ({ ...h })),

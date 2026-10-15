@@ -11,8 +11,9 @@ import { CRUISE, lanePoint, nextLeg, yawOf, type Heading, type Waypoint } from '
 const HP = 160
 const ACCEL = 3
 const BRAKE = 7
-const WHEEL_RADIUS = 0.36
 const UP = new THREE.Vector3(0, 1, 0)
+// Light bar flashes per second, alternating red and blue.
+const FLASH_RATE = 3
 
 /**
  * An AI car on rails: a kinematic body that follows lane waypoints, slows for
@@ -32,6 +33,7 @@ export class TrafficCar {
   onShot: () => void = () => {}
   private path: Waypoint[] = []
   private route: Heading = { axis: 'z', at: 0, dir: 1, u: 0 }
+  private clock = 0
 
   constructor(
     physics: PhysicsWorld,
@@ -85,8 +87,11 @@ export class TrafficCar {
     return out.applyQuaternion(this.quaternion).add(this.position)
   }
 
-  /** `limit`: the fastest the driver may go given what is ahead. `night` lights the lamps. */
-  update(dt: number, limit: number, night: number): void {
+  /**
+   * `limit`: the fastest the driver may go given what is ahead. `night` lights the lamps.
+   * `siren`: police cars flash their light bar (the player is wanted).
+   */
+  update(dt: number, limit: number, night: number, siren = false): void {
     const target = this.dead ? 0 : Math.min(limit, this.curveLimit())
     const before = this.speed
     const rate = target > this.speed ? ACCEL : BRAKE
@@ -98,7 +103,7 @@ export class TrafficCar {
     this.pose()
     this.body.setNextKinematicTranslation(this.position)
     this.body.setNextKinematicRotation(this.quaternion)
-    this.lights(dt, night)
+    this.lights(dt, night, siren)
   }
 
   /** Slow down in time for the next turn: v^2 = v_turn^2 + 2 a d. */
@@ -148,11 +153,14 @@ export class TrafficCar {
     this.visual.root.quaternion.copy(this.quaternion)
   }
 
-  private lights(dt: number, night: number): void {
-    const { wheels, headlights, brakelights } = this.visual
-    const spin = (this.speed * dt) / WHEEL_RADIUS
+  private lights(dt: number, night: number, siren: boolean): void {
+    const { wheels, lamps, police } = this.visual
+    const spin = (this.speed * dt) / wheels[0].position.y
     for (const w of wheels) w.rotation.x += spin
-    headlights.emissiveIntensity = this.dead ? 0 : 0.15 + 10 * night
-    brakelights.emissiveIntensity = this.dead ? 0 : this.braking ? 24 : 0.3 + 1.5 * night
+    lamps.x = this.dead ? 0 : 6 * night
+    lamps.y = this.dead ? 0 : this.braking ? 14 : 1.5 * night
+    this.clock += dt
+    const flash = Math.floor(this.clock * FLASH_RATE * 2) % 2 ? 1 : -1
+    lamps.z = police && siren && !this.dead ? 3 * flash : 0
   }
 }

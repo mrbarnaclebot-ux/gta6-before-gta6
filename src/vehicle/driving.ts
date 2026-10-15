@@ -6,8 +6,6 @@ import type { Car, Controls } from './car'
 import { findExit } from './exit'
 
 const ENTER_RANGE = 3.6
-// The driver sits in the middle: this concept car has a central seat behind a centered wheel.
-const SEAT = new THREE.Vector3(0, -0.36, 0.3)
 const CAPSULE = { halfHeight: 0.55, radius: 0.35 }
 
 /** Who is in control: the player on foot, or the player driving one of the cars. */
@@ -95,7 +93,10 @@ export class Driving {
     this.headlight.intensity = this.car.dead ? 0 : 60 + 340 * this.night
     const avatar = this.player.avatar
     avatar.root.quaternion.copy(this.car.quaternion)
-    avatar.root.position.copy(SEAT).applyQuaternion(this.car.quaternion).add(this.car.position)
+    avatar.root.position
+      .copy(this.car.visual.seat)
+      .applyQuaternion(this.car.quaternion)
+      .add(this.car.position)
     avatar.play('drive', 0)
     avatar.update(dt)
   }

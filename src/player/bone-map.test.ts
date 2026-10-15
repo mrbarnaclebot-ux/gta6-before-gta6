@@ -1,3 +1,4 @@
+// @ts-expect-error Node built-ins are untyped here (no @types/node); only readFileSync is needed.
 import { readFileSync } from 'node:fs'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'

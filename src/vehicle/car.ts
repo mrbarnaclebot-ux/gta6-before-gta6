@@ -168,7 +168,7 @@ export class Car {
     if (!driven && this.body.isSleeping()) return
     this.position.lerpVectors(this.prev.p, this.curr.p, alpha)
     this.quaternion.slerpQuaternions(this.prev.q, this.curr.q, alpha)
-    const { root, wheels, headlights, brakelights } = this.visual
+    const { root, wheels, lamps } = this.visual
     root.position.copy(this.position)
     root.quaternion.copy(this.quaternion)
     wheels.forEach((w, i) => {
@@ -176,8 +176,8 @@ export class Car {
       w.position.y = this.anchorY[i] - travel
       w.rotation.set(this.vehicle.wheelRotation(i) ?? 0, this.vehicle.wheelSteering(i) ?? 0, 0)
     })
-    headlights.emissiveIntensity = driven && !this.dead ? 10 : 0.15
-    brakelights.emissiveIntensity = this.braking ? 24 : driven && !this.dead ? 1.5 : 0.3
+    lamps.x = driven && !this.dead ? 6 : 0
+    lamps.y = this.braking ? 14 : driven && !this.dead ? 1.5 : 0
   }
 }
 

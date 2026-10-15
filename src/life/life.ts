@@ -8,7 +8,7 @@ import type { Driving } from '../vehicle/driving'
 import { Crowd } from './crowd'
 import { hospitals, nearest, type Hospital } from './places'
 import { Traffic, type Obstacle } from './traffic'
-import { clear, cool, newWanted, report, type Crime } from './wanted'
+import { clear, cool, newWanted, report, stars, type Crime } from './wanted'
 
 /** Gunfire is a crime only with a witness this close: a person or a driver. */
 const WITNESS = 40
@@ -71,7 +71,8 @@ export class Life {
   update(dt: number, view: THREE.Vector3, shot: Shot, night: number): void {
     const focus = this.driving.position
     this.crowd.update(dt, focus, !this.filled)
-    this.traffic.update(dt, focus, view, this.obstacles(), night)
+    const siren = stars(this.wanted) > 0
+    this.traffic.update(dt, focus, view, this.obstacles(), { night, siren })
     this.filled = true
     if (shot.count !== this.shots) {
       this.shots = shot.count

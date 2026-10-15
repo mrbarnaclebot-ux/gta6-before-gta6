@@ -14,7 +14,7 @@ import { Renderer } from './render/renderer'
 import { Sky } from './render/sky'
 import { exposeTestHook } from './test-hook'
 import { createUi, updateHud, type Ui } from './ui/hud-sync'
-import { loadCarModel } from './vehicle/car-model'
+import { CarModels } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
 import { buildCity } from './world/city'
@@ -38,17 +38,20 @@ async function loadWorld(canvas: HTMLCanvasElement) {
   const physics = await createPhysics()
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
-  const [figures, city, makeCar] = await Promise.all([
+  const [figures, city] = await Promise.all([
     loadFigures(load),
     buildCity({ scene, physics }, load, sky.ambient),
-    loadCarModel(load),
     sky.load(renderer.gl),
   ])
-  return { scene, camera, renderer, sky, physics, figures, city, makeCar }
+  // Car bodies load after the first frame (see startGame); box bodies stand in till then.
+  const carModels = new CarModels()
+  return { scene, camera, renderer, sky, physics, figures, city, carModels, load }
 }
 
 async function buildScene(canvas: HTMLCanvasElement) {
-  const { scene, camera, renderer, sky, physics, figures, city, makeCar } = await loadWorld(canvas)
+  const world = await loadWorld(canvas)
+  const { scene, camera, renderer, sky, physics, figures, city, carModels } = world
+  const makeCar = carModels.make
   const avatar = new Avatar(figures.male)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
@@ -86,6 +89,7 @@ async function buildScene(canvas: HTMLCanvasElement) {
     combat,
     life,
     clock,
+    upgradeCars: () => carModels.upgrade(world.load),
   }
 }
 
@@ -147,7 +151,8 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
   let frames = 0
   runLoop(w, input, ui, (dt) => {
     updateHud(ui, w, dt)
-    frames++
+    // The car bodies are the heaviest download; fetch them once the city is on screen.
+    if (frames++ === 0) void w.upgradeCars()
   })
   exposeTestHook({
     ...w,

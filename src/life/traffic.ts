@@ -9,6 +9,8 @@ import { TrafficCar } from './traffic-car'
 // ponytail: ten cars kept within 220 m of the player, no traffic lights; intersections
 // work on "stop for whatever is in front". Lights and a density map can come later.
 const COUNT = 10
+// Every third car is a police cruiser: a patrol, not a pursuit.
+const POLICE_EVERY = 3
 const NEAR = 60
 const FAR = 220
 const DESPAWN = 260
@@ -44,7 +46,8 @@ export class Traffic {
   ) {
     this.grid = layout
     this.cars = Array.from({ length: COUNT }, (_, i) => {
-      const car = new TrafficCar(physics, make(i % PAINT_COUNT), layout, this.r)
+      const kind = i % POLICE_EVERY === 0 ? 'police' : 'sports'
+      const car = new TrafficCar(physics, make(i % PAINT_COUNT, kind), layout, this.r)
       car.onShot = onShot
       car.visual.root.visible = false
       scene.add(car.visual.root)
@@ -58,7 +61,13 @@ export class Traffic {
    * `view` is the camera's forward direction: new cars appear behind it when possible.
    * `others` are the player, cars that are not traffic, and people.
    */
-  update(dt: number, focus: THREE.Vector3, view: THREE.Vector3, others: Obstacle[], night: number) {
+  update(
+    dt: number,
+    focus: THREE.Vector3,
+    view: THREE.Vector3,
+    others: Obstacle[],
+    lights: { night: number; siren: boolean },
+  ) {
     this.cars.forEach((car, i) => {
       const hidden = !car.visual.root.visible
       if (hidden || car.position.distanceTo(focus) > DESPAWN) this.spawn(car, focus, view, hidden)
@@ -66,7 +75,7 @@ export class Traffic {
       const cars = this.ignoring[i] > 0 ? 0 : this.limit(car, this.carObstacles(car))
       const limit = Math.min(cars, this.limit(car, others))
       this.unstick(i, car, cars, limit, dt)
-      car.update(dt, limit, night)
+      car.update(dt, limit, lights.night, lights.siren)
     })
   }
 

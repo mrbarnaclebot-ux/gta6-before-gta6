@@ -1,11 +1,14 @@
 # vehicle
 
-Cars: a Rapier raycast-vehicle per car, the CarConcept model on top, and getting in and out.
+Cars: a Rapier raycast-vehicle per car, a generated body (sports car or police sedan) with our own wheels on top, and getting in and out.
 
 - `driving.ts` who is in control (on foot or in a car); F to get in and out; seats the driver
 - `car.ts` one car: chassis body, four spring-ray wheels, flooding, bullet damage, wheel and lamp visuals
 - `drive.ts` pure rules: pedals, steering lock by speed, drag, chase FOV, flooding
-- `car-model.ts` loads the glb once, merges the body per material, paints, box-car fallback
+- `car-model.ts` hands out cars with a box body at once, then swaps in the generated bodies after the first frame
+- `car-specs.ts` measured sizes, wheel hubs, seats, and paints for each body
+- `car-paint.ts` the body shader: repaints the baked texture and lights the lamps it finds by color
+- `wheel-model.ts` the procedural tire and five-spoke alloy
 - `fleet.ts` parks the seeded cars from `src/city/parking.ts`
 - `exit.ts` finds a free spot beside the car to stand after getting out
 - `drive.test.ts` Vitest checks for the pure rules
