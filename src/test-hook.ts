@@ -79,11 +79,13 @@ function lifeHelpers(deps: HookDeps) {
           health: p.health.hp,
           state: p.state,
         })),
-    /** Visible traffic cars: position, speed in m/s, health. */
+    /** Visible traffic cars: a stable id, position, speed in m/s, and health. */
     traffic: () =>
-      life.traffic.cars
-        .filter((c) => c.visual.root.visible)
-        .map((c) => ({ ...xyz(c.position), speed: c.speed, health: c.health.hp })),
+      life.traffic.cars.flatMap((c, id) =>
+        c.visual.root.visible
+          ? [{ id, ...xyz(c.position), speed: c.speed, health: c.health.hp }]
+          : [],
+      ),
     hospitals: () => life.hospitals.map((h) => ({ ...h })),
     /** Take damage, as from a fall. Enough of it kills. */
     hurt: (amount: number) => {
