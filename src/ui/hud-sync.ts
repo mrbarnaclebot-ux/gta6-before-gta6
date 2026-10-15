@@ -26,6 +26,8 @@ export interface Ui {
   tip: (key: string, message: string) => void
   /** Apply, show, and save graphics settings (also used by the test hook). */
   setGraphics: (g: Graphics) => void
+  /** The mouse lost pointer lock and needs a click to take it back. */
+  needsRelock: () => boolean
 }
 
 /** Puts one display or control preference into effect. */
@@ -51,6 +53,8 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
   const base = paintBase(w.city.layout)
   const worldMap = new WorldMap(base, w.city.layout, w.life.hospitals, nav)
   pause.playing = true
+  // The tab last picked on the title screen (often Controls) should not stick into the game.
+  pause.selectTab('graphics')
   pause.hooks = {
     onGraphics: (g) => {
       look.apply(g)
@@ -76,7 +80,8 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
     if (!seen.has(key)) hud.toast(message)
     seen.add(key)
   }
-  return { hud, pause, map, worldMap, nav, tip, setGraphics }
+  const needsRelock = () => input.needsRelock
+  return { hud, pause, map, worldMap, nav, tip, setGraphics, needsRelock }
 }
 
 /** Esc and M: the pause menu and the map. Returns whether the world should hold still. */
@@ -134,6 +139,7 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
       : null,
   )
   hud.setPrompt(w.driving.nearest() && !w.life.dead ? 'Get in' : null)
+  hud.setLookHint(ui.needsRelock() && !ui.pause.open && !ui.worldMap.open)
   const { wanted } = w.life
   hud.setWanted(stars(wanted), cooling(wanted))
   const p = w.driving.position

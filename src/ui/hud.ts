@@ -24,6 +24,7 @@ export class Hud {
   private readonly toastsEl = $('toasts')
   private readonly stallEl = $('stall')
   private readonly promptEl = $('prompt')
+  private readonly lookHintEl = $('look-hint')
   private readonly crosshairEl = $('crosshair')
   private readonly hitmarkEl = $('hitmark')
   private readonly ammoEl = $('ammo')
@@ -107,6 +108,11 @@ export class Hud {
     this.promptEl.hidden = action === null
     const label = this.promptEl.querySelector('span')!
     if (action && label.textContent !== action) label.textContent = action
+  }
+
+  /** "Click to look around", while the mouse waits to be captured again. */
+  setLookHint(on: boolean): void {
+    this.lookHintEl.hidden = !on
   }
 
   /** Frames counted over half-second wall-clock windows: readable, and immune to zero-length frames. */
