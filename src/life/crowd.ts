@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { CURB_H, type CityLayout, type Rect } from '../city/layout'
 import type { PhysicsWorld } from '../physics'
+import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import type { Figure } from '../player/figure'
 import { DYES, outfit } from './outfit'
 import { Pedestrian } from './pedestrian'
@@ -66,7 +67,9 @@ export class Crowd {
     for (const p of this.people) {
       const far = p.position.distanceTo(focus) > DESPAWN
       if (far || (!p.alive && p.timer > DEAD_FOR)) this.respawn(p, focus, firstFill ? 4 : NEAR)
-      if (p.root.visible) p.update(dt)
+      if (!p.root.visible) continue
+      p.update(dt)
+      castShadows(p.root, p.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
     }
   }
 

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { CityLayout } from '../city/layout'
 import { rng } from '../city/rng'
 import type { PhysicsWorld } from '../physics'
+import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import { PAINT_COUNT, type CarFactory } from '../vehicle/car-model'
 import { lanePoint, randomHeading } from './lanes'
 import { TrafficCar } from './traffic-car'
@@ -76,6 +77,7 @@ export class Traffic {
       const limit = Math.min(cars, this.limit(car, others))
       this.unstick(i, car, cars, limit, dt)
       car.update(dt, limit, lights.night, lights.siren)
+      castShadows(car.visual.root, car.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
     })
   }
 
