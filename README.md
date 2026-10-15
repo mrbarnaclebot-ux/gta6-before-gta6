@@ -16,9 +16,9 @@ Live build: https://web-production-af31.up.railway.app (Railway, redeploys on pu
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and pull request: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm build`, then the Playwright tests tagged `@smoke` (load, Play, walk, drive, shoot) against `vite preview` of the build. Chromium is cached by Playwright version; `test-results/` (screenshots and traces) is uploaded when a step fails.
+`.github/workflows/ci.yml` runs on every push and pull request: `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm build`, then one Playwright test tagged `@smoke` (boot on Low, Play, walk) against `vite preview` of the build, with a 10-minute cap. Chromium is cached by Playwright version; `test-results/` (screenshots and traces) is uploaded when a step fails.
 
-GitHub's runners have no GPU, so WebGL runs in SwiftShader at well under 1 fps. In CI the tests get 3x timeouts, one worker, one retry, and a 960x540 window. The swim and life tests run locally only.
+GitHub's runners have no GPU, so WebGL runs in SwiftShader at well under 1 fps. In CI that test gets one worker, one retry, and a 640x360 window. Drive, shoot, swim, and life tests run locally only (`pnpm test:e2e`).
 
 ## Performance
 
