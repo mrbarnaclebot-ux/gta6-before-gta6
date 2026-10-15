@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { game, LOAD_TIMEOUT, play, settle, SLOW, visit, type Game } from './helpers'
 
 test('loads, plays, walks, and stands on the city', { tag: '@smoke' }, async ({ page }) => {
-  // High quality in SwiftShader with people and traffic about runs near 1 fps.
+  // The default Medium preset in SwiftShader with people and traffic runs near 1 fps.
   test.setTimeout(180_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
