@@ -1,7 +1,9 @@
 import * as THREE from 'three'
 import { Water } from 'three/examples/jsm/objects/Water.js'
-import { SEA_LEVEL, type CityLayout } from '../city/layout'
-import { heightAt, terrainGrid } from '../city/terrain'
+import { SEA_LEVEL } from '../city/layout'
+import { heightAt } from '../city/terrain'
+import { gridRect } from '../land/grid'
+import type { Land } from '../land/plan'
 import type { Ambient } from '../render/sky'
 import type { WorldCtx } from './blocks'
 import { seesAny, wetBoxes } from './wet-areas'
@@ -17,10 +19,10 @@ const DEPTH_CELL = 8
  * seabed, so the shader can go turquoise and clear in the shallows and deep
  * blue offshore without a depth pre-pass.
  */
-function depthTexture(c: CityLayout) {
-  const g = terrainGrid(c)
-  const w = Math.ceil(g.width / DEPTH_CELL) + 1
-  const h = Math.ceil(g.depth / DEPTH_CELL) + 1
+function depthTexture(c: Land) {
+  const g = gridRect(c.ground)
+  const w = Math.ceil((g.x1 - g.x0) / DEPTH_CELL) + 1
+  const h = Math.ceil((g.z1 - g.z0) / DEPTH_CELL) + 1
   const data = new Uint8Array(w * h)
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
@@ -101,17 +103,11 @@ function makeWater(look: WaterLook, size: number, wet: THREE.Box3[]): Water {
 }
 
 /** Planar-reflection water (three.js Water) patched with depth-based color, clarity, and shore foam. */
-export function buildWater(ctx: WorldCtx, c: CityLayout, light: Ambient) {
+export function buildWater(ctx: WorldCtx, c: Land, light: Ambient) {
   const normals = new THREE.TextureLoader().load(NORMALS)
   normals.wrapS = normals.wrapT = THREE.RepeatWrapping
   const look = { normals, depth: depthTexture(c), light }
-  const g = terrainGrid(c)
-  const wet = wetBoxes((x, z) => heightAt(c, x, z), {
-    x0: g.x0,
-    z0: g.z0,
-    x1: g.x0 + g.width,
-    z1: g.z0 + g.depth,
-  })
+  const wet = wetBoxes((x, z) => heightAt(c, x, z), gridRect(c.ground))
   // The sea sits in a group so its mirror size can change without the rest of the city noticing.
   const surface = new THREE.Group()
   surface.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)

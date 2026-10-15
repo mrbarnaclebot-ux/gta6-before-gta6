@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
+import { surfaceAt } from './city/terrain'
 import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { RESPAWN_AFTER, type Life } from './life/life'
@@ -142,6 +143,8 @@ export function exposeTestHook(deps: HookDeps): void {
     /** Every parked or driven car's position. */
     cars: () => driving.cars.map(({ position }) => xyz(position)),
     teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
+    /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
+    ground: (x: number, z: number) => surfaceAt(city.layout, x, z),
     /** Target dummies: chest point (feet + 1.2 m) and health. */
     dummies: () =>
       combat.dummies.map(({ feet: f, health }) => ({

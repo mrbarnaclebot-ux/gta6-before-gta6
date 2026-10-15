@@ -1,6 +1,7 @@
 import type * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { CityLayout, Spot } from '../city/layout'
+import type { Spot } from '../city/layout'
+import type { Land } from '../land/plan'
 import { surfaceAt } from '../city/terrain'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from './blocks'
@@ -21,7 +22,7 @@ const FERN_RANGE = 140
 type Update = (eye: THREE.Vector3, reach?: number) => void
 
 /** Spreads spots across variants so neighbors rarely match. */
-function plant(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]) {
+function plant(ctx: WorldCtx, c: Land, variants: Part[][], spots: Spot[]) {
   const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
   variants.forEach((parts, i) => {
     const mine = spots.filter((_, k) => k % variants.length === i)
@@ -30,7 +31,7 @@ function plant(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]) 
 }
 
 /** Ferns, drawn only near the camera. */
-function plantFerns(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]): Update[] {
+function plantFerns(ctx: WorldCtx, c: Land, variants: Part[][], spots: Spot[]): Update[] {
   const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
   const place = { scale: (s: Spot) => s.s, ground, ranges: [FERN_RANGE], detail: true }
   return variants.map((parts, i) => {
@@ -42,7 +43,7 @@ function plantFerns(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spo
 /** The generated palm, detailed near the camera and decimated far off; procedural ones if it fails. */
 async function plantPalms(
   ctx: WorldCtx,
-  c: CityLayout,
+  c: Land,
   load: (url: string) => Promise<GLTF>,
   gl: THREE.WebGLRenderer,
 ): Promise<Update> {
@@ -66,7 +67,7 @@ function fernVariants(gltf: GLTF): Part[][] {
 
 export async function plantVegetation(
   ctx: WorldCtx,
-  c: CityLayout,
+  c: Land,
   load: (url: string) => Promise<GLTF>,
   gl: THREE.WebGLRenderer,
 ): Promise<Update> {

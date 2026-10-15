@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { generateCity, ROAD_HALF } from './layout'
+import { generateLand } from '../land/plan'
+import { ROAD_HALF } from './layout'
 import { parkingSpots } from './parking'
 import { surfaceAt, waterSurfaceAt } from './terrain'
 
-const city = generateCity(7, 1000)
+const city = generateLand(7, 1000)
 const spots = parkingSpots(city, 14, 4)
 
 describe('parkingSpots', () => {

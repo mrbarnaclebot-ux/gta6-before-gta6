@@ -1,4 +1,5 @@
-import { ROAD_HALF, type CityLayout, type Road } from './layout'
+import type { Land } from '../land/plan'
+import { ROAD_HALF, type Road } from './layout'
 import { rng } from './rng'
 import { waterSurfaceAt } from './terrain'
 
@@ -16,7 +17,7 @@ const CURB_LANE = ROAD_HALF - 1.3
 const SPOT_OFFSETS = [-22, 18]
 
 /** Every curbside spot on one road: two per side per block, skipping bridges over water. */
-function spotsAlong(c: CityLayout, road: Road): Omit<ParkingSpot, 'variant'>[] {
+function spotsAlong(c: Land, road: Road): Omit<ParkingSpot, 'variant'>[] {
   const crossings = (road.axis === 'z' ? c.zRoads : c.xRoads).filter(
     (v) => v > road.from && v < road.to,
   )
@@ -42,7 +43,7 @@ function spotsAlong(c: CityLayout, road: Road): Omit<ParkingSpot, 'variant'>[] {
  * Seeded parked cars. The first is the spot nearest the spawn, so a new player
  * sees a car right away; the rest are scattered across the map.
  */
-export function parkingSpots(c: CityLayout, count: number, variants: number): ParkingSpot[] {
+export function parkingSpots(c: Land, count: number, variants: number): ParkingSpot[] {
   const r = rng(c.seed + 101)
   const all = c.roads.flatMap((road) => spotsAlong(c, road))
   const d = (s: { x: number; z: number }) => Math.hypot(s.x - c.spawn.x, s.z - c.spawn.z)

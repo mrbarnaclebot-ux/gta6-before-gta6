@@ -1,10 +1,18 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { generateCity, SEA_LEVEL, type CityLayout } from '../city/layout'
+import { SEA_LEVEL, type CityLayout } from '../city/layout'
+import { outerLandmarks } from '../land/landmarks'
+import { generateLand, type Land } from '../land/plan'
 import { buildingHeight } from '../city/lots'
 import { surfaceAt, waterSurfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
 import type { Ambient } from '../render/sky'
+import { buildBeach } from '../scenery/beach'
+import { plantDuneGrass } from '../scenery/dune-grass'
+import { buildHouses } from '../scenery/houses'
+import { buildRoads } from '../scenery/roads'
+import { buildTerrain } from '../scenery/terrain'
+import { buildVillas } from '../scenery/villas'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -15,19 +23,18 @@ import { buildMarkings } from './markings'
 import { buildNeon } from './neon'
 import { placeProps } from './props'
 import { buildStreetGlow } from './street-glow'
-import { buildSand } from './sand'
 import { plantVegetation } from './vegetation'
 import { buildUnderwater } from './underwater'
 import { buildWater } from './water'
 
-// ponytail: fixed seed and 1 km size; expose them in settings when the map grows to 2 km.
+// The city core is 1 km square; the land plan grows the world around it to about 2 x 2 km.
 export const CITY_SEED = 7
 export const CITY_SIZE = 1000
 
 type Point = { x: number; y: number; z: number }
 
 export interface City {
-  layout: CityLayout
+  layout: Land
   spawn: THREE.Vector3
   /** Named feet positions for tests and debugging: the beach, a canal bank, a rooftop, downtown. */
   landmarks: Record<string, Point>
@@ -40,7 +47,7 @@ export interface City {
   setDetail(plants: number, reflection: number): void
 }
 
-function landmarks(c: CityLayout): Record<string, Point> {
+function landmarks(c: Land): Record<string, Point> {
   const at = (x: number, z: number, lift = 0) => ({ x, y: surfaceAt(c, x, z) + lift, z })
   const mid = c.zRoads[Math.floor(c.zRoads.length / 2)]
   const tall = c.blocks
@@ -48,6 +55,7 @@ function landmarks(c: CityLayout): Record<string, Point> {
     .flatMap((b) => b.buildings)
     .reduce((a, b) => (buildingHeight(b) > buildingHeight(a) ? b : a))
   return {
+    ...outerLandmarks(c),
     beach: at(c.land.x1 + 30, mid + 20),
     canal: at(c.canal.x0 - 1.5, mid + 30),
     downtown: at(c.xRoads[1] + 3, mid + 40),
@@ -82,12 +90,17 @@ export async function buildCity(
   light: Ambient,
   gl: THREE.WebGLRenderer,
 ): Promise<City> {
-  const layout = generateCity(CITY_SEED, CITY_SIZE)
+  const layout = generateLand(CITY_SEED, CITY_SIZE)
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  buildSand(ctx, layout)
+  await buildTerrain(ctx, layout)
+  buildRoads(ctx, layout)
+  buildHouses(ctx, layout)
+  buildVillas(ctx, layout)
+  buildBeach(ctx, layout)
+  const dunes = plantDuneGrass(ctx, layout)
   const water = buildWater(ctx, layout, light)
   const palms = await plantVegetation(ctx, layout, load, gl)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
@@ -106,6 +119,7 @@ export async function buildCity(
     update(dt, camera) {
       night(light.night, camera.position)
       palms(camera.position, reach)
+      dunes(camera.position, reach)
       water.update(dt)
       underwater.update(camera, dt, light.day)
     },

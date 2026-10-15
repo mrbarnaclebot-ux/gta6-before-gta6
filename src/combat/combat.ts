@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type { FollowCamera } from '../camera/follow-camera'
-import type { CityLayout } from '../city/layout'
+import type { Land } from '../land/plan'
 import type { Input } from '../input/input'
 import type { PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
@@ -31,7 +31,7 @@ interface CombatDeps {
   cars: Smoker[]
   /** Other things bullets hit, such as people. */
   targets: (Target & { collider: InstanceType<typeof RAPIER.Collider> })[]
-  layout: CityLayout
+  layout: Land
   spawn: THREE.Vector3
 }
 
