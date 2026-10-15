@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { generateCity, SEA_LEVEL, type Building, type Rect } from './layout'
-import { heightAt } from './terrain'
+import { heightAt, waterSurfaceAt } from './terrain'
 
 const city = generateCity(7, 1000)
 const buildings = city.blocks.flatMap((b) => b.buildings)
@@ -64,5 +64,13 @@ describe('heightAt', () => {
     expect(heightAt(city, land.x1 + 120, 0)).toBeLessThan(SEA_LEVEL - 1)
     expect(heightAt(city, (canal.x0 + canal.x1) / 2, 0)).toBeLessThan(SEA_LEVEL - 2)
     expect(heightAt(city, 0, 0)).toBeLessThan(0)
+  })
+
+  it('finds water in the sea and the canal but not on land or under the city', () => {
+    const { land, canal } = city
+    expect(waterSurfaceAt(city, land.x1 + 120, 0)).toBe(SEA_LEVEL)
+    expect(waterSurfaceAt(city, (canal.x0 + canal.x1) / 2, 0)).toBe(SEA_LEVEL)
+    expect(waterSurfaceAt(city, land.x1 + 20, 0)).toBeNull()
+    expect(waterSurfaceAt(city, 0, 0)).toBeNull()
   })
 })

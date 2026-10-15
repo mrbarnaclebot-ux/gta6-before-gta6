@@ -1,4 +1,4 @@
-import { CURB_H, ROAD_HALF, type CityLayout, type Rect } from './layout'
+import { CURB_H, ROAD_HALF, SEA_LEVEL, type CityLayout, type Rect } from './layout'
 
 /** Ground under the paved city: below every slab and road, so it never shows through. */
 export const UNDER_CITY = -0.6
@@ -7,6 +7,9 @@ export const CANAL_FLOOR = -4
 export const CELL = 4
 /** How far the sand and seabed extend past the paved island. */
 export const MARGIN = 160
+// The beach side reaches further out, to where the sea is deep enough that its color
+// no longer changes, so the seabed edge leaves no seam and swimmers get open water.
+const SEA_MARGIN = 300
 
 type Profile = [distance: number, height: number][]
 
@@ -50,11 +53,16 @@ export function heightAt(c: Pick<CityLayout, 'land' | 'canal'>, x: number, z: nu
   return x > land.x1 ? Math.min(sample(BEACH, x - land.x1), shore) : shore
 }
 
+/** Water surface height at (x, z), or null on land. Sea and canal share sea level. */
+export function waterSurfaceAt(c: Pick<CityLayout, 'land' | 'canal'>, x: number, z: number) {
+  return heightAt(c, x, z) < SEA_LEVEL ? SEA_LEVEL : null
+}
+
 /** Terrain grid covering the island plus MARGIN, aligned so land edges fall on vertices. */
 export function terrainGrid(c: Pick<CityLayout, 'land'>) {
   const x0 = c.land.x0 - MARGIN
   const z0 = c.land.z0 - MARGIN
-  const nx = Math.round((c.land.x1 - c.land.x0 + 2 * MARGIN) / CELL)
+  const nx = Math.round((c.land.x1 - c.land.x0 + MARGIN + SEA_MARGIN) / CELL)
   const nz = Math.round((c.land.z1 - c.land.z0 + 2 * MARGIN) / CELL)
   return { x0, z0, nx, nz, width: nx * CELL, depth: nz * CELL }
 }

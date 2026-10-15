@@ -1,8 +1,8 @@
 import * as THREE from 'three'
-import { SEA_LEVEL, type CityLayout } from '../city/layout'
+import { SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
 import { CELL, heightAt, terrainGrid, UNDER_CITY } from '../city/terrain'
 import { RAPIER } from '../physics'
-import type { WorldCtx } from './blocks'
+import { rectCollider, type WorldCtx } from './blocks'
 import { pbr } from './materials'
 
 // Above 1 on purpose: brightens and cools the tan texture toward pale Miami sand.
@@ -64,4 +64,21 @@ export function buildSand(ctx: WorldCtx, c: CityLayout): void {
     z: g.depth,
   })
   ctx.physics.createCollider(desc.setTranslation(g.x0 + g.width / 2, 0, g.z0 + g.depth / 2))
+  boundary(ctx, { x0: g.x0, z0: g.z0, x1: g.x0 + g.width, z1: g.z0 + g.depth })
+}
+
+/**
+ * Invisible walls at the seabed edge, so swimmers cannot cross into the void past it.
+ * ponytail: hard walls 160 m offshore; extend the seabed or add a soft current when the map grows.
+ */
+function boundary(ctx: WorldCtx, r: Rect): void {
+  const t = 1
+  for (const side of [
+    { ...r, x1: r.x0, x0: r.x0 - t },
+    { ...r, x0: r.x1, x1: r.x1 + t },
+    { ...r, z1: r.z0, z0: r.z0 - t },
+    { ...r, z0: r.z1, z1: r.z1 + t },
+  ]) {
+    rectCollider(ctx, side, -20, 40)
+  }
 }
