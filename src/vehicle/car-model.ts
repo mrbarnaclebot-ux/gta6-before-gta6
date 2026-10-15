@@ -35,9 +35,21 @@ export class CarModels {
   private readonly made: Made[] = []
   private readonly wheels = new Map<CarKind, WheelBatch>()
 
+  private stale = true
+
   constructor(private readonly scene: THREE.Scene) {
-    // Scene renders (main, water mirror) each pick up the wheels where the cars are now.
-    scene.onBeforeRender = () => this.wheels.forEach((b) => b.sync())
+    // This class owns the scene-wide hook; another assignment would freeze every wheel.
+    // The frame's first scene render (main pass) syncs; the mirror and AO reuse it.
+    scene.onBeforeRender = () => {
+      if (!this.stale) return
+      this.stale = false
+      this.wheels.forEach((b) => b.sync())
+    }
+  }
+
+  /** Call once a frame before rendering so the next scene render picks up the wheels. */
+  newFrame(): void {
+    this.stale = true
   }
 
   readonly make: CarFactory = (variant, kind = 'sports') => {

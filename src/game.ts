@@ -88,6 +88,7 @@ async function buildScene(canvas: HTMLCanvasElement) {
     combat,
     life,
     clock,
+    carModels,
     upgradeCars: () => carModels.upgrade(world.load),
   }
 }
@@ -138,6 +139,7 @@ function runLoop(w: World, input: Input, ui: Ui, onFrame: (dt: number) => void):
     last = now
     if (input.consume('pause')) ui.pause.toggle()
     if (!ui.pause.open) acc = simulate(w, input, dt, acc)
+    w.carModels.newFrame()
     w.renderer.render(dt)
     onFrame(dt)
   })
