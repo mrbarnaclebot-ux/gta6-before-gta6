@@ -51,6 +51,8 @@ export class Player {
   /** Feet position, interpolated between physics steps for smooth rendering. */
   readonly position = new THREE.Vector3()
   mode: Mode = 'walking'
+  /** While set, the body turns to face this heading and walks instead of running (aiming). */
+  facing: number | null = null
   private readonly body: InstanceType<typeof RAPIER.RigidBody>
   private readonly controller: InstanceType<typeof RAPIER.KinematicCharacterController>
   private readonly prev = new THREE.Vector3()
@@ -108,11 +110,13 @@ export class Player {
     breathe(this.vitals, depth > HEAD_HEIGHT, dt)
     // ponytail: zero health just respawns; real death and a respawn screen arrive in Phase 6.
     if (this.curr.y < KILL_Y || this.vitals.health <= 0) return this.respawn()
-    if (axes.x || axes.z) this.heading = turnToward(this.heading, Math.atan2(wish.x, wish.z), dt)
+    const target = this.facing ?? (axes.x || axes.z ? Math.atan2(wish.x, wish.z) : null)
+    if (target !== null) this.heading = turnToward(this.heading, target, dt)
   }
 
   private walk(dt: number, input: Input, wish: { x: number; z: number }, depth: number): false {
-    const speed = (input.held.has('run') ? RUN_SPEED : WALK_SPEED) * wadeFactor(depth)
+    const run = input.held.has('run') && this.facing === null
+    const speed = (run ? RUN_SPEED : WALK_SPEED) * wadeFactor(depth)
     steer(this.motion, wish.x * speed, wish.z * speed, dt)
     fall(this.motion, this.grounded, input.consume('jump'), dt)
     return false

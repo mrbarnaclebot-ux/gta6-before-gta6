@@ -7,4 +7,5 @@ The on-foot character: a kinematic Rapier capsule plus the animated mannequin.
 - `swim.ts` pure water rules: mode switch by feet depth, buoyancy, wading speed, breath and drowning
 - `ledge.ts` finds a wall top or step a swimmer can pull up onto
 - `avatar.ts` loads the rigged mannequin and cross-fades its clips
+- `aim-pose.ts` the pistol upper-body layer: aim up and down, recoil, reload, over any leg clip
 - `*.test.ts` Vitest checks for the pure rules

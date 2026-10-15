@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { AimPose } from './aim-pose'
 import type { AnimState } from './movement'
 
 const URL = '/assets/models/character/mannequin_ual.glb'
@@ -24,8 +25,19 @@ export class Avatar {
   private mixer: THREE.AnimationMixer | null = null
   private actions = new Map<AnimState, THREE.AnimationAction>()
   private state: AnimState | null = null
+  /** Every clip in the glb, for cloned figures such as target dummies. */
+  clips: THREE.AnimationClip[] = []
+  /** The pistol upper-body layer; null on the capsule fallback. */
+  pistol: AimPose | null = null
+  /** Raise the gun this frame, at this elevation in radians. Set by the shooter. */
+  readonly aim = { on: false, elevation: 0 }
 
   private constructor(readonly root: THREE.Object3D) {}
+
+  /** The right hand bone (GLTFLoader drops the dot in DEF-hand.R); the root on the capsule fallback. */
+  get hand(): THREE.Object3D {
+    return this.root.getObjectByName('DEF-handR') ?? this.root
+  }
 
   static async load(load: (url: string) => Promise<GLTF>): Promise<Avatar> {
     try {
@@ -60,6 +72,8 @@ export class Avatar {
   }
 
   private bind(clips: THREE.AnimationClip[]): void {
+    this.clips = clips
+    this.pistol = new AimPose(this.root, clips)
     this.mixer = new THREE.AnimationMixer(this.root)
     for (const [state, name] of Object.entries(CLIPS) as [AnimState, string][]) {
       const clip = THREE.AnimationClip.findByName(clips, name)
@@ -86,5 +100,6 @@ export class Avatar {
 
   update(dt: number): void {
     this.mixer?.update(dt)
+    this.pistol?.apply(dt, this.aim.on, this.aim.elevation)
   }
 }

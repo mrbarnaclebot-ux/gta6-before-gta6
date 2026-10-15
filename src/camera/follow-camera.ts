@@ -13,9 +13,13 @@ type Collider = InstanceType<typeof RAPIER.Collider>
 
 /** Where the orbit centers and how far out it sits: on foot, or chasing a car. */
 const RIGS = {
-  foot: { height: 1.55, distance: 4.6 },
-  car: { height: 1.35, distance: 7.2 },
+  foot: { height: 1.55, distance: 4.6, shoulder: 0 },
+  car: { height: 1.35, distance: 7.2, shoulder: 0 },
+  // Over the right shoulder, close in, so the crosshair clears the body.
+  aim: { height: 1.55, distance: 2.5, shoulder: 0.72 },
 }
+const AIM_ZOOM = 13
+const AIM_RATE = 10
 
 /** Something to chase: its facing (yaw 0 is +Z) and forward speed in m/s. */
 export interface ChaseTarget {
@@ -27,6 +31,9 @@ export interface ChaseTarget {
 export class FollowCamera {
   yaw = 0
   pitch = 0.18
+  /** Over-the-shoulder aim on foot; eases in and out. */
+  aiming = false
+  private aimBlend = 0
   /** The collider the wall probe looks through: the player's capsule or the driven car. */
   ignore: Collider
   private distance = RIGS.foot.distance
@@ -49,20 +56,53 @@ export class FollowCamera {
     focus: THREE.Vector3,
     chase?: ChaseTarget,
   ): void {
-    this.yaw -= look.x * SENSITIVITY
-    this.pitch = clampPitch(this.pitch + look.y * SENSITIVITY)
+    const aim = (this.aimBlend +=
+      (Number(this.aiming && !chase) - this.aimBlend) * Math.min(1, dt * AIM_RATE))
+    // Finer mouse while zoomed in, as a scope would be.
+    const sens = SENSITIVITY * (1 - 0.4 * aim)
+    this.yaw -= look.x * sens
+    this.pitch = clampPitch(this.pitch + look.y * sens)
     this.idle = look.x || look.y ? 0 : this.idle + dt
     if (chase) this.recenter(chase, dt)
-    const rig = chase ? RIGS.car : RIGS.foot
-    this.pivot.set(focus.x, focus.y + rig.height, focus.z)
-    this.dir.fromArray(orbitDirection(this.yaw, this.pitch))
+    const rig = chase ? RIGS.car : mixRig(RIGS.foot, RIGS.aim, aim)
+    this.place(focus, rig)
     this.distance = nextDistance(this.distance, this.clearance(rig.distance), dt)
     this.camera.position.copy(this.pivot).addScaledVector(this.dir, this.distance)
     this.camera.lookAt(this.pivot)
-    const fov = chaseFov(chase?.speed ?? 0)
+    const fov = chaseFov(chase?.speed ?? 0) - AIM_ZOOM * aim
     if (Math.abs(fov - this.camera.fov) < 0.01) return
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 3)
     this.camera.updateProjectionMatrix()
+  }
+
+  /** Orbit pivot above the focus, shifted toward the camera's right by the rig's shoulder offset. */
+  private place(focus: THREE.Vector3, rig: { height: number; shoulder: number }): void {
+    const right = rig.shoulder
+    this.pivot.set(
+      focus.x + Math.cos(this.yaw) * right,
+      focus.y + rig.height,
+      focus.z - Math.sin(this.yaw) * right,
+    )
+    this.dir.fromArray(orbitDirection(this.yaw, this.pitch))
+  }
+
+  /**
+   * Turn so the screen center looks straight at `target` (tests and debugging).
+   * The camera sits off the pivot, so a few fixed-point passes settle the angles.
+   */
+  aimAt(target: THREE.Vector3): void {
+    const focus = this.pivot.clone()
+    const rig = this.aiming ? RIGS.aim : RIGS.foot
+    focus.x -= Math.cos(this.yaw) * rig.shoulder
+    focus.z += Math.sin(this.yaw) * rig.shoulder
+    focus.y -= rig.height
+    for (let i = 0; i < 6; i++) {
+      this.place(focus, rig)
+      const eye = this.pivot.clone().addScaledVector(this.dir, this.distance)
+      const to = target.clone().sub(eye).normalize()
+      this.yaw = Math.atan2(-to.x, -to.z)
+      this.pitch = clampPitch(Math.asin(-to.y))
+    }
   }
 
   /** Swing behind the car once the mouse rests, faster the faster it goes; a parked car stays put. */
@@ -88,4 +128,9 @@ export class FollowCamera {
     )
     return hit ? Math.max(MIN_DISTANCE, hit.time_of_impact) : max
   }
+}
+
+function mixRig(a: typeof RIGS.foot, b: typeof RIGS.foot, t: number) {
+  const mix = (k: keyof typeof a) => a[k] + (b[k] - a[k]) * t
+  return { height: mix('height'), distance: mix('distance'), shoulder: mix('shoulder') }
 }
