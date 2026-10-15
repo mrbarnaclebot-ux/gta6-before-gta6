@@ -65,9 +65,11 @@ function sort(c: Chunk, eye: THREE.Vector3, far2: number) {
   let f = 0
   c.spots.forEach((s, i) => {
     const near = (s.x - eye.x) ** 2 + (s.z - eye.z) ** 2 < far2
-    const src = c.matrices.subarray(i * 16, i * 16 + 16)
-    for (const mesh of near ? c.near : c.far)
-      mesh.instanceMatrix.array.set(src, (near ? n : f) * 16)
+    const at = (near ? n : f) * 16
+    for (const mesh of near ? c.near : c.far) {
+      const dst = mesh.instanceMatrix.array
+      for (let k = 0; k < 16; k++) dst[at + k] = c.matrices[i * 16 + k]
+    }
     if (near) n++
     else f++
   })
@@ -77,8 +79,9 @@ function sort(c: Chunk, eye: THREE.Vector3, far2: number) {
 
 /**
  * A model at every spot, detailed within `far` meters of the camera and the cheap
- * version beyond (nothing, if `distant` is empty), decided per spot. Each 250 m chunk is two draw calls per part
- * (near and far) however many trees it holds. Call the returned function every frame.
+ * version beyond (nothing, if `distant` is empty), decided per spot. Each 250 m chunk
+ * is two draw calls per part (near and far) however many trees it holds.
+ * Call the returned function every frame.
  */
 export function instanceByDistance(
   ctx: WorldCtx,
