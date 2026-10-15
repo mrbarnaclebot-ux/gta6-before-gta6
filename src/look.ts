@@ -6,7 +6,7 @@ import type { Graphics, Tier } from './render/graphics'
 import { REACH } from './render/view-distance'
 
 // Sea mirror size per Water reflections setting, in pixels.
-const MIRROR: Record<Tier, number> = { low: 256, medium: 512, high: 1024, ultra: 1536 }
+const MIRROR: Record<Tier, number> = { low: 256, medium: 512, high: 768, ultra: 1024 }
 // Focus point on foot: the player's chest. While aiming: whatever the crosshair is on.
 const CHEST = 1.2
 const AIM_RANGE = 300

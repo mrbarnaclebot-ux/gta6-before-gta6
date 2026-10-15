@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { Effect, EffectAttribute } from 'postprocessing'
 import { CUT_DISTANCE, FULL_BLUR, MAX_BLUR, SHARP_NEAR, shutterScale } from './motion-blur-math'
 
-const SAMPLES = 10
+const SAMPLES = 8
 
 // Mirrors motion-blur-math.ts: reproject this pixel into last frame, blur along the difference.
 const FRAGMENT = /* glsl */ `

@@ -49,7 +49,7 @@ export const PRESETS: Record<Preset, Graphics> = {
   },
   medium: {
     renderScale: 1,
-    dynamicRes: false,
+    dynamicRes: true,
     distance: 'medium',
     shadows: 'medium',
     ao: 'medium',
@@ -95,7 +95,9 @@ export const PRESETS: Record<Preset, Graphics> = {
 }
 
 export const PRESET_NAMES = Object.keys(PRESETS) as Preset[]
-export const DEFAULT_PRESET: Preset = 'high'
+// High cannot hold 55 fps at the beach on the reference M4 while the desktop shares the GPU;
+// Medium (with dynamic resolution) can. See .planning/phases/08-SUMMARY.md.
+export const DEFAULT_PRESET: Preset = 'medium'
 
 /** The preset these settings match exactly, or 'custom'. */
 export function presetOf(g: Graphics): Preset | 'custom' {

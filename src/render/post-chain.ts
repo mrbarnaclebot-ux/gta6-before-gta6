@@ -46,13 +46,13 @@ let lut: THREE.Texture | null = null
 function godRays(c: Ctx): GodRaysEffect {
   return new GodRaysEffect(c.camera, c.sun.disc, {
     blendFunction: BlendFunction.SCREEN,
-    samples: 48,
+    samples: 32,
     density: 0.86,
     decay: 0.92,
     weight: 0.22,
     exposure: 0.32,
     clampMax: 0.7,
-    resolutionScale: 0.5,
+    resolutionScale: 0.4,
     kernelSize: KernelSize.SMALL,
     blur: true,
   })
