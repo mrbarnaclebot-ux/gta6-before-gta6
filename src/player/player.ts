@@ -5,7 +5,16 @@ import type { Input } from '../input/input'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { Avatar } from './avatar'
 import { findLedge } from './ledge'
-import { animState, fall, RUN_SPEED, steer, turnToward, WALK_SPEED, type Motion } from './movement'
+import {
+  animState,
+  fall,
+  RUN_SPEED,
+  steer,
+  turnToward,
+  WALK_SPEED,
+  type AnimState,
+  type Motion,
+} from './movement'
 import {
   breathe,
   buoyancy,
@@ -28,6 +37,8 @@ const KILL_Y = -30
 const SNAP = 0.35
 // The swim stroke clip lies flat at hip height; lift it so the back breaks the surface.
 const STROKE_LIFT = 0.3
+// Divers swim head-down; standing upright on the floor reads as a bind pose from behind.
+const DIVE_PITCH = 0.4
 
 /** Water surface height at (x, z), or null where there is no water. */
 export type WaterQuery = (x: number, z: number) => number | null
@@ -46,6 +57,8 @@ export class Player {
   private readonly curr = new THREE.Vector3()
   private heading = Math.PI
   private lift = 0
+  private pitch = 0
+  private diveHeld = false
 
   constructor(
     private readonly physics: PhysicsWorld,
@@ -68,6 +81,8 @@ export class Player {
     this.curr.copy(spawn)
     this.prev.copy(spawn)
     avatar.root.position.copy(spawn)
+    // Yaw first, then pitch about the body's own side axis.
+    avatar.root.rotation.order = 'YXZ'
   }
 
   get grounded(): boolean {
@@ -86,22 +101,21 @@ export class Player {
     this.setMode(nextMode(this.mode, depth))
     const axes = moveAxes(input.held)
     const wish = cameraRelative(cameraYaw, axes.x, axes.z)
-    if (this.mode === 'swimming') {
-      if (this.swim(dt, input, wish, depth)) return
-    } else {
-      this.walk(dt, input, wish, depth)
-    }
-    this.move(dt)
+    const swimming = this.mode === 'swimming'
+    this.diveHeld = swimming && input.held.has('dive')
+    const climbed = swimming ? this.swim(dt, input, wish, depth) : this.walk(dt, input, wish, depth)
+    if (!climbed) this.move(dt)
     breathe(this.vitals, depth > HEAD_HEIGHT, dt)
     // ponytail: zero health just respawns; real death and a respawn screen arrive in Phase 6.
     if (this.curr.y < KILL_Y || this.vitals.health <= 0) return this.respawn()
     if (axes.x || axes.z) this.heading = turnToward(this.heading, Math.atan2(wish.x, wish.z), dt)
   }
 
-  private walk(dt: number, input: Input, wish: { x: number; z: number }, depth: number): void {
+  private walk(dt: number, input: Input, wish: { x: number; z: number }, depth: number): false {
     const speed = (input.held.has('run') ? RUN_SPEED : WALK_SPEED) * wadeFactor(depth)
     steer(this.motion, wish.x * speed, wish.z * speed, dt)
     fall(this.motion, this.grounded, input.consume('jump'), dt)
+    return false
   }
 
   /** Swim one step. Returns true if the swimmer climbed out onto a ledge instead. */
@@ -148,14 +162,23 @@ export class Player {
   update(dt: number, alpha: number): void {
     this.position.lerpVectors(this.prev, this.curr, alpha)
     const speed = Math.hypot(this.motion.vx, this.motion.vz)
-    const swimming = this.mode === 'swimming'
-    const state = swimming ? (speed > 0.4 ? 'swim' : 'tread') : animState(this.motion)
-    const lift = state === 'swim' ? STROKE_LIFT : 0
-    this.lift += (lift - this.lift) * (1 - Math.exp(-6 * dt))
+    const { state, pitch } = this.pose(speed)
+    const ease = 1 - Math.exp(-6 * dt)
+    this.lift += ((state === 'swim' ? STROKE_LIFT : 0) - this.lift) * ease
+    this.pitch += (pitch - this.pitch) * ease
     this.avatar.root.position.copy(this.position).setY(this.position.y + this.lift)
-    this.avatar.root.rotation.y = this.heading
+    this.avatar.root.rotation.set(this.pitch, this.heading, 0)
     this.avatar.play(state, speed)
     this.avatar.update(dt)
+  }
+
+  /** Below the surface, tread upright only while rising; otherwise swim pitched nose-down. */
+  private pose(speed: number): { state: AnimState; pitch: number } {
+    if (this.mode !== 'swimming') return { state: animState(this.motion), pitch: 0 }
+    const deep = this.feetDepth > FLOAT_DEPTH + 0.5
+    const diving = this.diveHeld || (deep && this.motion.vy < 0.3)
+    if (diving) return { state: 'swim', pitch: DIVE_PITCH }
+    return { state: speed > 0.4 ? 'swim' : 'tread', pitch: 0 }
   }
 
   /** Move instantly to a feet position (respawn, tests, later: entering and leaving cars). */
