@@ -36,6 +36,7 @@ export function modelParts(root: THREE.Object3D): Part[] {
 /**
  * Small detail (ferns) lives on this layer. The main camera renders it; the water's
  * mirror camera only sees layer 0, so the reflection pass skips thousands of triangles.
+ * The sun's shadow camera also only sees layer 0, so detail meshes never cast shadows.
  */
 export const DETAIL_LAYER = 1
 

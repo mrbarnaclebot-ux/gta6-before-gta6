@@ -12,7 +12,6 @@ All files are free-licensed. Downloaded as untrusted data (binary only). Total s
 - textures/coast_sand_01 - https://polyhaven.com/a/coast_sand_01 (beach) - Rob Tuytel
 - textures/aerial_grass_rock - https://polyhaven.com/a/aerial_grass_rock (grass) - Rob Tuytel
 - textures/white_stucco - https://polyhaven.com/a/white_stucco (art-deco plaster facade) - Amal Kumar
-- textures/concrete_tile_facade - https://polyhaven.com/a/concrete_tile_facade (tiled facade) - Charlotte Baglioni
 - No glass/window texture found; use a procedural window grid or MeshPhysicalMaterial glass.
 
 ## Water
@@ -33,14 +32,13 @@ All files are free-licensed. Downloaded as untrusted data (binary only). Total s
   - Has no baked animation; spin wheel nodes in code. Heavy mesh (about 1M vertices render cost): consider hiding interior nodes (names starting "Interior", "Engine") for perf.
 
 ## Vegetation
-- models/vegetation/PalmTree_1..4.glb, Bush_1.glb, Bush_2.glb, Plant_1.glb, Plant_3.glb - Quaternius, Ultimate Stylized Nature - https://quaternius.com/packs/ultimatenature.html (glb copies from https://github.com/trebeljahr/quaternius-showcase) - CC0 1.0. Low-poly stylized, one mesh each, vertex-color materials (Wood, Green, DarkGreen for palms). Palms are stylized, not photoreal.
 - models/vegetation/ph_fern_02.glb (1.1 MB) - Poly Haven "Fern 02", Rob Tuytel (scan), Rico Cilliers (model), https://polyhaven.com/a/fern_02 - CC0. Nodes fern_02_a..d. 1k textures embedded (repacked from gltf with gltf-transform).
 
 ## Props
-- models/props/Streetlight_Single.glb, Streetlight_Double.glb, TrafficLight.glb, Sign_Stop.glb - Quaternius, Ultimate Modular Streets / street pack - https://quaternius.com (glb copies from https://github.com/trebeljahr/quaternius-showcase) - CC0 1.0. Streetlight materials: Green, Glass, Light (emissive for night); single root mesh named after the file.
+- models/props/TrafficLight.glb, Sign_Stop.glb - Quaternius, Ultimate Modular Streets / street pack - https://quaternius.com (glb copies from https://github.com/trebeljahr/quaternius-showcase) - CC0 1.0. Single root mesh named after the file.
 
 ## Not found / skipped
-- No CC0 photoreal palm tree glb found (Poly Haven has none). Palms above are stylized.
+- No CC0 photoreal palm tree glb found (Poly Haven has none). Palms are procedural (src/world/palm-model.ts).
 - Poly Haven island_tree_01 (tropical-looking, realistic) is 66 MB at 1k: skipped for size.
 - Photoreal humanoid with a full animation set under CC0 not found; Mixamo-based three.js Soldier/Xbot/Michelle have unclear (Adobe) license and were skipped. three.js ferrari.glb skipped: license unclear (Sketchfab author vicent091036, original page no longer resolvable).
 - No bench/cone prop downloaded (optional).
