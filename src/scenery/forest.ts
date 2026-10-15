@@ -5,8 +5,9 @@ import { surfaceAt } from '../city/terrain'
 import { forestAt } from '../land/districts'
 import type { Flora } from '../land/flora'
 import type { Land } from '../land/plan'
-import { ROCK_SPREAD, TRUNK } from '../land/plant'
+import { GARDEN_TRUNK, ROCK_SPREAD, TRUNK } from '../land/plant'
 import { RAPIER } from '../physics'
+import { matteCard } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { impostor } from '../world/impostor'
 import { modelParts, type Part } from '../world/instancing'
@@ -45,13 +46,16 @@ const share = <T>(spots: T[], n: number, i: number) => spots.filter((_, k) => k 
 
 // The baked cards are unlit albedo seen in full sun; in game they also catch the bright sky,
 // so they read pale. Deeper, warmer greens, closer to the reference shots.
-const LEAF_TONE = new THREE.Color(0.42, 0.58, 0.3)
+const LEAF_TONE = new THREE.Color(0.5, 0.66, 0.36)
 
-/** Deepens every leaf card material in a loaded model (once per file). */
+/** Makes every leaf card in a loaded model matte and deeper green (once per file). */
 function toneLeaves(scene: THREE.Object3D) {
   scene.traverse((o) => {
-    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined
-    if (m?.name === 'foliage_cards') m.color.copy(LEAF_TONE)
+    const mesh = o as THREE.Mesh
+    if ((mesh.material as THREE.Material | undefined)?.name !== 'foliage_cards') return
+    const m = matteCard(mesh.material as THREE.MeshStandardMaterial)
+    m.color.copy(LEAF_TONE)
+    mesh.material = m
   })
 }
 
@@ -103,9 +107,10 @@ function colliders(ctx: WorldCtx, flora: Flora) {
     const desc = RAPIER.ColliderDesc.cylinder(2, radius)
     ctx.physics.createCollider(desc.setTranslation(t.x, t.y + 2, t.z))
   }
-  for (const t of [...flora.conifers, ...flora.broadleaf]) trunk(t, Math.max(0.2, TRUNK * t.s))
-  // Garden trees are gnarled olives and saplings: wide low trunks for their height.
-  for (const t of flora.garden) trunk(t, Math.max(0.3, TRUNK * t.s * 2.5))
+  for (const t of flora.conifers) trunk(t, Math.max(0.2, TRUNK * t.s))
+  // The broadleaves fork low into thick limbs: the camera should stop short of them.
+  for (const t of flora.broadleaf) trunk(t, 0.05 * t.s)
+  for (const t of flora.garden) trunk(t, GARDEN_TRUNK * t.s)
   for (const r of flora.rocks.filter((q) => q.s > 0.8)) {
     const body = RAPIER.ColliderDesc.cylinder(r.s / 2, r.s * ROCK_SPREAD * 0.55)
     ctx.physics.createCollider(body.setTranslation(r.x, r.y + r.s / 2, r.z))

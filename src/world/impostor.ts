@@ -77,11 +77,10 @@ function cross(width: number): THREE.BufferGeometry {
 export function impostor(gl: THREE.WebGLRenderer, parts: Part[]): Part[] {
   const width = extent(parts)
   const material = keepCardNormals(
-    new THREE.MeshStandardMaterial({
+    new THREE.MeshLambertMaterial({
       map: bake(gl, parts, width),
       alphaTest: 0.5,
       side: THREE.DoubleSide,
-      roughness: 0.9,
     }),
   )
   return [{ geometry: cross(width), material }]

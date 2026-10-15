@@ -72,7 +72,7 @@ export function grassAround(
         z: pz,
         s,
         r: (a + b) * Math.PI * 7,
-        tint: c < 0.15 ? 0xd8d0a0 : 0xffffff,
+        tint: c < 0.15 ? 0xc8b078 : 0xffffff,
       })
     }
   }

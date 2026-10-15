@@ -79,7 +79,7 @@ function house(c: Clearance, h: House) {
   const d = h.d / 2
   turnedBox(c, h, { x0: -w - 3, x1: w + 3, z0: -d - 11, z1: curbZ - 1 }, YARD)
   // The verge by the curb stays open: hedges and street palms stand there, not garden trees.
-  turnedBox(c, h, { x0: -w - 3, x1: w + 3, z0: curbZ - 4, z1: curbZ - 1 }, VERGE_STRIP)
+  turnedBox(c, h, { x0: -w - 3, x1: w + 3, z0: curbZ - 7, z1: curbZ - 1 }, VERGE_STRIP)
   turnedBox(c, h, { x0: -w - 1.2, x1: w + 1.2, z0: -d - 1.2, z1: d + 1.2 }, BLOCKED)
   const gx = h.garage * (w - 2.2)
   turnedBox(c, h, { x0: gx - 2.4, x1: gx + 2.4, z0: d, z1: curbZ + 1 }, BLOCKED)
@@ -122,6 +122,7 @@ export function clearance(land: Land, verge?: number): Clearance {
       BLOCKED,
     )
   }
-  disc(c, land.lookout.x, land.lookout.z, LOOKOUT_R + 3, BLOCKED)
+  // The lookout is a lawn: grass, no trees or bushes in the view.
+  disc(c, land.lookout.x, land.lookout.z, LOOKOUT_R + 3, VERGE_STRIP)
   return c
 }

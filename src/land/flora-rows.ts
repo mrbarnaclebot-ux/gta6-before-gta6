@@ -11,7 +11,7 @@ const PALM_GAP = 17
 const PALM_OUT = 2.4
 /** Hedge bushes this far apart along a front yard, set back from the curb. */
 const HEDGE_GAP = 0.9
-const HEDGE_BACK = 2
+const HEDGE_BACK = 3.5
 
 /** Rows of palms down both sides of the avenues and the coast roads, where nothing else stands. */
 export function avenuePalms(land: Land, surface: Surface): Grounded[] {

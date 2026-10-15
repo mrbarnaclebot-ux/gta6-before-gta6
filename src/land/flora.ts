@@ -1,7 +1,7 @@
 import { SEA_LEVEL, type Grounded } from '../city/layout'
 import { range, rng } from '../city/rng'
 import { surfaceAt } from '../city/terrain'
-import { BLOCKED, clearance, clearAt, FREE, YARD, type Clearance } from './clearance'
+import { clearance, clearAt, FREE, VERGE_STRIP, YARD, type Clearance } from './clearance'
 import { forestAt } from './districts'
 import { lie, upAt, type Surface } from './footing'
 import { gridRect, slopeAt } from './grid'
@@ -10,7 +10,7 @@ import type { Land } from './plan'
 import { poissonOver } from './poisson'
 import { coastX } from './shape'
 import { avenuePalms, hedges } from './flora-rows'
-import { ROCK_RIM, ROCK_SPREAD, SINK, tint, TRUNK, upright } from './plant'
+import { GARDEN_TRUNK, ROCK_RIM, ROCK_SPREAD, SINK, tint, TRUNK, upright } from './plant'
 
 /*
  * Every tree, bush, and rock outside the city, as pure data: Poisson-disk points thinned
@@ -81,8 +81,8 @@ function gardens(land: Land, c: Clearance, surface: Surface, out: Flora) {
     if (clearAt(c, p.x, p.z) !== YARD || r() > 0.42) continue
     if (r() < 0.25) out.palms.push(upright(surface, p, range(r, 6, 10), 0.3, SINK.palm, r))
     else {
-      const h = range(r, 4.5, 8)
-      out.garden.push(upright(surface, p, h, TRUNK * h * 1.5, SINK.tree, r))
+      const h = range(r, 3.5, 6)
+      out.garden.push(upright(surface, p, h, GARDEN_TRUNK * h, SINK.tree, r))
     }
   }
 }
@@ -102,7 +102,7 @@ function bushes(land: Land, c: Clearance, surface: Surface, out: Flora) {
   const r = rng(631)
   for (const p of poissonOver(gridRect(land.ground), 3, 632)) {
     const s = siteAt(land, c, p.x, p.z)
-    if (s.clear === BLOCKED || s.coast > -6 || s.slope > 1 || wet(s)) continue
+    if (s.clear >= VERGE_STRIP || s.coast > -6 || s.slope > 1 || wet(s)) continue
     const back = s.coast > -30 ? 0.06 : 0
     const w =
       s.clear === YARD ? 0.2 : 0.1 * s.forest + 0.12 * s.hill + 0.16 * s.grove + 0.015 + back

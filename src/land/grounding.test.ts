@@ -8,7 +8,7 @@ import { generateFlora } from './flora'
 import { corners, type Surface } from './footing'
 import { CELL } from './grid'
 import { generateLand } from './plan'
-import { ROCK_RIM, ROCK_SPREAD, SINK, TRUNK } from './plant'
+import { GARDEN_TRUNK, ROCK_RIM, ROCK_SPREAD, SINK, TRUNK } from './plant'
 import { rng } from '../city/rng'
 
 /*
@@ -79,7 +79,7 @@ describe('grounding', () => {
     )
     expectStanding('conifers', flora.conifers, (s) => TRUNK * s.s, SINK.tree)
     expectStanding('broadleaf', flora.broadleaf, (s) => TRUNK * s.s, SINK.tree)
-    expectStanding('garden', flora.garden, (s) => TRUNK * s.s * 1.5, SINK.tree)
+    expectStanding('garden', flora.garden, (s) => GARDEN_TRUNK * s.s, SINK.tree)
     expectStanding('palms', [...flora.palms, ...land.palms], () => 0.3, SINK.palm)
     expectStanding('bushes', flora.bushes, (s) => 0.12 * s.s, SINK.bush)
     expectStanding('city ferns', land.bushes, () => 0.1, SINK.bush)

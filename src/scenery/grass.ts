@@ -51,15 +51,15 @@ const UV = /* glsl */ `
 vMapUv = vec2(uv.x * 0.5 + mod(cell, 2.0) * 0.5, uv.y * 0.5 + (cell < 2.0 ? 0.5 : 0.0));
 `
 
-function material(time: { value: number }, range: { value: number }): THREE.MeshStandardMaterial {
+function material(time: { value: number }, range: { value: number }): THREE.MeshLambertMaterial {
   const map = new THREE.TextureLoader().load(ATLAS)
   map.colorSpace = THREE.SRGBColorSpace
-  const m = new THREE.MeshStandardMaterial({
+  // Lambert: diffuse only, so cards seen edge-on catch no pale sheen of sky.
+  const m = new THREE.MeshLambertMaterial({
     map,
     alphaTest: 0.45,
     side: THREE.DoubleSide,
-    roughness: 0.9,
-    color: new THREE.Color(0.78, 0.86, 0.66),
+    color: new THREE.Color(0.62, 0.74, 0.48),
   })
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, { time, range })

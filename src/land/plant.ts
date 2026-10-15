@@ -5,6 +5,8 @@ import type { P2 } from './polyline'
 
 /** Trunk radius as a share of tree height; trunks and stems sink this far below their lowest ground. */
 export const TRUNK = 0.018
+/** Garden trees are gnarled olives and saplings: wide, low trunks for their height. */
+export const GARDEN_TRUNK = 0.09
 export const SINK = { tree: 0.08, bush: 0.05, palm: 0.08, rock: 0.12 }
 /** A rock's footprint radius per meter of height, and the share of it that must touch down. */
 export const ROCK_SPREAD = 1
