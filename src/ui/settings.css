@@ -147,10 +147,11 @@
 
 @media (max-width: 720px) {
   .row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .row-control {
     justify-self: start;
+    max-width: 100%;
   }
   .range input {
     width: min(220px, 60vw);
