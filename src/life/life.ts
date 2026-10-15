@@ -40,11 +40,12 @@ export class Life {
   readonly hospitals: Hospital[]
   /** Seconds since the player died; null while alive. */
   deadFor: number | null = null
-  /** Where the player last woke up, for the HUD and tests. */
-  revivedAt: Hospital | null = null
   /** Called after waking up in hospital, so the game can restock the pistol. */
   onRevive: () => void = () => {}
   private shots = 0
+  /** A bullet hit someone or something this frame, which already counts as a crime. */
+  private struck = false
+  private readonly obstacleList: Obstacle[] = []
   private filled = false
   private readonly player: Player
   private readonly driving: Driving
@@ -53,17 +54,12 @@ export class Life {
     this.player = d.player
     this.driving = d.driving
     this.crowd = new Crowd(d.scene, d.physics, d.layout, d.avatar, (killed) =>
-      this.crime(killed ? 'murder' : 'assault'),
+      this.struckBy(killed ? 'murder' : 'assault'),
     )
     this.traffic = new Traffic(d.scene, d.physics, d.layout, d.makeCar, () =>
-      this.crime('vandalism'),
+      this.struckBy('vandalism'),
     )
     this.hospitals = hospitals(d.layout)
-  }
-
-  /** Everyone and everything on the street that a bullet can hit. */
-  get targets() {
-    return [...this.crowd.people, ...this.traffic.cars]
   }
 
   get dead(): boolean {
@@ -80,6 +76,7 @@ export class Life {
       this.shots = shot.count
       this.gunfire(shot)
     }
+    this.struck = false
     const car = this.driving.car
     if (car && this.crowd.runOver(car)) this.crime('runover')
     cool(this.wanted, focus.x, focus.z, dt)
@@ -92,7 +89,13 @@ export class Life {
       this.crowd.near(shot.from, WITNESS) +
       this.crowd.near(shot.to, WITNESS / 2) +
       this.traffic.near(shot.from, WITNESS)
-    if (seen > 0) this.crime('gunshot')
+    // Each shot is one crime: a hit already reported as assault or vandalism is not also gunfire.
+    if (seen > 0 && !this.struck) this.crime('gunshot')
+  }
+
+  private struckBy(c: Crime): void {
+    this.struck = true
+    this.crime(c)
   }
 
   private crime(c: Crime): void {
@@ -102,16 +105,21 @@ export class Life {
 
   /** What traffic must stop for: the player, every other car, and people. */
   private obstacles(): Obstacle[] {
-    const list: Obstacle[] = this.driving.cars.map((c) => ({
-      x: c.position.x,
-      z: c.position.z,
-      r: 1,
-    }))
-    if (!this.driving.car)
-      list.push({ x: this.player.position.x, z: this.player.position.z, r: 0.4 })
-    for (const p of this.crowd.people) {
-      if (p.alive && p.root.visible) list.push({ x: p.position.x, z: p.position.z, r: 0.4 })
+    const list = this.obstacleList
+    let n = 0
+    // Reuses the same objects every frame: this runs at render rate.
+    const add = (x: number, z: number, r: number) => {
+      const o = (list[n++] ??= { x, z, r })
+      o.x = x
+      o.z = z
+      o.r = r
     }
+    for (const c of this.driving.cars) add(c.position.x, c.position.z, 1)
+    if (!this.driving.car) add(this.player.position.x, this.player.position.z, 0.4)
+    for (const p of this.crowd.people) {
+      if (p.alive && p.root.visible) add(p.position.x, p.position.z, 0.4)
+    }
+    list.length = n
     return list
   }
 
@@ -128,7 +136,6 @@ export class Life {
     const h = nearest(this.hospitals, p.x, p.z)
     this.player.revive(new THREE.Vector3(h.x, CURB_H + 0.05, h.z))
     clear(this.wanted)
-    this.revivedAt = h
     this.deadFor = null
     this.onRevive()
   }

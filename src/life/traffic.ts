@@ -33,6 +33,7 @@ export class Traffic {
   private readonly ignoring: number[]
   private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads'>
   private readonly r = rng(4242)
+  private readonly others: Obstacle[] = []
 
   constructor(
     scene: THREE.Scene,
@@ -76,10 +77,18 @@ export class Traffic {
     ).length
   }
 
+  /** Every other visible car, in one scratch array reused each call: this runs per car per frame. */
   private carObstacles(self: TrafficCar): Obstacle[] {
-    return this.cars
-      .filter((c) => c !== self && c.visual.root.visible)
-      .map((c) => ({ x: c.position.x, z: c.position.z, r: HALF_WIDTH }))
+    const list = this.others
+    let n = 0
+    for (const c of this.cars) {
+      if (c === self || !c.visual.root.visible) continue
+      const o = (list[n++] ??= { x: 0, z: 0, r: HALF_WIDTH })
+      o.x = c.position.x
+      o.z = c.position.z
+    }
+    list.length = n
+    return list
   }
 
   /** Top speed that still stops short of the nearest obstacle in this car's path. */

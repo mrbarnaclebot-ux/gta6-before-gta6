@@ -28,7 +28,7 @@ export class TrafficCar {
   speed = 0
   heading = 0
   braking = false
-  /** Set by the traffic manager: called when a bullet lands. */
+  /** Set by the traffic manager: called on the first bullet since this car was placed. */
   onShot: () => void = () => {}
   private path: Waypoint[] = []
   private route: Heading = { axis: 'z', at: 0, dir: 1, u: 0 }
@@ -71,8 +71,10 @@ export class TrafficCar {
   }
 
   hit(distance: number): Surface {
+    if (this.dead) return 'metal'
+    // One vandalism per car: every bullet already counts as gunfire.
+    if (this.health.hp === HP) this.onShot()
     hurt(this.health, damageAt(distance))
-    this.onShot()
     return 'metal'
   }
 
