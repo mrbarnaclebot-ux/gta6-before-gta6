@@ -78,13 +78,33 @@ Who uses it:
   - Each comes from a fixed hashed 0.9 m grid, so a clump stays where it was.
   - Density follows the terrain's grass weight; there is none on dirt, roads, or sand.
   - Wind sway runs in the vertex shader, and clumps sink into the ground toward the edge of the range.
-  - It is refilled every 3 m of camera travel, takes one draw call, and is not in shadows or the water's mirror.
+  - Clumps are made per 28.8 m tile (32 by 32 cells, about 1 ms each) and cached as baked instance matrices (`scenery/grass-tiles.ts`). A frame builds missing tiles nearest first for at most 2 ms, starting half a tile past the grass range, and drops tiles two tiles out of range.
+  - Every 3 m of camera travel, or when a tile arrives, the mesh is refilled by copying the cached matrices within range: no per-clump objects. The old refill redid every cell, 8 to 10 ms each time on the main thread.
+  - It takes one draw call and is not in shadows or the water's mirror.
+  - About one clump in six is a dry straw tint (`0xffe9a0`). The first tint (`0xc8b078`) multiplied the already dark texture down to near black under Medium's grade, a polka-dot look in the summit meadow. Shadows and AO were ruled out: the clumps stayed dark with AO off and with Low shadows.
 - **Contact shading under trees:** the terrain's spare splat channel now carries canopy shade per grid vertex, from every tree crown. The forest floor reads darker under the woods, near and from the hills.
 - **Colliders:**
   - Fir trunks match their trunk radius.
   - Broadleaves and garden trees are wider, so the camera stops short of their low limbs.
   - Rocks over 0.8 m have a collider.
   - Bushes and grass do not collide.
+
+## Review fixes
+
+- **Black grass clumps on Medium:** the dry tint, above. Re-shot: `010b-screens/day-meadow-medium.jpg` and `day-meadow-high.jpg` (the reviewer's hillside view, yaw 1.2, pitch 0.1).
+- **Grass refill hitches:** cached tiles, above. Teleporting 0.5 m a frame (30 m/s) across the hillside for 540 frames, Chrome on Metal, 1280x720:
+
+| Preset | Before p99 / max (ms) | After p99 / max (ms) |
+|---|---|---|
+| Medium | 20.4 / 21.1 | 18.8 / 19.8 |
+| Ultra | 38.4 / 45.9 | 32.2 / 33.2 |
+
+  Ultra stays GPU-bound around 25 ms a frame either way.
+- **`keepCardNormals`** now folds the material's earlier program key into its own, so two differently patched materials cannot share a program.
+- **Traffic `settle`** tracks ray hits directly instead of comparing heights with the start height, and the ground probe reuses its ray origin.
+- **`e2e/world.spec.ts`** now checks the forest for floating or sunk actors too.
+- **Gates after the fixes:** `pnpm build`, `pnpm lint`, `pnpm test` (29 files, 104 tests) and `pnpm test:e2e` (8 passed, 5.4 min) are green.
+- **Not done:** the MID tree level still reuses the full foliage cards (needs a reduced card bake and a perf pass); the 39k trunk colliders and load time were not re-measured; driveway cars still sit about 6 cm into the visual drive slab, because they are dynamic Rapier bodies resting on the terrain and the drive has no collider; the Designer's visual notes (sparse grass and its 40 m edge, flat forest-edge cards, smeary impostors, dark overhead leaf cards, pale broadleaf bark) are open.
 
 ## Controls
 
@@ -96,7 +116,7 @@ Unchanged from Phase 10a.
 - **`pnpm lint`:** passes (eslint and prettier).
   - All source files are under 300 lines, and new source functions are under 40.
   - The new `grounding.test.ts` describe block runs 92 lines, like the existing test files' describe blocks.
-- **`pnpm test`:** 28 files, 102 tests pass. New: `src/land/grounding.test.ts`, which runs the real layout and placement code and checks that:
+- **`pnpm test`:** 29 files, 104 tests pass (after the review fixes; `src/land/grass.test.ts` added). New: `src/land/grounding.test.ts`, which runs the real layout and placement code and checks that:
   - The ground sampler matches a real Rapier heightfield within 5 mm (400 rays).
   - Every conifer, broadleaf, garden tree, palm (city and outside), bush, city fern, and streetlight touches down: the lowest ground under its footprint is within 5 cm of its base, and none is buried deeper than its sink allowance plus 5 cm.
   - Every rock's tilted rim is within 5 cm of the ground.
