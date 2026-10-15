@@ -12,6 +12,13 @@ type GameState = {
   speed: number
   ammo: number
   aiming: boolean
+  health: number
+  dead: boolean
+  wanted: number
+  paused: boolean
+  sensitivity: number
+  hours: number
+  night: number
 }
 type Game = {
   state: () => GameState
@@ -21,6 +28,12 @@ type Game = {
   setCameraPitch: (pitch: number) => void
   dummies: () => (Point & { health: number })[]
   aimAt: (x: number, y: number, z: number) => void
+  peds: () => (Point & { health: number; state: string })[]
+  traffic: () => (Point & { speed: number })[]
+  hospitals: () => (Point & { name: string })[]
+  hurt: (amount: number) => void
+  skipDeath: () => void
+  setTime: (hours: number) => void
 }
 
 const game = (page: Page) =>
@@ -58,6 +71,8 @@ async function visit(page: Page, name: string, yaw: number, pitch: number) {
 }
 
 test('loads, plays, walks, and stands on the city', async ({ page }) => {
+  // High quality in SwiftShader with people and traffic about runs near 1 fps.
+  test.setTimeout(180_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
@@ -91,6 +106,7 @@ test('loads, plays, walks, and stands on the city', async ({ page }) => {
 })
 
 test('swims in the ocean and dives under', async ({ page }) => {
+  test.setTimeout(180_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
@@ -192,5 +208,90 @@ test('aims and shoots a target dummy', async ({ page }) => {
   expect(after).toBeLessThan(before)
   expect((await game(page)).ammo).toBe(ammo - 1)
   await page.screenshot({ path: 'test-results/shoot.png' })
+  expect(errors).toEqual([])
+})
+
+test('people, traffic, wanted level, death, pause menu, and night', async ({ page }) => {
+  test.setTimeout(300_000)
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/?quality=low')
+  await page.getByRole('button', { name: 'Play' }).click()
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await settle(page)
+  await expect(page.locator('#minimap')).toBeVisible()
+  const hook = <T>(fn: (g: Game) => T) =>
+    page.evaluate(`(${fn.toString()})(window.__game)`) as Promise<T>
+
+  // People walk the sidewalks and traffic drives the lanes.
+  expect((await hook((g) => g.peds())).length).toBeGreaterThan(5)
+  const before = await hook((g) => g.traffic())
+  expect(before.length).toBeGreaterThan(3)
+  await settle(page, 4)
+  const after = await hook((g) => g.traffic())
+  const moved = after.some((c, i) => Math.hypot(c.x - before[i].x, c.z - before[i].z) > 0.3)
+  expect(moved).toBe(true)
+
+  // Shooting a passer-by earns a star and sends people running.
+  await hook((g) => {
+    const s = g.state().position
+    const d = (p: Point) => Math.hypot(p.x - s.x, p.z - s.z)
+    const ped = g.peds().sort((a, b) => d(a) - d(b))[0]
+    g.teleport(ped.x + 4, ped.y - 1, ped.z + 4)
+  })
+  await settle(page, 2)
+  await hook((g) => {
+    const s = g.state().position
+    const d = (p: Point) => Math.hypot(p.x - s.x, p.z - s.z)
+    const ped = g.peds().sort((a, b) => d(a) - d(b))[0]
+    g.aimAt(ped.x, ped.y, ped.z)
+  })
+  await page.mouse.move(640, 360)
+  await page.mouse.down()
+  await page.mouse.up()
+  await settle(page, 3)
+  expect((await game(page)).wanted).toBeGreaterThan(0)
+  await expect(page.locator('#wanted')).toBeVisible()
+  const states = (await hook((g) => g.peds())).map((p) => p.state)
+  console.log(`wanted ${(await game(page)).wanted}, people: ${states.join(' ')}`)
+  expect(states.some((s) => s === 'flee' || s === 'dead')).toBe(true)
+
+  // Dying shows the death screen, then the player wakes up at the nearest hospital.
+  await hook((g) => g.hurt(1000))
+  await settle(page, 2)
+  expect((await game(page)).dead).toBe(true)
+  await expect(page.locator('#death')).toBeVisible()
+  await hook((g) => g.skipDeath())
+  await settle(page, 3)
+  const revived = await game(page)
+  expect(revived.dead).toBe(false)
+  expect(revived.health).toBe(100)
+  expect(revived.wanted).toBe(0)
+  const hospitals = await hook((g) => g.hospitals())
+  const p = revived.position
+  const gap = Math.min(...hospitals.map((h) => Math.hypot(h.x - p.x, h.z - p.z)))
+  expect(gap).toBeLessThan(2)
+
+  // Esc pauses: the clock stops, and the sensitivity setting persists.
+  await page.keyboard.press('Escape')
+  await settle(page, 2)
+  await expect(page.locator('#pause')).toBeVisible()
+  const pausedAt = (await game(page)).hours
+  await settle(page, 3)
+  expect((await game(page)).paused).toBe(true)
+  expect((await game(page)).hours).toBe(pausedAt)
+  await page.locator('#sensitivity').fill('2')
+  expect((await game(page)).sensitivity).toBe(2)
+  expect(await page.evaluate(() => localStorage.getItem('vice.sensitivity'))).toBe('2')
+  await page.screenshot({ path: 'test-results/pause.png' })
+  await page.keyboard.press('Escape')
+  await settle(page, 2)
+  await expect(page.locator('#pause')).toBeHidden()
+
+  // Night: street lights and neon come on.
+  await hook((g) => g.setTime(22))
+  await settle(page, 3)
+  expect((await game(page)).night).toBeGreaterThan(0.9)
+  await page.screenshot({ path: 'test-results/night.png' })
   expect(errors).toEqual([])
 })
