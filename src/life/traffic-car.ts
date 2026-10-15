@@ -35,6 +35,8 @@ export class TrafficCar {
   private clock = 0
   /** Nose-up angle on bridges and ramps, eased. */
   private pitch = 0
+  /** The grade of the current path step, which `pitch` eases toward. */
+  private slope = 0
 
   constructor(
     physics: PhysicsWorld,
@@ -63,7 +65,7 @@ export class TrafficCar {
     this.collider.setEnabled(true)
     this.position.set(s.x, s.y, s.z)
     this.heading = s.yaw
-    this.pitch = 0
+    this.pitch = this.slope = 0
     this.speed = CRUISE * 0.7
     this.refill()
     this.pose()
@@ -97,6 +99,7 @@ export class TrafficCar {
     this.speed += Math.max(-rate * dt, Math.min(rate * dt, target - this.speed))
     this.braking = this.speed < before - 1e-3 || (this.speed < 0.1 && !this.dead)
     const yaw = this.drive(this.speed * dt)
+    this.pitch += (this.slope - this.pitch) * (1 - Math.exp(-13 * dt))
     if (this.path.length) this.heading = easeAngle(this.heading, yaw, 1 - Math.exp(-6 * dt))
     this.refill()
     this.pose()
@@ -132,7 +135,7 @@ export class TrafficCar {
         this.position.x += (dx / d) * step
         this.position.z += (dz / d) * step
         this.position.y += (dy / d) * step
-        this.pitch += (Math.atan2(dy, d) - this.pitch) * 0.2
+        this.slope = Math.atan2(dy, d)
         return Math.atan2(dx, dz)
       }
       this.position.set(p.x, p.y ?? 0, p.z)
