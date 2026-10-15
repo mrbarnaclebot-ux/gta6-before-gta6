@@ -1,4 +1,5 @@
 // Frame-rate and load probe: node scripts/perf.mjs <url> <screenshot-dir> [high|low] [deviceScaleFactor]
+// macOS only: it forces Chrome onto the real GPU through ANGLE's Metal backend.
 import { chromium } from '@playwright/test'
 const URL = process.argv[2]
 const OUT = process.argv[3]
