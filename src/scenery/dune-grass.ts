@@ -10,9 +10,10 @@ import { beachHeight, coastX } from '../land/shape'
 import type { WorldCtx } from '../world/blocks'
 import { instanceByDistance } from '../world/lod-instances'
 
-// Clumps are small: past this they are a few pixels and are not drawn at all.
-const RANGE = 120
-const STEP = 2.6
+// Alpha-tested cards are costly overdraw at 4K (a third of the High beach frame at 120 m
+// and this density): drawn to 75 m, a clump every 3.2 m at most, with gaps.
+const RANGE = 75
+const STEP = 3.2
 
 /** Sea-oat blades painted on a canvas: pale green stems with straw-colored tips. */
 function bladeTexture(): THREE.CanvasTexture {
@@ -61,7 +62,7 @@ function spots(land: Land): Spot[] {
     const coast = coastX(land.frame, z)
     for (let d = 6; d < 44; d += STEP) {
       const dune = beachHeight(d, z) - plainBeach(d)
-      if (dune < 0.3 || fbm(z / 18, d / 9, 61, 2) < -0.1 || r() < 0.3) continue
+      if (dune < 0.3 || fbm(z / 18, d / 9, 61, 2) < -0.1 || r() < 0.4) continue
       out.push({
         x: coast + d + range(r, -1, 1),
         z: z + range(r, -1, 1),
