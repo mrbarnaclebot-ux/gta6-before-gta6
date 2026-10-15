@@ -88,7 +88,9 @@ export function greenery({ blocks, walks, land }: Plan, r: Rand) {
     palms: [
       ...blocks.flatMap((b) => blockPalms(b, r)),
       ...beachPalms(land, r),
-      ...walks.slice(0, 1).flatMap((w) => alongEdge(w, 'x0', 22, 3).map((p) => palm(r, p))),
+      ...walks
+        .filter((w) => w.x0 === land.x0)
+        .flatMap((w) => alongEdge(w, 'x0', 22, 3).map((p) => palm(r, p))),
     ],
     bushes: [
       ...blocks.filter((b) => b.park).flatMap((b) => scatter(r, inset(b.lot, 2), 24, 0.8, 1.6)),
