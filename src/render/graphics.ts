@@ -133,7 +133,7 @@ const KEY = 'vice.graphics'
 /** URL ?quality=<preset> wins (tests, slow machines), then the saved settings, then the default. */
 export function loadGraphics(search = location.search): Graphics {
   const q = new URLSearchParams(search).get('quality')
-  if (q && q in PRESETS) return { ...PRESETS[q as Preset] }
+  if (q && Object.hasOwn(PRESETS, q)) return { ...PRESETS[q as Preset] }
   try {
     const raw = localStorage.getItem(KEY)
     return sanitize(raw ? JSON.parse(raw) : null, PRESETS[DEFAULT_PRESET])

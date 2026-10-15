@@ -40,5 +40,6 @@ describe('graphics presets', () => {
     expect(loadGraphics('?quality=ultra')).toEqual(PRESETS.ultra)
     // No storage in this environment: falls back to the default preset.
     expect(presetOf(loadGraphics('?quality=nope'))).not.toBe('custom')
+    expect(presetOf(loadGraphics('?quality=toString'))).not.toBe('custom')
   })
 })
