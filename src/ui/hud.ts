@@ -112,7 +112,7 @@ export class Hud {
 
   /** "Click to look around", while the mouse waits to be captured again. */
   setLookHint(on: boolean): void {
-    this.lookHintEl.hidden = !on
+    if (this.lookHintEl.hidden === on) this.lookHintEl.hidden = !on
   }
 
   /** Frames counted over half-second wall-clock windows: readable, and immune to zero-length frames. */
