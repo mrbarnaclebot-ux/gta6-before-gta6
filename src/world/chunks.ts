@@ -4,10 +4,13 @@
  */
 export const CHUNK = 250
 
-export function groupByChunk<T extends { x: number; z: number }>(items: T[]): Map<string, T[]> {
+export function groupByChunk<T extends { x: number; z: number }>(
+  items: T[],
+  size = CHUNK,
+): Map<string, T[]> {
   const out = new Map<string, T[]>()
   for (const item of items) {
-    const key = `${Math.floor(item.x / CHUNK)},${Math.floor(item.z / CHUNK)}`
+    const key = `${Math.floor(item.x / size)},${Math.floor(item.z / size)}`
     const list = out.get(key)
     if (list) list.push(item)
     else out.set(key, [item])

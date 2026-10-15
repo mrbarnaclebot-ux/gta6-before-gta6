@@ -9,6 +9,7 @@ Generated with AssetHub (Tripo 3.1 mesh, Tripo v2.5 auto-rig for the people), pa
 - models/vehicle/sports_car.glb - an orange wedge sports car body without wheels (the game adds its own). 2048 px textures.
 - models/vehicle/police.glb - a black and white police sedan body without wheels, with a roof light bar. 2048 px textures.
 - models/vegetation/palm.glb - a coconut palm with solid fronds. 1024 px textures.
+- models/vegetation/palm_far.glb - the same palm simplified to about 2.3k triangles with 512 px textures, drawn beyond about 110 m.
 
 ## HDRI (Poly Haven, CC0)
 - hdri/day_kloofendal_2k.hdr (2k) - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky - Greg Zaal, sky edits Jarod Guest - CC0
@@ -38,7 +39,7 @@ Generated with AssetHub (Tripo 3.1 mesh, Tripo v2.5 auto-rig for the people), pa
 - models/props/TrafficLight.glb, Sign_Stop.glb - Quaternius, Ultimate Modular Streets / street pack - https://quaternius.com (glb copies from https://github.com/trebeljahr/quaternius-showcase) - CC0 1.0. Single root mesh named after the file.
 
 ## Not found / skipped
-- No CC0 photoreal palm tree glb found (Poly Haven has none). Palms are procedural (src/world/palm-model.ts).
+- No CC0 photoreal palm tree glb found (Poly Haven has none). The procedural palms (src/world/palm-model.ts) now only stand in if the generated palm fails to load.
 - Poly Haven island_tree_01 (tropical-looking, realistic) is 66 MB at 1k: skipped for size.
 - Photoreal humanoid with a full animation set under CC0 not found; Mixamo-based three.js Soldier/Xbot/Michelle have unclear (Adobe) license and were skipped. The Khronos CarConcept (CC-BY 4.0) was used until the generated bodies arrived and is no longer shipped. three.js ferrari.glb skipped: license unclear (Sketchfab author vicent091036, original page no longer resolvable).
 - No bench/cone prop downloaded (optional).

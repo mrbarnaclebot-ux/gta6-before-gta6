@@ -11,7 +11,7 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `sand.ts` beach and seabed mesh plus heightfield collider and the offshore boundary walls
 - `water.ts` reflective sea and canal water with depth-based color
 - `underwater.ts` the surface seen from below; hides the reflective top while the camera is under
-- `vegetation.ts`, `palm-model.ts` instanced procedural palms and scanned ferns
+- `vegetation.ts` the generated palm (near and far versions, by 100 m cell) and scanned ferns; `palm-model.ts` procedural palms if the glb fails
 - `props.ts` streetlights
 - `street-glow.ts` lamp light pools and the few real lights near the camera at night
 - `neon.ts` neon tubes and their color wash on art-deco and tower facades at night
