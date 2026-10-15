@@ -10,6 +10,8 @@ type GameState = {
   breath: number
   underwater: boolean
   speed: number
+  ammo: number
+  aiming: boolean
 }
 type Game = {
   state: () => GameState
@@ -17,6 +19,8 @@ type Game = {
   teleport: (x: number, y: number, z: number) => void
   setCameraYaw: (yaw: number) => void
   setCameraPitch: (pitch: number) => void
+  dummies: () => (Point & { health: number })[]
+  aimAt: (x: number, y: number, z: number) => void
 }
 
 const game = (page: Page) =>
@@ -143,5 +147,50 @@ test('gets into a parked car and drives it', async ({ page }) => {
   await page.keyboard.press('f')
   await settle(page, 2)
   expect((await game(page)).mode).toBe('walking')
+  expect(errors).toEqual([])
+})
+
+test('aims and shoots a target dummy', async ({ page }) => {
+  test.setTimeout(180_000)
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.goto('/?quality=low')
+  await page.getByRole('button', { name: 'Play' }).click()
+  await page.waitForFunction(() => '__game' in window, null, { timeout: 60_000 })
+  await settle(page)
+
+  await visit(page, 'range', 0, 0.18)
+  await expect(page.locator('#ammo')).toBeVisible()
+  // No pointer lock here: hold the right button without moving, so drag-to-look stays idle.
+  await page.mouse.move(640, 360)
+  await page.mouse.down({ button: 'right' })
+  await settle(page, 4)
+  expect((await game(page)).aiming).toBe(true)
+  await expect(page.locator('#crosshair')).toBeVisible()
+
+  const aim = () =>
+    page.evaluate(() => {
+      const g = (window as unknown as { __game: Game }).__game
+      const d = g.dummies()[1]
+      g.aimAt(d.x, d.y, d.z)
+      return d.health
+    })
+  // The shoulder camera eases in over a few frames; re-aim once it has settled.
+  await aim()
+  await settle(page, 2)
+  const before = await aim()
+  await settle(page, 1)
+  const ammo = (await game(page)).ammo
+  await page.mouse.down()
+  await page.mouse.up()
+  await settle(page, 2)
+  const after = await page.evaluate(
+    () => (window as unknown as { __game: Game }).__game.dummies()[1].health,
+  )
+  await page.mouse.up({ button: 'right' })
+  console.log(`dummy health ${before} -> ${after}`)
+  expect(after).toBeLessThan(before)
+  expect((await game(page)).ammo).toBe(ammo - 1)
+  await page.screenshot({ path: 'test-results/shoot.png' })
   expect(errors).toEqual([])
 })
