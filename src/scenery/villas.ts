@@ -17,6 +17,7 @@ type Box = { w: number; h: number; d: number; x: number; y: number; z: number }
 
 const STONE = 0xcdb99a
 const WHITE = 0xf5f3ee
+const FRAME = 0x2c2e31
 
 function volumes(v: Villa): Box[] {
   const flip = v.seed % 2 ? 1 : -1
@@ -31,6 +32,15 @@ const toBox = (b: Box) => metricBox(b.w, b.h, b.d).translate(b.x, b.y + b.h / 2,
 /** Glass across the back of each floor, set just proud of the wall. */
 const backGlass = (b: Box) =>
   metricBox(b.w - 1.2, b.h - 0.9, 0.06).translate(b.x, b.y + b.h / 2, b.z - b.d / 2 - 0.04)
+
+/** Dark frames around and across a w x h pane every 2.4 m or less, so it reads as glazing. */
+function mullions(w: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry[] {
+  const n = Math.max(1, Math.round(w / 2.4))
+  const bars = [-1, 1].map((s) => metricBox(w + 0.08, 0.08, 0.1).translate(x, y + (s * h) / 2, z))
+  for (let k = 0; k <= n; k++)
+    bars.push(metricBox(0.08, h, 0.1).translate(x - w / 2 + (k * w) / n, y, z))
+  return bars.map((g) => tinted(g, FRAME))
+}
 
 /** The retaining wall along the terrace's downhill edge and sides, from the ground up to waist height. */
 function terraceWall(land: Land, v: Villa): THREE.BufferGeometry[] {
@@ -69,7 +79,9 @@ function villaParts(land: Land, v: Villa, p: Parts): void {
       tinted(metricBox(b.w + 1.2, 0.3, b.d + 1.2).translate(b.x, b.y + b.h + 0.15, b.z), WHITE),
     )
     p.glass.push(backGlass(b))
+    p.stone.push(...mullions(b.w - 1.2, b.h - 0.9, b.x, b.y + b.h / 2, b.z - b.d / 2 - 0.1))
   }
+  p.stone.push(...mullions(3, 2.4, -3, 1.3, 8.1), ...mullions(5, 1.2, 4, 2.0, 8.1))
   p.glass.push(
     metricBox(3, 2.4, 0.06).translate(-3, 1.3, 8.04),
     metricBox(5, 1.2, 0.06).translate(4, 2.0, 8.04),
@@ -112,13 +124,13 @@ export function buildVillas(ctx: WorldCtx, land: Land): void {
     villaParts(land, v, p)
     collide(ctx, v)
   }
-  const bright = new THREE.Color(1.22, 1.2, 1.17)
-  addMerged(ctx, p.white, pbr('white_stucco', 0.5, { vertexColors: true, color: bright }))
+  const relief = new THREE.Vector2(2, 2)
+  addMerged(ctx, p.white, pbr('white_stucco', 0.5, { vertexColors: true, normalScale: relief }))
   addMerged(ctx, p.stone, pbr('white_stucco', 0.35, { vertexColors: true, roughness: 0.95 }))
   addMerged(
     ctx,
     p.glass,
-    new THREE.MeshStandardMaterial({ color: 0x22313b, roughness: 0.05, metalness: 0.75 }),
+    new THREE.MeshStandardMaterial({ color: 0x3d5563, roughness: 0.05, metalness: 0.5 }),
   )
   const water = new THREE.MeshStandardMaterial({
     color: 0x31b9cf,

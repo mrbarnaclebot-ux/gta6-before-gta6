@@ -12,13 +12,15 @@ import { trimeshCollider } from './bridges'
 import { FLOOR_H, houseParts, type HouseParts } from './house-parts'
 import { strip, sweep, type Section } from './sweep'
 
+// A 14 cm block garden wall: thick enough to shade its own side and catch the stucco normal map.
 const FENCE: Section = [
-  [0.04, 1.2],
-  [-0.04, 1.2],
-  [-0.04, -0.3],
-  [0.04, -0.3],
-  [0.04, 1.2],
+  [0.07, 1.2],
+  [-0.07, 1.2],
+  [-0.07, -0.3],
+  [0.07, -0.3],
+  [0.07, 1.2],
 ]
+const FENCE_TINT = 0xc4bcae
 const YARD = 11
 
 /** Rows of rounded clay or shingle courses, grey, tinted per house by vertex color. */
@@ -108,10 +110,10 @@ function collide(ctx: WorldCtx, h: House): void {
 
 /** Every house, merged per 250 m chunk and material, with drives, back-yard fences, and colliders. */
 export function buildHouses(ctx: WorldCtx, land: Land): void {
-  // Above 1 on purpose: the stucco texture is mid-grey, and Florida houses read bright white and pastel.
+  // The stucco map is about 0.85 grey; times the pastel vertex tint, walls stay below the clip in sun.
   const wall = pbr('white_stucco', 0.5, {
     vertexColors: true,
-    color: new THREE.Color(1.22, 1.2, 1.17),
+    normalScale: new THREE.Vector2(2, 2),
   })
   const roof = new THREE.MeshStandardMaterial({
     vertexColors: true,
@@ -131,12 +133,12 @@ export function buildHouses(ctx: WorldCtx, land: Land): void {
   for (const group of groupByChunk(land.houses).values()) {
     const p: HouseParts = { wall: [], roof: [], glass: [], trim: [] }
     for (const h of group) houseParts(h, p)
-    addMerged(ctx, p.wall, wall)
-    addMerged(ctx, p.roof, roof)
-    addMerged(ctx, p.glass, glass)
     const fences = group.map((h) => fence(land, h))
     trimeshCollider(ctx, mergeGeometries(fences))
-    addMerged(ctx, [...p.trim, ...fences.map((f) => tinted(f, 0xe6dfd2))], trim)
+    addMerged(ctx, [...p.wall, ...fences.map((f) => tinted(f, FENCE_TINT))], wall)
+    addMerged(ctx, p.roof, roof)
+    addMerged(ctx, p.glass, glass)
+    addMerged(ctx, p.trim, trim)
     addMerged(
       ctx,
       group.map((h) => driveway(land, h)),

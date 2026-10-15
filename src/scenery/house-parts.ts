@@ -10,8 +10,16 @@ import { metricBox, tinted } from '../world/blocks'
 export const FLOOR_H = 3
 const WALLS = [0xf4efe6, 0xefe3cf, 0xe9d8c4, 0xdbe6ea, 0xf0dcd0, 0xdfe8d8, 0xf3e8c8, 0xe8e2f0]
 const ROOFS = [0xa8573a, 0x5d636a, 0x6e4a3a, 0x8f8b84]
-const TRIM = 0xf7f6f2
+// Trim below pure white: the tone mapper clips anything brighter to a flat sheet in sun.
+const TRIM = 0xe6e3dc
+const SILL = 0xcfc9be
 const DOOR = 0x4a3326
+const GARAGE = 0xd9d5cc
+const SEAM = 0x33312d
+const PLINTH = 0x9a9387
+// Window and door surrounds stand this far proud of the wall, so the reveal reads in shadow and AO.
+const REVEAL = 0.16
+const FRAME = 0.12
 // Houses sink this far into their pad, so a sloping yard never shows a gap under the wall.
 const SINK = 0.8
 
@@ -53,10 +61,37 @@ function gable(w: number, d: number, y0: number, over: number): THREE.BufferGeom
   return geo
 }
 
-/** A framed window on the face at z = d/2 (turned to other faces by the caller). */
+/** Head and two jambs around a w x h opening centered at (x, y) on the face at z. */
+function surround(p: HouseParts, x: number, y: number, w: number, h: number, z: number) {
+  const zc = z + REVEAL / 2
+  p.trim.push(
+    tinted(metricBox(w + 2 * FRAME, FRAME, REVEAL).translate(x, y + (h + FRAME) / 2, zc), TRIM),
+    tinted(metricBox(FRAME, h, REVEAL).translate(x - (w + FRAME) / 2, y, zc), TRIM),
+    tinted(metricBox(FRAME, h, REVEAL).translate(x + (w + FRAME) / 2, y, zc), TRIM),
+  )
+}
+
+/** A window set back in its surround, with a sill and a center mullion. */
 function window(p: HouseParts, x: number, y: number, w: number, h: number, z: number) {
-  p.trim.push(tinted(metricBox(w + 0.24, h + 0.24, 0.08).translate(x, y, z + 0.02), TRIM))
-  p.glass.push(metricBox(w, h, 0.06).translate(x, y, z + 0.05))
+  surround(p, x, y, w, h, z)
+  const sill = metricBox(w + 0.4, 0.07, REVEAL + 0.08)
+  p.trim.push(
+    tinted(sill.translate(x, y - h / 2 - 0.035, z + (REVEAL + 0.08) / 2), SILL),
+    tinted(metricBox(0.05, h, 0.05).translate(x, y, z + 0.06), TRIM),
+  )
+  p.glass.push(metricBox(w, h, 0.02).translate(x, y, z + 0.02))
+}
+
+/** Front door and a four-panel sectional garage door; the dark backing shows in the panel seams. */
+function doors(p: HouseParts, door: number, garage: number, z: number) {
+  surround(p, door, 1.1, 1.0, 2.2, z)
+  p.trim.push(tinted(metricBox(1.0, 2.2, 0.06).translate(door, 1.1, z + 0.04), DOOR))
+  surround(p, garage, 1.2, 3.0, 2.4, z)
+  p.trim.push(tinted(metricBox(3.0, 2.4, 0.04).translate(garage, 1.2, z + 0.02), SEAM))
+  for (let k = 0; k < 4; k++) {
+    const panel = metricBox(2.94, 0.56, 0.05).translate(garage, 0.32 + k * 0.6, z + 0.065)
+    p.trim.push(tinted(panel, GARAGE))
+  }
 }
 
 /** Windows along one face of width `span`, skipping the slot [skip0, skip1] (door or garage). */
@@ -106,11 +141,13 @@ export function houseParts(h: House, p: HouseParts): void {
   const height = h.floors * FLOOR_H
   const wall = metricBox(h.w, height + SINK, h.d).translate(0, (height - SINK) / 2, 0)
   p.wall.push(tinted(wall, WALLS[h.tint % WALLS.length]))
+  // A darker base course a few cm proud of the wall, the way rendered block houses are finished.
+  const base = metricBox(h.w + 0.06, SINK + 0.4, h.d + 0.06).translate(0, (0.4 - SINK) / 2, 0)
+  p.wall.push(tinted(base, PLINTH))
   p.roof.push(tinted(gable(h.w, h.d, height, 0.55), ROOFS[h.roof]))
   const garage = h.garage * (h.w / 2 - 2.2)
   const door = -h.garage * 0.8
-  p.trim.push(tinted(metricBox(3.0, 2.4, 0.1).translate(garage, 1.2, h.d / 2 + 0.03), TRIM))
-  p.trim.push(tinted(metricBox(1.0, 2.2, 0.1).translate(door, 1.1, h.d / 2 + 0.03), DOOR))
+  doors(p, door, garage, h.d / 2)
   houseWindows(h, p, [Math.min(garage, door) - 1.5, Math.max(garage, door) + 1.5])
   lists.forEach((list, k) => {
     for (let i = start[k]; i < list.length; i++) list[i].rotateY(h.yaw).translate(h.x, h.y, h.z)
