@@ -32,7 +32,7 @@ function splatGrid(land: Land): Float32Array {
       const z = g.z0 + j * CELL
       const k = index(g, i, j)
       const vary = 0.5 + 0.5 * fbm(x / 110, z / 110, 41, 3)
-      const dirt = Math.max(land.dirt[k] / 255, forestAt(x, z) * (0.35 + 0.4 * vary))
+      const dirt = Math.max(land.dirt[k] / 255, forestAt(x, z) * (0.15 + 0.3 * vary))
       out.set([smoothstep(-14, -2, x - coastX(land.frame, z)), Math.min(1, dirt), 0, vary], k * 4)
     }
   }
