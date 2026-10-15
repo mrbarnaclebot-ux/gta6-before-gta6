@@ -31,10 +31,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   outputColor = inputColor;
   if (strength <= 0.0) return;
   // Clear sky at the sun (nothing written to depth) shows the flare; buildings and palms hide it.
+  // With near 0.1 the depth of anything closer than about 2 km stays under 0.99999.
   float open = 0.0;
   for (int i = 0; i < 5; i++) {
     vec2 o = vec2(float(i % 3) - 1.0, float(i / 3) * 2.0 - 1.0) * 0.006;
-    open += step(0.9999, readDepth(sunUv + o));
+    open += step(0.99999, readDepth(sunUv + o));
   }
   float k = strength * open / 5.0;
   if (k <= 0.0) return;
