@@ -8,10 +8,10 @@ const part = () => [{ geometry: new THREE.BoxGeometry(), material: new THREE.Mes
 test('each spot draws near or far by its own distance, and re-sorts once the eye moves', () => {
   const scene = new THREE.Scene()
   const spots = [0, 30, 60, 90].map((x) => ({ x, z: 0, s: 1, r: 0 }))
-  const update = instanceByDistance({ scene } as WorldCtx, part(), part(), spots, {
+  const update = instanceByDistance({ scene } as WorldCtx, [part(), part()], spots, {
     scale: () => 1,
     ground: () => 0,
-    far: 50,
+    ranges: [50],
   })
   const [near, far] = scene.children as THREE.InstancedMesh[]
   const xs = (m: THREE.InstancedMesh) =>
@@ -32,4 +32,14 @@ test('each spot draws near or far by its own distance, and re-sorts once the eye
 
   update(new THREE.Vector3(1000, 0, 0))
   expect(near.visible).toBe(false)
+})
+
+test('a third level takes everything past the second range', () => {
+  const scene = new THREE.Scene()
+  const spots = [0, 100, 240].map((x) => ({ x, z: 0, s: 1, r: 0 }))
+  const place = { scale: () => 1, ground: () => 0, ranges: [50, 200] }
+  const update = instanceByDistance({ scene } as WorldCtx, [part(), part(), part()], spots, place)
+  update(new THREE.Vector3(0, 0, 0))
+  const counts = (scene.children as THREE.InstancedMesh[]).map((m) => m.count)
+  expect(counts).toEqual([1, 1, 1])
 })

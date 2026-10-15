@@ -80,6 +80,7 @@ export async function buildCity(
   ctx: WorldCtx,
   load: (url: string) => Promise<GLTF>,
   light: Ambient,
+  gl: THREE.WebGLRenderer,
 ): Promise<City> {
   const layout = generateCity(CITY_SEED, CITY_SIZE)
   buildGround(ctx, layout)
@@ -88,7 +89,7 @@ export async function buildCity(
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
   buildSand(ctx, layout)
   const water = buildWater(ctx, layout, light)
-  const palms = await plantVegetation(ctx, layout, load)
+  const palms = await plantVegetation(ctx, layout, load, gl)
   const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
   const wet = (x: number, z: number) => waterAt(x, z) !== null
   const underwater = buildUnderwater(ctx.scene, water.surface, water.normals, wet)

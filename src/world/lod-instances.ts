@@ -4,13 +4,14 @@ import type { WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
 import { DETAIL_LAYER, type Part } from './instancing'
 
-// Re-sorting near and far only when the camera has moved this far keeps it off most frames.
+// Re-sorting the levels only when the camera has moved this far keeps it off most frames.
 const RESORT = 4
 
 type Placement = {
   scale: (s: Spot) => number
   ground: (s: Spot) => number
-  far: number
+  /** Far edge of each level but the last, in meters at reach 1; the last level takes the rest. */
+  ranges: number[]
   /** Small plants: main camera only, no shadows (see DETAIL_LAYER). */
   detail?: boolean
 }
@@ -19,8 +20,8 @@ interface Chunk {
   spots: Spot[]
   /** Every spot's matrix, 16 floats each, in spot order. */
   matrices: Float32Array
-  near: THREE.InstancedMesh[]
-  far: THREE.InstancedMesh[]
+  /** Meshes per level, nearest first. */
+  levels: THREE.InstancedMesh[][]
 }
 
 const tmp = new THREE.Object3D()
@@ -59,45 +60,38 @@ function fill(list: THREE.InstancedMesh[], n: number) {
   }
 }
 
-/** Sorts one chunk's spots into its near and far meshes by distance to `eye`. */
-function sort(c: Chunk, eye: THREE.Vector3, far2: number) {
-  let n = 0
-  let f = 0
+/** Sorts one chunk's spots into its level meshes by distance to `eye`. */
+function sort(c: Chunk, eye: THREE.Vector3, edges2: number[]) {
+  const counts = c.levels.map(() => 0)
   c.spots.forEach((s, i) => {
-    const near = (s.x - eye.x) ** 2 + (s.z - eye.z) ** 2 < far2
-    const at = (near ? n : f) * 16
-    for (const mesh of near ? c.near : c.far) {
+    const d2 = (s.x - eye.x) ** 2 + (s.z - eye.z) ** 2
+    let level = edges2.findIndex((e) => d2 < e)
+    if (level < 0) level = c.levels.length - 1
+    const at = counts[level]++ * 16
+    for (const mesh of c.levels[level]) {
       const dst = mesh.instanceMatrix.array
       for (let k = 0; k < 16; k++) dst[at + k] = c.matrices[i * 16 + k]
     }
-    if (near) n++
-    else f++
   })
-  fill(c.near, n)
-  fill(c.far, f)
+  c.levels.forEach((list, k) => fill(list, counts[k]))
 }
 
 /**
- * A model at every spot, detailed within `far` meters of the camera and the cheap
- * version beyond (nothing, if `distant` is empty), decided per spot. Each 250 m chunk
- * is two draw calls per part (near and far) however many trees it holds.
- * Call the returned function every frame; `reach` scales `far` (the render distance).
+ * A model at every spot in several levels of detail, nearest first, decided per spot by
+ * distance (an empty level draws nothing). Each 250 m chunk is one draw call per part per
+ * level however many trees it holds. Call the returned function every frame; `reach`
+ * scales the ranges (the render distance).
  */
 export function instanceByDistance(
   ctx: WorldCtx,
-  near: Part[],
-  distant: Part[],
+  levels: Part[][],
   spots: Spot[],
   place: Placement,
 ): (eye: THREE.Vector3, reach?: number) => void {
   const chunks: Chunk[] = [...groupByChunk(spots).values()].map((group) => {
     const matrices = bake(group, place)
-    return {
-      spots: group,
-      matrices,
-      near: meshes(ctx, near, matrices, place.detail),
-      far: meshes(ctx, distant, matrices, place.detail),
-    }
+    const meshesFor = (parts: Part[]) => meshes(ctx, parts, matrices, place.detail)
+    return { spots: group, matrices, levels: levels.map(meshesFor) }
   })
   const last = new THREE.Vector3(Infinity, 0, 0)
   let lastReach = 1
@@ -105,7 +99,7 @@ export function instanceByDistance(
     if (last.distanceToSquared(eye) < RESORT * RESORT && reach === lastReach) return
     last.copy(eye)
     lastReach = reach
-    const far2 = (place.far * reach) ** 2
-    for (const c of chunks) sort(c, eye, far2)
+    const edges2 = place.ranges.map((r) => (r * reach) ** 2)
+    for (const c of chunks) sort(c, eye, edges2)
   }
 }

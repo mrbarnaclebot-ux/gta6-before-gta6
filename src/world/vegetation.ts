@@ -4,6 +4,7 @@ import type { CityLayout, Spot } from '../city/layout'
 import { surfaceAt } from '../city/terrain'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from './blocks'
+import { impostor } from './impostor'
 import { instanceParts, modelParts, type Part } from './instancing'
 import { instanceByDistance } from './lod-instances'
 import { palmVariants } from './palm-model'
@@ -11,8 +12,9 @@ import { palmVariants } from './palm-model'
 const FERN = '/assets/models/vegetation/ph_fern_02.glb'
 const PALM = '/assets/models/vegetation/palm.glb'
 const PALM_FAR = '/assets/models/vegetation/palm_far.glb'
-// Palms farther than this draw the 2k-triangle version instead of the 7.5k one.
-const PALM_LOD = 80
+// Palms draw the 7.5k-triangle model within the first range, the 2k one within the second,
+// and a 4-triangle impostor beyond: far palms were most of the beach view's 6M triangles.
+const PALM_RANGES = [80, 220]
 // Ferns are a meter tall: a few pixels past this, so they are not drawn at all.
 const FERN_RANGE = 140
 
@@ -30,10 +32,10 @@ function plant(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]) 
 /** Ferns, drawn only near the camera. */
 function plantFerns(ctx: WorldCtx, c: CityLayout, variants: Part[][], spots: Spot[]): Update[] {
   const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
-  const place = { scale: (s: Spot) => s.s, ground, far: FERN_RANGE, detail: true }
+  const place = { scale: (s: Spot) => s.s, ground, ranges: [FERN_RANGE], detail: true }
   return variants.map((parts, i) => {
     const mine = spots.filter((_, k) => k % variants.length === i)
-    return instanceByDistance(ctx, parts, [], mine, place)
+    return instanceByDistance(ctx, [parts, []], mine, place)
   })
 }
 
@@ -42,13 +44,14 @@ async function plantPalms(
   ctx: WorldCtx,
   c: CityLayout,
   load: (url: string) => Promise<GLTF>,
+  gl: THREE.WebGLRenderer,
 ): Promise<Update> {
   const ground = (s: Spot) => surfaceAt(c, s.x, s.z)
   try {
     const [near, far] = await Promise.all([PALM, PALM_FAR].map(load))
     const parts = [modelParts(near.scene), modelParts(far.scene)]
-    const place = { scale: (s: Spot) => s.s, ground, far: PALM_LOD }
-    return instanceByDistance(ctx, parts[0], parts[1], c.palms, place)
+    const place = { scale: (s: Spot) => s.s, ground, ranges: PALM_RANGES }
+    return instanceByDistance(ctx, [...parts, impostor(gl, parts[1])], c.palms, place)
   } catch (err) {
     console.warn('Palm model failed to load, using procedural palms', err)
     plant(ctx, c, palmVariants(4), c.palms)
@@ -65,8 +68,9 @@ export async function plantVegetation(
   ctx: WorldCtx,
   c: CityLayout,
   load: (url: string) => Promise<GLTF>,
+  gl: THREE.WebGLRenderer,
 ): Promise<Update> {
-  const palms = await plantPalms(ctx, c, load)
+  const palms = await plantPalms(ctx, c, load, gl)
   const updates = [palms, ...plantFerns(ctx, c, fernVariants(await load(FERN)), c.bushes)]
   for (const p of c.palms) {
     const trunk = RAPIER.ColliderDesc.cylinder(2, 0.25)

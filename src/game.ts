@@ -52,7 +52,7 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   const load = (url: string) => gltf.loadAsync(url)
   const [figures, city] = await Promise.all([
     loadFigures(load),
-    buildCity({ scene, physics }, load, sky.ambient),
+    buildCity({ scene, physics }, load, sky.ambient, renderer.gl),
     sky.load(renderer.gl),
   ])
   files.onProgress = () => {}
