@@ -11,10 +11,12 @@ const CLIPS: Record<AnimState, string> = {
   run: 'Sprint_Loop',
   jump: 'Jump_Start',
   fall: 'Jump_Loop',
+  swim: 'Swim_Fwd_Loop',
+  tread: 'Swim_Idle_Loop',
 }
 
 // ponytail: estimated in-place stride speeds; measure foot travel if sliding shows.
-const NOMINAL_SPEED: Partial<Record<AnimState, number>> = { walk: 1.7, run: 6 }
+const NOMINAL_SPEED: Partial<Record<AnimState, number>> = { walk: 1.7, run: 6, swim: 1.6 }
 
 /** The visible character: the rigged mannequin with cross-faded clips, or a capsule if it fails to load. */
 export class Avatar {

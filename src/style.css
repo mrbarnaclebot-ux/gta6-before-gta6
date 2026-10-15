@@ -141,6 +141,15 @@ h1 span {
   color: var(--ink);
 }
 
+.underwater {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Water absorbs red first: multiplying by cyan tints even nearby things, which fog alone cannot. */
+  background: linear-gradient(180deg, rgb(150, 225, 225) 0%, rgb(70, 165, 175) 100%);
+  mix-blend-mode: multiply;
+}
+
 .hud {
   position: fixed;
   top: 16px;
@@ -164,4 +173,37 @@ h1 span {
 
 .quality {
   cursor: pointer;
+}
+
+.vitals {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: grid;
+  gap: 6px;
+  width: min(220px, 40vw);
+  pointer-events: none;
+}
+
+.bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  width: var(--fill, 100%);
+  transition: width 0.15s linear;
+}
+
+.health span {
+  background: #5fd36f;
+}
+
+.breath span {
+  background: #7fdcff;
 }

@@ -4,7 +4,7 @@ import { SEA_LEVEL, type CityLayout } from '../city/layout'
 import { heightAt, terrainGrid } from '../city/terrain'
 import type { WorldCtx } from './blocks'
 
-const NORMALS = '/assets/textures/water/waternormals.jpg'
+export const NORMALS = '/assets/textures/water/waternormals.jpg'
 // Far past the fog distance so the plane edge never shows on the horizon.
 const EXTENT = 40000
 const DEPTH_RANGE = 12
@@ -79,6 +79,21 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, sunDir: THREE.Vector3) 
     shallowColor: { value: new THREE.Color(0x3fd0c4) },
   })
   mat.uniforms.size.value = 1.6
+  patchShader(mat)
+  mat.transparent = true
+  water.rotation.x = -Math.PI / 2
+  water.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
+  water.receiveShadow = true
+  ctx.scene.add(water)
+  return {
+    surface: water as THREE.Object3D,
+    update(dt: number) {
+      mat.uniforms.time.value += dt * 0.6
+    },
+  }
+}
+
+function patchShader(mat: THREE.ShaderMaterial): void {
   mat.fragmentShader = mat.fragmentShader
     .replace('uniform vec3 waterColor;', 'uniform vec3 waterColor;' + UNIFORMS)
     .replace(/vec3 scatter = [^;]+;/, SCATTER)
@@ -91,14 +106,4 @@ export function buildWater(ctx: WorldCtx, c: CityLayout, sunDir: THREE.Vector3) 
     // shaded water into opaque black stains over the seabed.
     .replace('* getShadowMask()', '* mix(0.5, 1.0, getShadowMask())')
     .replace('gl_FragColor = vec4( outgoingLight, alpha );', OUTPUT)
-  mat.transparent = true
-  water.rotation.x = -Math.PI / 2
-  water.position.set((c.land.x0 + c.land.x1) / 2, SEA_LEVEL, 0)
-  water.receiveShadow = true
-  ctx.scene.add(water)
-  return {
-    update(dt: number) {
-      mat.uniforms.time.value += dt * 0.6
-    },
-  }
 }

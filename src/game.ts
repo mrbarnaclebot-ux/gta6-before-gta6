@@ -5,6 +5,7 @@ import type { Input } from './input/input'
 import { createPhysics, FIXED_STEP } from './physics'
 import { Avatar } from './player/avatar'
 import { Player } from './player/player'
+import { MAX_BREATH, MAX_HEALTH } from './player/swim'
 import { Renderer } from './render/renderer'
 import { Sky } from './render/sky'
 import { loadQuality, saveQuality, type Quality } from './settings'
@@ -30,7 +31,7 @@ async function buildScene(canvas: HTMLCanvasElement) {
     sky.load(),
   ])
   scene.add(avatar.root)
-  const player = new Player(physics, avatar, city.spawn)
+  const player = new Player(physics, avatar, city.spawn, city.water)
   const follow = new FollowCamera(camera, physics, player.collider)
   return { scene, camera, renderer, sky, physics, player, follow, city }
 }
@@ -53,7 +54,8 @@ function runLoop(w: World, input: Input, onFrame: () => void): void {
     w.player.update(dt, acc / FIXED_STEP)
     w.follow.update(dt, input.consumeLook(), w.player.position)
     w.sky.follow(w.player.position)
-    w.city.update(dt)
+    w.city.update(dt, w.camera)
+    w.sky.setUnderwater(w.city.underwater)
     w.renderer.render(dt)
     onFrame()
   })
@@ -72,16 +74,19 @@ export async function startGame(canvas: HTMLCanvasElement, input: Input): Promis
   }
   const hud = new Hud(quality, () => setQuality(quality === 'high' ? 'low' : 'high'))
   setQuality(quality)
+  const { vitals } = w.player
   runLoop(w, input, () => {
+    hud.setVitals(vitals.health / MAX_HEALTH, vitals.breath / MAX_BREATH)
+    hud.setUnderwater(w.city.underwater)
     hud.frame()
     frames++
   })
   exposeTestHook({
     player: w.player,
     follow: w.follow,
+    city: w.city,
     input,
     setQuality,
-    landmarks: w.city.landmarks,
     extra: () => ({
       fps: Math.round(hud.fps),
       frames,

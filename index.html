@@ -14,8 +14,8 @@
         <button id="play" type="button">Play</button>
         <p id="status" class="status" role="status"></p>
         <p class="controls">
-          WASD move &middot; Shift run &middot; Space jump &middot; Mouse look &middot; Esc release
-          mouse
+          WASD move &middot; Shift run &middot; Space jump or surface &middot; Ctrl or C dive
+          &middot; Mouse look &middot; Esc release mouse
         </p>
       </div>
       <footer class="title-foot">
@@ -26,6 +26,15 @@
     <div id="hud" class="hud" hidden>
       <span id="fps" class="fps" hidden></span>
       <button id="quality" type="button" class="quality"></button>
+    </div>
+    <div id="underwater" class="underwater" hidden></div>
+    <div class="vitals">
+      <div id="health" class="bar health" role="meter" aria-label="Health" hidden>
+        <span></span>
+      </div>
+      <div id="breath" class="bar breath" role="meter" aria-label="Breath" hidden>
+        <span></span>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

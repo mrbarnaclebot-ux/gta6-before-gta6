@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { generateCity, type CityLayout } from '../city/layout'
+import { generateCity, SEA_LEVEL, type CityLayout } from '../city/layout'
 import { buildingHeight } from '../city/lots'
-import { surfaceAt } from '../city/terrain'
+import { surfaceAt, waterSurfaceAt } from '../city/terrain'
+import { FLOAT_DEPTH } from '../player/swim'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -11,6 +12,7 @@ import { buildMarkings } from './markings'
 import { placeProps } from './props'
 import { buildSand } from './sand'
 import { plantVegetation } from './vegetation'
+import { buildUnderwater } from './underwater'
 import { buildWater } from './water'
 
 // ponytail: fixed seed and 1 km size; expose them in settings when the map grows to 2 km.
@@ -24,7 +26,11 @@ export interface City {
   spawn: THREE.Vector3
   /** Named feet positions for tests and debugging: the beach, a canal bank, a rooftop, downtown. */
   landmarks: Record<string, Point>
-  update(dt: number): void
+  /** Water surface height at (x, z), or null on land. */
+  water: (x: number, z: number) => number | null
+  /** True while the camera is below the water surface. */
+  readonly underwater: boolean
+  update(dt: number, camera: THREE.Camera): void
 }
 
 function landmarks(c: CityLayout): Record<string, Point> {
@@ -39,6 +45,8 @@ function landmarks(c: CityLayout): Record<string, Point> {
     canal: at(c.canal.x0 - 1.5, mid + 30),
     downtown: at(c.xRoads[1] + 3, mid + 40),
     // The roof's north-west corner: clear of the stair core, and the city lies west.
+    ocean: { x: c.land.x1 + 140, y: SEA_LEVEL - FLOAT_DEPTH, z: mid + 20 },
+    canalWater: { x: (c.canal.x0 + c.canal.x1) / 2, y: SEA_LEVEL - FLOAT_DEPTH, z: mid + 30 },
     rooftop: {
       x: tall.x - tall.w / 2 + 2.5,
       y: buildingHeight(tall) + 0.3,
@@ -62,11 +70,20 @@ export async function buildCity(
   const water = buildWater(ctx, layout, sunDir)
   placeProps(ctx, layout)
   await plantVegetation(ctx, layout, load)
+  const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
+  const underwater = buildUnderwater(ctx.scene, water.surface, (x, z) => waterAt(x, z) !== null)
   const { x, z } = layout.spawn
   return {
     layout,
     spawn: new THREE.Vector3(x, surfaceAt(layout, x, z) + 0.05, z),
     landmarks: landmarks(layout),
-    update: water.update,
+    water: waterAt,
+    get underwater() {
+      return underwater.active
+    },
+    update(dt, camera) {
+      water.update(dt)
+      underwater.update(camera, dt)
+    },
   }
 }

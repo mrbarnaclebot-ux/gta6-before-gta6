@@ -7,6 +7,10 @@ const HDRI_URL = '/assets/hdri/day_kloofendal_2k.hdr'
 // Far enough up the sun ray that 200 m towers sit inside the shadow camera's depth range.
 const SUN_DISTANCE = 400
 const SHADOW_EXTENT = 70
+const FOG_DENSITY = 0.0016
+// Underwater: blue-green murk that hides everything past about 50 m.
+const WATER_FOG = new THREE.Color(0x0e5f6a)
+const WATER_DENSITY = 0.07
 
 /** Daylight: HDRI sky and image-based lighting, a matching shadow-casting sun, and haze. */
 export class Sky {
@@ -16,6 +20,9 @@ export class Sky {
   /** Linear fog color; equals the backdrop below the horizon. */
   private readonly fogColor = new THREE.Color()
   private quality: Quality = 'high'
+  private fog: THREE.FogExp2 | null = null
+  private backdrop: THREE.Texture | null = null
+  private underwater = false
 
   constructor(private readonly scene: THREE.Scene) {
     const cam = this.sun.shadow.camera
@@ -50,11 +57,12 @@ export class Sky {
     backdrop.source = new THREE.TextureSource({ data: backdropData, width, height })
     backdrop.needsUpdate = true
     paintLowerHalf(data, width, height, [r * 0.8, g * 0.74, b * 0.64])
-    this.scene.background = backdrop
+    this.backdrop = backdrop
     this.scene.environment = hdr
     this.scene.environmentIntensity = 0.9
     this.fogColor.copy(fog)
-    this.scene.fog = new THREE.FogExp2(fog.clone(), 0.0016)
+    this.fog = new THREE.FogExp2(fog.clone(), FOG_DENSITY)
+    this.scene.fog = this.fog
     this.applyFogColor()
   }
 
@@ -68,16 +76,27 @@ export class Sky {
     this.applyFogColor()
   }
 
+  /** Mutates the one fog rather than swapping it: materials keep their compiled fog uniforms. */
+  setUnderwater(on: boolean): void {
+    if (on === this.underwater) return
+    this.underwater = on
+    this.applyFogColor()
+  }
+
   /**
    * Low renders straight to the screen, where three mixes fog in after tone mapping
    * while the backdrop is tone mapped. Give the fog the tone-mapped color there so
    * fully fogged sea still meets the backdrop without a band.
    */
   private applyFogColor(): void {
-    const fog = this.scene.fog
+    const fog = this.fog
     if (!fog) return
-    if (this.quality === 'high') fog.color.copy(this.fogColor)
-    else fog.color.fromArray(acesFilmic(this.fogColor.toArray()))
+    const color = this.underwater ? WATER_FOG : this.fogColor
+    if (this.quality === 'high') fog.color.copy(color)
+    else fog.color.fromArray(acesFilmic(color.toArray()))
+    fog.density = this.underwater ? WATER_DENSITY : FOG_DENSITY
+    // Underwater the backdrop is the fog color itself, so everything fades into it.
+    this.scene.background = this.underwater ? fog.color : this.backdrop
   }
 
   /** Keep the shadow frustum centered on the player so shadows stay sharp near them. */

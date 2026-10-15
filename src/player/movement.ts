@@ -7,7 +7,7 @@ const ACCEL = 14
 const TURN_RATE = 12
 const COYOTE_TIME = 0.12
 
-export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'fall'
+export type AnimState = 'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'swim' | 'tread'
 
 export interface Motion {
   vx: number

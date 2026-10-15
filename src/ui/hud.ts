@@ -2,13 +2,16 @@ import type { Quality } from '../settings'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-/** Corner HUD: FPS readout (dev builds or ?debug) and the Low/High graphics toggle. */
+/** HUD: FPS readout (dev builds or ?debug), the Low/High graphics toggle, health and breath bars. */
 export class Hud {
   fps = 0
   private frames = 0
   private windowStart = performance.now()
   private readonly fpsEl = $('fps')
   private readonly qualityEl = $<HTMLButtonElement>('quality')
+  private readonly healthEl = $('health')
+  private readonly breathEl = $('breath')
+  private readonly underwaterEl = $('underwater')
 
   constructor(quality: Quality, onToggle: () => void) {
     $('hud').hidden = false
@@ -24,6 +27,16 @@ export class Hud {
     this.qualityEl.textContent = `Graphics: ${q === 'high' ? 'High' : 'Low'}`
   }
 
+  /** Bars appear only while not full, like most open-world HUDs. Values are 0 to 1. */
+  setVitals(health: number, breath: number): void {
+    bar(this.healthEl, health)
+    bar(this.breathEl, breath)
+  }
+
+  setUnderwater(on: boolean): void {
+    this.underwaterEl.hidden = !on
+  }
+
   /** Frames counted over half-second wall-clock windows: readable, and immune to zero-length frames. */
   frame(): void {
     this.frames++
@@ -34,4 +47,11 @@ export class Hud {
     this.windowStart = now
     if (!this.fpsEl.hidden) this.fpsEl.textContent = `${Math.round(this.fps)} fps`
   }
+}
+
+function bar(el: HTMLElement, value: number): void {
+  el.hidden = value >= 1
+  const pct = Math.round(value * 100)
+  el.style.setProperty('--fill', `${pct}%`)
+  el.setAttribute('aria-valuenow', String(pct))
 }
