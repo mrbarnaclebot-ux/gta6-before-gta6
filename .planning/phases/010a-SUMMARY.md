@@ -160,6 +160,34 @@ From the production build in headless Chromium on the real GPU (ANGLE Metal). I 
 - `map-desktop`, `map-tablet`, `map-phone`, `map-overview`: the full-screen map.
 - `settings-phone`: the settings dialog at 390 px.
 
+## Review fixes
+
+Blockers from the review, both fixed:
+
+- **Villa terrace z-fighting:** the slab top sat at the pad height the terrain is flattened to. It now sits 4 cm above it. `probe-villas` (same view as the review) shows clean white terraces.
+- **Flat, placeholder-looking houses and villas:** dropped the 1.22x albedo boost, so walls stay below the tone-mapping clip and the stucco shading shows. Doubled the stucco normal strength. Windows now sit 0.13 m back in a 0.16 m surround with a projecting sill and a center mullion. There is a darker 0.4 m plinth, the front door has a surround, and the garage door has four sectional panels over dark seams. Fences are 14 cm block walls in the stucco material at a lower albedo. Villa glass is lighter and has dark frames and mullions, front and back.
+
+Cheap notes also taken:
+
+- Terrain rock now starts at about 42 degrees instead of 34, and the forest dirt tint is lighter, so hills read green with rock on the cuts.
+- Depth of field: the calm focus range grows with camera height, so the skyline from the lookout is no longer blurred.
+- World map: west of the coast, the space past the grid is painted ridge green instead of sea.
+- `castShadows` walks a mesh tree only when an actor's in-range state flips. The car body swap clears the cached state.
+- Traffic car pitch eases by frame time instead of once per path step.
+- `exposeTestHook` and `lifeHelpers` are split under 40 lines.
+- `setLookHint` writes to the DOM only on change.
+- An SVG favicon ends the `/favicon.ico` 404.
+
+Skipped, with reasons:
+
+- **Lookout furniture** (railing, bench, paving): scenery for 10b.
+- **Highway jam behind a player on foot in a lane:** needs a new behaviour (horn and pass, or a reroute), not a quick fix.
+- **Chunking road meshes for culling:** no measured cost yet.
+- **Lighter diagonal triangle in the bottom-left of the map base:** not investigated.
+- **"Click to look around" hint:** still needs a manual check in a headed browser.
+
+Verification after the fixes: `pnpm build`, `pnpm lint`, and `pnpm test` (27 files, 96 tests) pass. `pnpm test:e2e` gives 8 passed in 4.5 min. New shots in `.planning/phases/screens-p10a/`: `probe-villas`, `probe-villa-close`, `probe-house`, `probe-house-close`, `probe-house-street`, `desktop-forest`, `desktop-hillside-lookout`, and `probe-map-west-edge`. These are Medium quality on the Metal GPU at 1920x1080, with no page or console errors.
+
 ## Known gaps
 
 - **Bare land:** no trees anywhere outside the city yet. The forest is only a reserved area with a dirt tint (Phase 10b), and the big fields between the city and the highway read empty.
@@ -167,7 +195,7 @@ From the production build in headless Chromium on the real GPU (ANGLE Metal). I 
 - **Simple traffic:** highway traffic stays on the highway graph (main lanes, ramps, the crossing links, turnarounds). It does not turn onto Hill Road, Palm Avenue, or the residential streets, and no traffic drives the outer streets. There is no lane changing; cars use the outer lane.
 - **GPS on ramps:** the GPS treats ramps as two-way.
 - **Bridges:** the decks are the only bridges. The cut banks at the hairpins are steep (up to about 55 degrees, shown as rock), and there are no retaining walls on road cuts.
-- **Simple models:** villas and houses are procedural boxes with a gabled roof: no interiors, porches, or roof details. Fences have colliders; loungers and umbrellas do not.
+- **Simple models:** villas and houses are procedural boxes with a gabled roof, recessed windows, and a plinth: no interiors, porches, or roof details. Fences have colliders; loungers and umbrellas do not.
 - **Map zoom:** the full map is still painted at 1 px per meter (now about 2860 x 2310), so it blurs past about 2x zoom. The terrain under it is a 4 m raster.
 - **Perf caveats:** the beach is the tightest Medium scene, held by dynamic resolution. High and Ultra are well under 60 at 4K render on this machine, as they were before.
 - **Unchecked:**
