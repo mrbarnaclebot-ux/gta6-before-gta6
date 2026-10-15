@@ -9,7 +9,7 @@ Status: built and verified on branch `phase-08-cinematic` (from `phase-07-ship`)
 - Every option is a field of one plain `Graphics` object. Low, Medium, High, and Ultra are four such objects. Any other mix shows as Custom.
 - Settings are saved under `vice.graphics` in localStorage. Saved values are checked key by key, so a stale or hand-edited save cannot break the renderer.
 - `?quality=low|medium|high|ultra` picks a preset for one visit (used by the tests and the perf probe).
-- `Look.apply` puts a setting into effect live, with no reload. When the effect list changes it rebuilds the composer. Changing shadows recompiles the lit materials once, which causes a short hitch.
+- `Look.apply` puts a setting into effect live, with no reload. When the effect list changes it rebuilds the composer. Shadows are rebuilt only when the shadow tier or the shadow reach changes; that recompiles the lit materials once, a short hitch. Other rows (bloom, lens flare, and so on) no longer touch the shadows.
 - The default preset is **Medium**, which has dynamic resolution on. High could not hold 55 fps at the beach on this M4 while the desktop was also using the GPU. The rule was "High, else Medium".
 
 | | Low | Medium | High | Ultra |
@@ -36,9 +36,10 @@ With every post effect off (Low), the renderer draws straight to the screen and 
 - **Softness:** PCF filter radius rises per cascade (1.5, 2.5, 3, 3 texels). Shadows are crisp near the camera and softer farther out. This is a cascade-graded look, not true contact hardening (PCSS).
 - **Characters and cars** cast and receive shadows; that was already true from earlier phases.
 - **Cost cut:** the nearest cascade redraws every frame, and the far cascades take turns every third frame. A skipped map keeps its own matrix, so it stays aligned, just a few frames old. Drawing the shadow maps was most of CSM's measured cost.
-- **Two bugs found and fixed:**
+- **Three bugs found and fixed:**
   - CSM's bundled copy of three's light chunk is older than r186. It lacks the multi-scattering DFG term, which turned every metal (the glass towers) black once any CSM existed. `csm-shader.ts` splices only CSM's cascade block into the current r186 chunk.
   - CSM's `setupMaterial` overwrote materials' own `onBeforeCompile` (car paint, outfits). `csm-materials.ts` chains the material's own hook first and keeps its program cache key. It also sets up materials added later, such as car bodies loaded after start (it checks every 10 frames).
+  - Live shadow changes left every lit material on the old CSM's uniforms. three reuses a cached program, and the uniforms it was compiled with, without calling `onBeforeCompile` again, so a rebuilt CSM never reached the shader: Medium to High kept the 100 m reach, High to Medium sampled the wrong cascades. Now `csm-materials.ts` only sets the CSM defines (which pick the program) and every lit program reads one shared set of CSM uniforms, refilled from the current CSM after each `updateFrustums`. Measured on the dev server over Medium, High, Medium, Low, Ultra, Medium: all 243 lit materials read the right `shadowFar` (100, 150, 100, none, 240, 100) and cascade splits after each switch. `csm-materials.test.ts` covers it.
 - Low keeps one 1024 map that follows the player, as in Phase 7.
 
 ### Post chain (`post-chain.ts`)
@@ -183,11 +184,11 @@ Draw calls at the beach on High: about 400 (Phase 7: 365).
 - **`pnpm install`:** "Done". No new dependencies; postprocessing and N8AO were already installed.
 - **`pnpm build`:** "built in 339ms". The game chunk is 5.47 MB, up from 5.41 MB.
 - **`pnpm lint`:** "All matched files use Prettier code style!" A one-off check with `max-lines` 300 and `max-lines-per-function` 40 over every changed file passes.
-- **`pnpm test`:** 23 files, 79 tests passed. New tests:
+- **`pnpm test`:** 24 files, 81 tests passed (after the review fixes). New tests:
   - `graphics.test.ts`: presets, Custom detection, saved-value cleaning, `?quality`.
   - `motion-blur-math.test.ts`: shutter scale, clamp, near fade, reprojection for still, moving, and turning cameras.
   - `grade.test.ts`, `height-fog.test.ts`, `dynamic-res.test.ts`.
-- **`pnpm test:e2e`:** 5 passed (4.2 min).
+- **`pnpm test:e2e`:** 5 passed (3.6 min after the review fixes).
   - The pause test now also toggles Bloom (expects Custom, and the setting saved), picks the Low preset, and sets sensitivity on the Controls tab.
   - Load and frame waits now allow 120 s, because the High smoke test compiles the CSM and post shaders on SwiftShader while four other tests render.
   - The `CI=1` smoke subset was not re-run locally this phase.
@@ -219,8 +220,29 @@ Draw calls at the beach on High: about 400 (Phase 7: 365).
   - Near-field (foreground) depth of field.
   - Per-object motion blur: only camera motion blurs.
 - **Render distance does not cull people or traffic.** They already despawn past 170 m and 260 m, inside even the Near far plane.
-- **Water reflection changes rebuild the sea.** Three's `Water` keeps its mirror target private, so a few MB of framebuffer leak per change. This is marked `ponytail:` in `water.ts`.
+- **Water reflection changes rebuild the sea.** Three's `Water` keeps its mirror target private, so a few MB of framebuffer leak per change. This is marked `ponytail:` in `water.ts`. Page load no longer hits it: the sea is first built at the preset's mirror size.
 - **The pause dialog changes height between tabs.**
+- **Lens flare occlusion** counts anything closer than about 2 km (1.8 km at Far, 2.6 km at Ultra) as blocking the sun; farther towers are lost in the haze anyway.
 - **Teleporting after leaving a car** shows a one-second hitch in both builds (first-time shader compiles at the new spot). Phase 7 shows it too.
 - **Ultra runs at about 20 fps** on the M4 at 1080p.
 - **No paid generation was used.** `menu_night.webp` was generated and paid for by the owner earlier.
+
+## Review fixes
+
+From the Code Reviewer's Phase 8 pass:
+
+- **Blocker, fixed:** stale CSM uniforms after a live graphics change (see Shadows above). Screenshot `high-canal-after-live-switch.jpg` (Medium switched live to High) matches a fresh High load.
+- `Look.apply` reconfigures shadows only when the shadow tier or reach changes, so toggling bloom or lens flare no longer rebuilds three shadow maps and relinks about 240 materials.
+- The sea is built on the first `setReflection`, at the preset's mirror size; Medium now starts with one 512 mirror (checked in the scene) instead of leaking a 1024 one.
+- `?quality=` uses `Object.hasOwn`, so `?quality=toString` falls back to the default (unit test added).
+- The aim focus ray reuses one `RAPIER.Ray`.
+- The settings dialog fits at 390 px: rows shrink to the width, the tabs wrap and tighten (`phone-settings-graphics.jpg`, `tablet-settings-graphics.jpg`). No horizontal overflow at 390 or 820.
+- Lens flare sky test tightened from depth 0.9999 to 0.99999 (about 1 km to about 2 km). The flare still shows over open sky (`high-rooftop-flare.jpg`) and stays hidden behind the skyline at sunset.
+- The smoke test comment now says it runs at the Medium default.
+
+Not taken:
+
+- **Periodic `adopt` traversal:** kept. Car bodies are not the only late materials; outfit clones for people spawned later and box-body paints for late traffic also appear, and a lit material missed by CSM setup adds up the light of every cascade. The traversal costs little every 10 frames.
+- **Sharpening car body textures:** not needed. The glb body textures never ask for anisotropic filtering (anisotropy 1), so the "every texture that asked" rule already holds for them.
+- **Performance gate:** unchanged; still needs the owner's call (accept High at about 6 fps under Phase 7, or take the next lever: no CSM in the mirror pass, or 2+1 cascades on High).
+- **Content realism** (box towers, empty sand, sparse street props, stiff swim pose, dark dusk away from the sun): out of this phase's renderer scope.
