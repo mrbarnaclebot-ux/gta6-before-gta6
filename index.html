@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vice Demo</title>
+  </head>
+  <body>
+    <canvas id="view" tabindex="0"></canvas>
+    <section id="title" class="title">
+      <div class="title-card">
+        <p class="kicker">An open-world browser demo</p>
+        <h1>Vice<span>Demo</span></h1>
+        <button id="play" type="button">Play</button>
+        <p id="status" class="status" role="status"></p>
+        <p class="controls">
+          WASD move &middot; Shift run &middot; Space jump &middot; Mouse look &middot; Esc release
+          mouse
+        </p>
+      </div>
+      <footer class="title-foot">
+        <a href="/terms.html">Terms</a>
+        <span>Desktop with keyboard and mouse recommended</span>
+      </footer>
+    </section>
+    <div id="hud" class="hud" hidden>
+      <span id="fps" class="fps" hidden></span>
+      <button id="quality" type="button" class="quality"></button>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

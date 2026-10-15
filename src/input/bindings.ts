@@ -1,0 +1,24 @@
+export type Action = 'forward' | 'back' | 'left' | 'right' | 'run' | 'jump'
+
+// KeyboardEvent.code, so WASD stays in place on AZERTY and other layouts.
+export const BINDINGS: Readonly<Record<string, Action>> = {
+  KeyW: 'forward',
+  ArrowUp: 'forward',
+  KeyS: 'back',
+  ArrowDown: 'back',
+  KeyA: 'left',
+  ArrowLeft: 'left',
+  KeyD: 'right',
+  ArrowRight: 'right',
+  ShiftLeft: 'run',
+  ShiftRight: 'run',
+  Space: 'jump',
+}
+
+/** Movement intent in camera space: x is right, z is forward. Diagonals are not faster. */
+export function moveAxes(held: ReadonlySet<Action>): { x: number; z: number } {
+  const x = Number(held.has('right')) - Number(held.has('left'))
+  const z = Number(held.has('forward')) - Number(held.has('back'))
+  const len = Math.hypot(x, z)
+  return len > 0 ? { x: x / len, z: z / len } : { x: 0, z: 0 }
+}

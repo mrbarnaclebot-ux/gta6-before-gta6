@@ -1,0 +1,167 @@
+:root {
+  --ink: #fff7f0;
+  --ink-dim: rgba(255, 247, 240, 0.72);
+  --pink: #ff4fa0;
+  --orange: #ffb347;
+  --teal: #1fc8c8;
+  --night: #120c24;
+  --panel: rgba(10, 12, 20, 0.55);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--night);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+#view {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+.title {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(120% 80% at 50% 110%, rgba(31, 200, 200, 0.55), transparent 60%),
+    linear-gradient(180deg, #2a1650 0%, #b23a7a 52%, #ff9a52 78%, #ffd27a 100%);
+}
+
+.title-card {
+  text-align: center;
+  max-width: 560px;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+h1 {
+  margin: 0 0 32px;
+  font-size: clamp(56px, 14vw, 128px);
+  line-height: 0.9;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  text-shadow: 0 6px 30px rgba(42, 10, 60, 0.45);
+}
+
+h1 span {
+  display: block;
+  background: linear-gradient(90deg, var(--teal), #8ef3e3);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+#play {
+  font: inherit;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 16px 56px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--night);
+  background: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(42, 10, 60, 0.35);
+  transition: transform 0.15s ease;
+}
+
+#play:hover,
+#play:focus-visible {
+  transform: scale(1.05);
+}
+
+#play:focus-visible,
+.quality:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 3px;
+}
+
+#play:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 16px 0 0;
+  color: var(--ink-dim);
+}
+
+.controls {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--ink-dim);
+}
+
+.title-foot {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.title-foot a {
+  color: var(--ink);
+}
+
+.hud {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.fps,
+.quality {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.quality {
+  cursor: pointer;
+}
