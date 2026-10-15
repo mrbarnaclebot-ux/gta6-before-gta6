@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { CURB_H, type CityLayout, type Rect } from '../city/layout'
 import type { PhysicsWorld } from '../physics'
-import type { Avatar } from '../player/avatar'
+import type { Figure } from '../player/figure'
 import { Pedestrian } from './pedestrian'
 import { loopPoint, perimeter, walkLoops } from './places'
 
@@ -15,25 +15,21 @@ const DEAD_FOR = 25
 const SCARE_RADIUS = 45
 const IMPACT_RADIUS = 15
 
-/** Clothing tints on the mannequin: body, then joints. Light and dark tones, a few Miami colors. */
-const OUTFITS: [number, number][] = [
-  [0x23324f, 0xd9d3c7],
-  [0xc8442f, 0x2b2e33],
-  [0xa9b8c9, 0x4a5563],
-  [0x1f8f8a, 0xe8e2d4],
-  [0xe6a4b4, 0x3a3236],
-  [0x2b2b2e, 0xb08d57],
-  [0xb9a27a, 0x40362c],
-  [0x6a4fa3, 0xf0eadf],
-  [0xf3c24b, 0x26282c],
-  [0x8a9a5b, 0x2f3329],
-]
+/** Slight color casts over the generated people's textures, so the crowd is not all twins. */
+const TINTS = [0xffffff, 0xdfe7ff, 0xffeedd, 0xd2d2d2, 0xf0ffe6, 0xffe6ee]
 
-function outfitMaterials(): THREE.Material[][] {
-  return OUTFITS.map(([body, joint]) => [
-    new THREE.MeshStandardMaterial({ color: body, roughness: 0.7 }),
-    new THREE.MeshStandardMaterial({ color: joint, roughness: 0.5, metalness: 0.2 }),
-  ])
+/** Shares one tinted copy of each source material per tint across the whole crowd. */
+function wardrobe(): (tint: number) => (m: THREE.Material) => THREE.Material {
+  const made = new Map<string, THREE.Material>()
+  return (tint) => (m) => {
+    const key = `${m.uuid}|${tint}`
+    if (!made.has(key)) {
+      const copy = (m as THREE.MeshStandardMaterial).clone()
+      copy.color.multiply(new THREE.Color(TINTS[tint]))
+      made.set(key, copy)
+    }
+    return made.get(key)!
+  }
 }
 
 /** Distance from a point to the nearest point of a rect, 0 inside it. */
@@ -53,13 +49,14 @@ export class Crowd {
     scene: THREE.Scene,
     physics: PhysicsWorld,
     layout: CityLayout,
-    avatar: Avatar,
+    people: Figure[],
     onShot: (killed: boolean) => void,
   ) {
     this.loops = walkLoops(layout)
-    const outfits = outfitMaterials()
+    const dress = wardrobe()
     this.people = Array.from({ length: COUNT }, (_, i) => {
-      const p = new Pedestrian(avatar, outfits[i % outfits.length], physics)
+      const tint = Math.floor(i / people.length) % TINTS.length
+      const p = new Pedestrian(people[i % people.length], dress(tint), physics)
       p.onShot = onShot
       p.root.visible = false
       p.state = 'dead'

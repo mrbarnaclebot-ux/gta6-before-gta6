@@ -5,7 +5,7 @@ import type { Rect } from '../city/layout'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
-import type { Avatar } from '../player/avatar'
+import type { Figure } from '../player/figure'
 import { loopPoint } from './places'
 
 const HP = 60
@@ -50,13 +50,12 @@ export class Pedestrian {
   private readonly actions = new Map<Clip, THREE.AnimationAction>()
   private current: THREE.AnimationAction | null = null
 
-  constructor(source: Avatar, materials: THREE.Material[], physics: PhysicsWorld) {
-    this.root = clone(source.root)
+  /** `dress` swaps a mesh's material for this person's tinted copy. */
+  constructor(figure: Figure, dress: (m: THREE.Material) => THREE.Material, physics: PhysicsWorld) {
+    this.root = clone(figure.root)
     this.root.traverse((o) => {
       const mesh = o as THREE.Mesh
-      if (!mesh.isMesh) return
-      const joint = (mesh.material as THREE.Material).name === 'M_Joints'
-      mesh.material = materials[joint ? 1 : 0]
+      if (mesh.isMesh) mesh.material = dress(mesh.material as THREE.Material)
     })
     this.body = physics.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased())
     // Bullets and the player's capsule hit people, but cars drive through them (no solver
@@ -68,7 +67,7 @@ export class Pedestrian {
     this.collider = physics.createCollider(shape, this.body)
     this.mixer = new THREE.AnimationMixer(this.root)
     for (const [clip, name] of Object.entries(CLIPS) as [Clip, string][]) {
-      const action = this.mixer.clipAction(THREE.AnimationClip.findByName(source.clips, name)!)
+      const action = this.mixer.clipAction(figure.clip(name)!)
       if (clip === 'hit' || clip === 'death') action.setLoop(THREE.LoopOnce, 1)
       action.clampWhenFinished = clip === 'death'
       this.actions.set(clip, action)

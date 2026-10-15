@@ -71,22 +71,22 @@ export class Shooter {
       input.consume('fire')
       return void input.consume('reload')
     }
-    if (input.consume('reload') && reload(this.pistol)) avatar.pistol?.reload()
+    if (input.consume('reload') && reload(this.pistol)) avatar.pistol.reload()
     const reloading = this.pistol.reloading
     // Only take the click once the cooldown allows it, so a fast double-click still fires twice.
     if (this.pistol.cooldown > 0) return
     if (!this.queued && !input.consume('fire')) return
     // Hold the shot until the gun points where the crosshair does.
-    this.queued = !this.player.faces(FACING_TOLERANCE) || !(avatar.pistol?.raised ?? true)
+    this.queued = !this.player.faces(FACING_TOLERANCE) || !avatar.pistol.raised
     if (this.queued || !fire(this.pistol)) return
-    if (!reloading && this.pistol.reloading) avatar.pistol?.reload()
+    if (!reloading && this.pistol.reloading) avatar.pistol.reload()
     this.shoot()
   }
 
   private shoot(): void {
     this.shots++
     this.sinceShot = 0
-    this.player.avatar.pistol?.fire()
+    this.player.avatar.pistol.fire()
     this.effects.muzzle(this.gun.muzzle(muzzle), this.follow.camera.getWorldDirection(dir))
     const camera = this.follow.camera
     camera.getWorldPosition(eye)

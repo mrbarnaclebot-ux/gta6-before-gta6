@@ -1,7 +1,8 @@
 import * as THREE from 'three'
+import type { Figure } from './figure'
 
 // Spine, arms, neck, and head: the bones the pistol pose owns while the legs keep walking.
-// GLTFLoader strips dots from node names, so DEF-spine.001 arrives as DEF-spine001.
+// Mannequin names; GLTFLoader strips dots, so DEF-spine.001 arrives as DEF-spine001.
 const UPPER = /^DEF-(spine00[123]|neck|head|shoulder|upper_arm|forearm|hand|f_|thumb)/
 // Measured arm elevation of the Pistol_Aim_Up and Pistol_Aim_Down clips, in radians.
 const UP_ANGLE = 1.2
@@ -18,8 +19,7 @@ class Sampler {
   readonly duration: number
   private readonly tracks: (THREE.Interpolant | null)[]
 
-  constructor(clips: THREE.AnimationClip[], name: string, bones: THREE.Object3D[]) {
-    const clip = THREE.AnimationClip.findByName(clips, name)!
+  constructor(clip: THREE.AnimationClip, bones: THREE.Object3D[]) {
     this.duration = clip.duration
     this.tracks = bones.map((b) => {
       const track = clip.tracks.find((t) => t.name === `${b.name}.quaternion`)
@@ -58,11 +58,11 @@ export class AimPose {
   private shootT = -1
   private reloadT = -1
 
-  constructor(root: THREE.Object3D, clips: THREE.AnimationClip[]) {
+  constructor(root: THREE.Object3D, figure: Figure) {
     root.traverse((o) => {
-      if (UPPER.test(o.name)) this.bones.push(o)
+      if (UPPER.test(figure.role(o.name) ?? '')) this.bones.push(o)
     })
-    const sampler = (name: string) => new Sampler(clips, name, this.bones)
+    const sampler = (name: string) => new Sampler(figure.clip(name)!, this.bones)
     this.level = sampler('Pistol_Aim_Neutral')
     this.up = sampler('Pistol_Aim_Up')
     this.down = sampler('Pistol_Aim_Down')

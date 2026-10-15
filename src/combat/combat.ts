@@ -3,6 +3,7 @@ import type { FollowCamera } from '../camera/follow-camera'
 import type { CityLayout } from '../city/layout'
 import type { Input } from '../input/input'
 import type { PhysicsWorld } from '../physics'
+import type { Figure } from '../player/figure'
 import type { Player } from '../player/player'
 import type { RAPIER } from '../physics'
 import { carCondition, type Health } from './damage'
@@ -23,6 +24,8 @@ interface CombatDeps {
   scene: THREE.Scene
   physics: PhysicsWorld
   player: Player
+  /** What the target dummies are made of. */
+  mannequin: Figure
   follow: FollowCamera
   /** Anything that smokes when shot up: parked and traffic cars. */
   cars: Smoker[]
@@ -41,8 +44,7 @@ export class Combat {
   private readonly hood = new THREE.Vector3()
 
   constructor(d: CombatDeps) {
-    // Clone the mannequin before the gun goes into its hand, so dummies stay unarmed.
-    this.dummies = placeDummies(d.player.avatar, d.physics, d.layout, d.spawn)
+    this.dummies = placeDummies(d.mannequin, d.physics, d.layout, d.spawn)
     d.scene.add(...this.dummies.map((x) => x.root))
     this.effects = new Effects(d.scene)
     this.cars = d.cars

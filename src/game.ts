@@ -7,6 +7,7 @@ import type { Input } from './input/input'
 import { Life } from './life/life'
 import { createPhysics, FIXED_STEP } from './physics'
 import { Avatar } from './player/avatar'
+import { loadFigures } from './player/figure'
 import { Player } from './player/player'
 import { advance, START_HOUR } from './render/daynight'
 import { Renderer } from './render/renderer'
@@ -37,31 +38,33 @@ async function loadWorld(canvas: HTMLCanvasElement) {
   const physics = await createPhysics()
   const gltf = new GLTFLoader()
   const load = (url: string) => gltf.loadAsync(url)
-  const [avatar, city, makeCar] = await Promise.all([
-    Avatar.load(load),
+  const [figures, city, makeCar] = await Promise.all([
+    loadFigures(load),
     buildCity({ scene, physics }, load, sky.ambient),
     loadCarModel(load),
     sky.load(renderer.gl),
   ])
-  return { scene, camera, renderer, sky, physics, avatar, city, makeCar }
+  return { scene, camera, renderer, sky, physics, figures, city, makeCar }
 }
 
 async function buildScene(canvas: HTMLCanvasElement) {
-  const { scene, camera, renderer, sky, physics, avatar, city, makeCar } = await loadWorld(canvas)
+  const { scene, camera, renderer, sky, physics, figures, city, makeCar } = await loadWorld(canvas)
+  const avatar = new Avatar(figures.male)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
   const cars = parkCars({ scene, physics }, city, makeCar)
   const driving = new Driving(physics, cars, player, scene)
   const follow = new FollowCamera(camera, physics, player.collider)
   const { layout, spawn } = city
-  // People are clones of the player's mannequin: make them before the gun goes into its hand.
-  const life = new Life({ scene, physics, layout, avatar, makeCar, player, driving })
+  const people = [figures.male, figures.female]
+  const life = new Life({ scene, physics, layout, people, makeCar, player, driving })
   const smokers = [...cars, ...life.traffic.cars]
   const targets = life.crowd.people
   const combat = new Combat({
     scene,
     physics,
     player,
+    mannequin: figures.mannequin,
     follow,
     cars: smokers,
     targets,

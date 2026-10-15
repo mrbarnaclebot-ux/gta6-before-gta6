@@ -3,7 +3,7 @@ import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { CityLayout } from '../city/layout'
 import { surfaceAt } from '../city/terrain'
 import { RAPIER, type PhysicsWorld } from '../physics'
-import type { Avatar } from '../player/avatar'
+import type { Figure } from '../player/figure'
 import { damageAt, hurt, type Health } from './damage'
 import type { Surface } from './effects'
 
@@ -35,7 +35,7 @@ export class Dummy {
   private deadFor = 0
 
   constructor(
-    source: Avatar,
+    source: Figure,
     mats: ReturnType<typeof dummyMaterials>,
     physics: PhysicsWorld,
     readonly feet: THREE.Vector3,
@@ -54,8 +54,7 @@ export class Dummy {
       desc.setTranslation(feet.x, feet.y + HALF_HEIGHT + RADIUS, feet.z),
     )
     this.mixer = new THREE.AnimationMixer(this.root)
-    const act = (name: string) =>
-      this.mixer.clipAction(THREE.AnimationClip.findByName(source.clips, name)!)
+    const act = (name: string) => this.mixer.clipAction(source.clip(name)!)
     this.idle = act('Idle_Loop').play()
     this.idle.time = Math.random() * 2
     this.flinch = act('Hit_Chest').setLoop(THREE.LoopOnce, 1)
@@ -100,7 +99,7 @@ export class Dummy {
 
 /** Three dummies on the sand east of the spawn, facing it, clear of the beach palms. */
 export function placeDummies(
-  source: Avatar,
+  source: Figure,
   physics: PhysicsWorld,
   layout: CityLayout,
   spawn: THREE.Vector3,

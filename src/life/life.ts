@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { CURB_H, type CityLayout } from '../city/layout'
 import type { PhysicsWorld } from '../physics'
-import type { Avatar } from '../player/avatar'
+import type { Figure } from '../player/figure'
 import type { Player } from '../player/player'
 import type { CarFactory } from '../vehicle/car-model'
 import type { Driving } from '../vehicle/driving'
@@ -19,7 +19,8 @@ interface LifeDeps {
   scene: THREE.Scene
   physics: PhysicsWorld
   layout: CityLayout
-  avatar: Avatar
+  /** The kinds of people on the sidewalks; they take turns. */
+  people: Figure[]
   makeCar: CarFactory
   player: Player
   driving: Driving
@@ -53,7 +54,7 @@ export class Life {
   constructor(d: LifeDeps) {
     this.player = d.player
     this.driving = d.driving
-    this.crowd = new Crowd(d.scene, d.physics, d.layout, d.avatar, (killed) =>
+    this.crowd = new Crowd(d.scene, d.physics, d.layout, d.people, (killed) =>
       this.struckBy(killed ? 'murder' : 'assault'),
     )
     this.traffic = new Traffic(d.scene, d.physics, d.layout, d.makeCar, () =>
