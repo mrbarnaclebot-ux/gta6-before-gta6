@@ -8,6 +8,8 @@ type Collider = RAPIER_NS.Collider
 /** Tile side: about one city block; 40k trunk colliders split into a few hundred tiles. */
 export const COLLIDER_TILE = 128
 // Load a tile once a focus is this close to it, drop it past UNLOAD (hysteresis).
+// Only the player and the camera are foci, so people, traffic, and bullets past about 180 m
+// from them meet no trunks or buildings.
 const RADIUS = { load: 180, unload: 260 }
 /** Tiles this close are built at once whatever the budget: nothing to fall through after a teleport. */
 const NOW = 48

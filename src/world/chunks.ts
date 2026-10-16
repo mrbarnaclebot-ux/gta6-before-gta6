@@ -45,6 +45,9 @@ export function splitByTile(
   return [...buckets.values()].map((tris) => {
     const out = new THREE.BufferGeometry()
     for (const [name, a] of Object.entries(flat.attributes)) {
+      // The slicing below reads each attribute's array as tightly packed triangles.
+      if (a instanceof THREE.InterleavedBufferAttribute)
+        throw new Error(`splitByTile: interleaved attribute ${name} is not supported`)
       const n = a.itemSize * 3
       const data = new (a.array.constructor as Float32ArrayConstructor)(tris.length * n)
       tris.forEach((t, k) => data.set(a.array.subarray(t * n, t * n + n), k * n))
