@@ -132,6 +132,17 @@ function spawnPoint(c: Land): THREE.Vector3 {
   return new THREE.Vector3(x, surfaceAt(c, x, z) + 0.05, z)
 }
 
+/** The city grid: streets, canal, buildings, shopfronts, furniture, and billboards. */
+function buildStreets(ctx: WorldCtx, layout: Land) {
+  buildGround(ctx, layout)
+  buildMarkings(ctx, layout)
+  buildCanal(ctx, layout)
+  buildBuildings(ctx, layout)
+  buildShopfronts(ctx, layout)
+  buildFurniture(ctx, layout)
+  buildBillboards(ctx, layout)
+}
+
 /** Generates the seeded city and builds every visual and collider for it. */
 export async function buildCity(
   ctx: WorldCtx,
@@ -141,13 +152,7 @@ export async function buildCity(
 ): Promise<City> {
   const plan = await planWorld()
   const { land: layout, flora } = plan
-  buildGround(ctx, layout)
-  buildMarkings(ctx, layout)
-  buildCanal(ctx, layout)
-  buildBuildings(ctx, layout)
-  buildShopfronts(ctx, layout)
-  buildFurniture(ctx, layout)
-  buildBillboards(ctx, layout)
+  buildStreets(ctx, layout)
   const night = buildNightLights(ctx, layout)
   const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)

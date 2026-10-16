@@ -29,46 +29,35 @@ const BASE = new THREE.Color(0.012, 0.022, 0.005)
 const TIP = new THREE.Color(0.05, 0.09, 0.016)
 const STRAW = new THREE.Color(0.15, 0.13, 0.045)
 
+/** One blade's three corners (two at the root, the tip) and colors, appended to `pos` and `col`. */
+function blade(r: () => number, pos: number[], col: number[], top: THREE.Color) {
+  const [x, z] = [(r() - 0.5) * LAWN_CELL * 1.25, (r() - 0.5) * LAWN_CELL * 1.25]
+  const a = r() * Math.PI
+  const w = 0.016 + r() * 0.014
+  const [dx, dz] = [Math.cos(a) * w, Math.sin(a) * w]
+  const h = 0.12 + r() * 0.2
+  const lean = (r() - 0.5) * 0.18
+  pos.push(x - dx, 0, z - dz, x + dx, 0, z + dz)
+  pos.push(x + lean * Math.sin(a + 1), h, z + lean * Math.cos(a + 1))
+  top.copy(TIP).lerp(STRAW, r() < 0.12 ? 0.6 : r() * 0.2)
+  col.push(...BASE.toArray(), ...BASE.toArray(), ...top.toArray())
+}
+
 /** One patch: BLADES blades scattered over a cell, 1 m tall before the per-patch scale. */
 function patch(): THREE.BufferGeometry {
   const r = rng(1234)
   const pos: number[] = []
   const col: number[] = []
-  const tip: number[] = []
-  const c = new THREE.Color()
-  for (let i = 0; i < BLADES; i++) {
-    const [x, z] = [(r() - 0.5) * LAWN_CELL * 1.25, (r() - 0.5) * LAWN_CELL * 1.25]
-    const a = r() * Math.PI
-    const w = 0.016 + r() * 0.014
-    const [dx, dz] = [Math.cos(a) * w, Math.sin(a) * w]
-    const h = 0.12 + r() * 0.2
-    const lean = (r() - 0.5) * 0.18
-    pos.push(
-      x - dx,
-      0,
-      z - dz,
-      x + dx,
-      0,
-      z + dz,
-      x + lean * Math.sin(a + 1),
-      h,
-      z + lean * Math.cos(a + 1),
-    )
-    const top = c.copy(TIP).lerp(STRAW, r() < 0.12 ? 0.6 : r() * 0.2)
-    col.push(...BASE.toArray(), ...BASE.toArray(), ...top.toArray())
-    tip.push(0, 0, 1)
-  }
+  const top = new THREE.Color()
+  for (let i = 0; i < BLADES; i++) blade(r, pos, col, top)
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
   geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
   // Blades lit like the ground they grow from: normals straight up, whichever side faces you.
-  geo.setAttribute(
-    'normal',
-    new THREE.Float32BufferAttribute(
-      pos.map((_, i) => +(i % 3 === 1)),
-      3,
-    ),
-  )
+  const up = pos.map((_, i) => +(i % 3 === 1))
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(up, 3))
+  // 1 at each blade's tip, 0 at its root: how much the wind moves it.
+  const tip = Array.from({ length: BLADES * 3 }, (_, i) => +(i % 3 === 2))
   geo.setAttribute('tip', new THREE.Float32BufferAttribute(tip, 1))
   return geo
 }
