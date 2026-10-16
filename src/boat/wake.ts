@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { foamTexture } from '../sea/foam-texture'
 import type { Boat } from './boat'
-import { Spray } from './spray'
+import { Spray, type SprayLight } from './spray'
 
 type WaterQuery = (x: number, z: number) => number | null
 
@@ -31,11 +31,16 @@ interface Sample {
   odo: number
 }
 
-// The foam is a red-only texture; its strands break up as the strength (vertex alpha) fades.
+/*
+ * The foam is a red-only lace texture, sampled twice: stretched along the trail into streaks,
+ * and fine for bubbles. As the strength (vertex alpha) fades the lace breaks up.
+ */
 const LACE = /* glsl */ `
-  float lace = texture2D( alphaMap, vAlphaMapUv ).r;
+  float streak = texture2D( alphaMap, vAlphaMapUv * vec2( 0.7, 0.09 ) ).r;
+  float fine = texture2D( alphaMap, vAlphaMapUv * vec2( 2.4, 0.8 ) ).r;
+  float lace = 0.6 * streak + 0.5 * fine;
   float strength = diffuseColor.a;
-  diffuseColor.a = smoothstep( 1.0 - strength, 1.35 - strength, lace + 0.15 ) * min( 0.85, strength * 1.2 );
+  diffuseColor.a = smoothstep( 1.05 - strength, 1.5 - strength, lace ) * min( 0.85, strength * 1.2 );
 `
 
 /** The driven boat's foam trail laid on the live waves, and its spray. */
@@ -68,12 +73,14 @@ export class Wake {
     scene.add(this.mesh, this.spray.points)
   }
 
-  /** `boat`: the one being driven, or null. `light`: 0 at night to 1 by day, dims the spray. */
-  update(dt: number, boat: Boat | null, light: number, viewHeight: number): void {
+  /** `boat`: the one being driven, or null. `light` tints the spray, which is not lit. */
+  update(dt: number, boat: Boat | null, light: SprayLight, viewHeight: number): void {
     for (const s of this.trail) s.age += dt
     while (this.trail.length && this.trail[0].age > LIFE) this.trail.shift()
     if (boat) this.follow(boat)
-    this.draw(boat !== null)
+    // Nothing on the water and nobody driving: the strip is already all clear.
+    this.mesh.visible = boat !== null || this.trail.length > 0
+    if (this.mesh.visible) this.draw(boat !== null)
     this.spray.update(dt, boat, light, viewHeight)
   }
 
@@ -138,7 +145,8 @@ function foamAlpha(across: number, s: Sample): number {
 /** White foam, lit like the scene, its lace streaked along the trail. */
 function foamMaterial(): THREE.MeshStandardMaterial {
   const foam = foamTexture()
-  foam.repeat.set(0.45, 0.16)
+  // Meter UVs; the shader scales each of its two samples itself.
+  foam.repeat.set(1, 1)
   const material = new THREE.MeshStandardMaterial({
     color: 0xf4f7f8,
     roughness: 0.85,

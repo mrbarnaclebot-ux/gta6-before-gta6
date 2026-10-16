@@ -132,7 +132,7 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
   w.follow.ignore = car?.collider ?? w.player.collider
   w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chase(car) : undefined)
   const boat = car?.kind === 'boat' ? (car as Boat) : null
-  w.harbor.wake.update(dt, boat, w.sky.ambient.day, w.renderer.gl.domElement.height)
+  w.harbor.wake.update(dt, boat, w.sky.ambient, w.renderer.gl.domElement.height)
   const armed = w.driving.mode === 'walking' && !w.life.dead
   w.combat.update(dt, input, armed, w.renderer.gl.domElement.height)
   const { shots, lastShot } = w.combat.shooter
