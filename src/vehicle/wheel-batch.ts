@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { wheelParts } from './wheel-model'
 
-// ponytail: fixed pool per car kind; 30 cars of one kind is far above the 22 the city spawns.
+// ponytail: fixed pool per car kind: 30 cars. The city spawns 24 sports cars and carjacking
+// keeps at most MAX_STOLEN (life/carjack-rules.ts) more; raise this if either grows.
 const CAPACITY = 120
 
 type Hub = { pivot: THREE.Object3D; car: THREE.Object3D; flip: boolean }

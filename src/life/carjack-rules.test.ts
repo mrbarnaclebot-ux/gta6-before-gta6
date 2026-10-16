@@ -6,10 +6,19 @@ import {
   JACK_RANGE,
   JACK_SPEED,
   jackCrime,
+  scrapFor,
 } from './carjack-rules'
 import { newWanted, report, stars } from './wanted'
 
 describe('carjacking', () => {
+  it('scraps the oldest stolen car of the same kind once at the cap', () => {
+    const car = (kind: string) => ({ visual: { kind } })
+    const [a, b, c] = [car('sports'), car('police'), car('sports')]
+    expect(scrapFor([a, b, c], 'sports', 2)).toBe(a)
+    expect(scrapFor([a, b, c], 'police', 2)).toBeNull()
+    expect(scrapFor([], 'sports', 2)).toBeNull()
+  })
+
   it('only works on a stopped or crawling car within reach', () => {
     expect(canJack(0, 2, false)).toBe(true)
     expect(canJack(JACK_SPEED - 0.1, 2, false)).toBe(true)

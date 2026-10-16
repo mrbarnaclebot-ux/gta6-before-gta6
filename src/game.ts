@@ -93,7 +93,7 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     targets: life.crowd.people,
   })
   life.onRevive = () => Object.assign(combat.shooter.pistol, newPistol())
-  life.carjack.onSteal = (gone, stolen, fresh) => combat.swap(gone, [stolen, fresh])
+  life.carjack.onSteal = (gone, fresh) => combat.swap(gone, fresh)
   const clock = { hours: startHour() }
   return {
     scene,

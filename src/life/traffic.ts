@@ -3,7 +3,8 @@ import type { CityLayout } from '../city/layout'
 import { rng } from '../city/rng'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
-import { PAINT_COUNT, type CarFactory } from '../vehicle/car-model'
+import { PAINT_COUNT, type CarFactory, type CarKind, type CarVisual } from '../vehicle/car-model'
+import { CAR_SPECS } from '../vehicle/car-specs'
 import { laneGraph, type LaneEdge } from '../land/lane-graph'
 import type { Land } from '../land/plan'
 import { canJack, driverWaits } from './carjack-rules'
@@ -90,8 +91,8 @@ export class Traffic {
     this.ignoring = this.cars.map(() => 0)
   }
 
-  private create(kind: 'police' | 'sports'): TrafficCar {
-    const car = new TrafficCar(this.physics, this.make(this.made++ % PAINT_COUNT, kind))
+  private create(kind: CarKind, visual = this.make(this.made++ % PAINT_COUNT, kind)): TrafficCar {
+    const car = new TrafficCar(this.physics, visual)
     car.onShot = this.onShot
     car.ground = groundProbe(this.physics)
     car.visual.root.visible = false
@@ -112,12 +113,18 @@ export class Traffic {
 
   /**
    * Hands a stolen car over: its AI body leaves the physics world and a fresh car of the
-   * same kind takes its place in the pool (it appears out of sight, like any other).
+   * same kind takes its place in the pool (it appears out of sight, like any other),
+   * wearing `reuse` (a scrapped stolen car's visual) if given, else a new one.
    */
-  release(car: TrafficCar): TrafficCar {
+  release(car: TrafficCar, reuse?: CarVisual): TrafficCar {
     const i = this.cars.indexOf(car)
     this.physics.removeRigidBody(car.body)
-    const fresh = this.create(car.visual.police ? 'police' : 'sports')
+    // Undo the steering and suspension the raycast car left on the wheels.
+    for (const w of reuse?.wheels ?? []) {
+      w.rotation.y = 0
+      w.position.y = CAR_SPECS[car.visual.kind].wheel.radius
+    }
+    const fresh = this.create(car.visual.kind, reuse)
     this.cars[i] = fresh
     this.stuck[i] = this.ignoring[i] = 0
     return fresh

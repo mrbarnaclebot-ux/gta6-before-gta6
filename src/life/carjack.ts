@@ -1,8 +1,9 @@
 import * as THREE from 'three'
 import type { Player } from '../player/player'
 import type { Car } from '../vehicle/car'
+import type { CarKind } from '../vehicle/car-model'
 import type { Driving } from '../vehicle/driving'
-import { jackCrime, WITNESS_RANGE } from './carjack-rules'
+import { jackCrime, scrapFor, WITNESS_RANGE } from './carjack-rules'
 import type { Crowd } from './crowd'
 import type { Pedestrian } from './pedestrian'
 import type { Traffic } from './traffic'
@@ -34,8 +35,10 @@ const EULER = new THREE.Euler()
  */
 export class Carjack {
   /** Told when a stolen car changes hands, so bullets can find the new bodies. */
-  onSteal: (gone: TrafficCar, stolen: Car, fresh: TrafficCar) => void = () => {}
+  onSteal: (gone: (TrafficCar | Car)[], fresh: (Car | TrafficCar)[]) => void = () => {}
   private job: Job | null = null
+  /** Cars taken so far and still in play, oldest first. */
+  private readonly stolen: Car[] = []
 
   constructor(
     private readonly traffic: Traffic,
@@ -105,11 +108,22 @@ export class Carjack {
     const { x, y, z } = car.feet
     const spot = { x, y: y + 0.02, z, yaw: EULER.y, pitch: -EULER.x, roll: EULER.z }
     const stolen = this.driving.adopt(car.visual, spot)
-    const fresh = this.traffic.release(car)
-    this.onSteal(car, stolen, fresh)
+    const scrap = this.scrap(car.visual.kind)
+    this.stolen.push(stolen)
+    const fresh = this.traffic.release(car, scrap?.visual)
+    this.onSteal(scrap ? [car, scrap] : [car], [stolen, fresh])
     this.driving.enter(stolen)
     this.job = null
     return false
+  }
+
+  /** At the cap, the oldest stolen car of `kind` leaves play; its visual goes back to traffic. */
+  private scrap(kind: CarKind): Car | null {
+    const old = scrapFor(this.stolen, kind)
+    if (!old) return null
+    this.stolen.splice(this.stolen.indexOf(old), 1)
+    this.driving.drop(old)
+    return old
   }
 
   private abort(j: Job): false {

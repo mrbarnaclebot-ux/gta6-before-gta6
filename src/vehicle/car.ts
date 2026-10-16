@@ -143,6 +143,12 @@ export class Car implements Vehicle {
     }
   }
 
+  /** Leaves the physics world for good; the visual is free to reuse. */
+  remove(physics: PhysicsWorld): void {
+    physics.removeVehicleController(this.vehicle)
+    physics.removeRigidBody(this.body)
+  }
+
   /** Move instantly, at rest, keeping the heading (tests and debugging). */
   place(at: THREE.Vector3): void {
     this.body.setTranslation(at, true)

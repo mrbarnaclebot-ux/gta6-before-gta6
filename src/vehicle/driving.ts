@@ -85,6 +85,12 @@ export class Driving {
     return car
   }
 
+  /** A stolen car leaving play for good: out of the physics world and this list. */
+  drop(car: Car): void {
+    this.cars.splice(this.cars.indexOf(car), 1)
+    car.remove(this.physics)
+  }
+
   fixedUpdate(dt: number, input: Input, cameraYaw: number): void {
     const use = input.consume('use')
     if (this.cutscene) {
