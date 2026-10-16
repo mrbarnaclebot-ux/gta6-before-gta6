@@ -150,8 +150,14 @@ export class Car implements Vehicle {
   }
 
   /** Move instantly, at rest, keeping the heading (tests and debugging). */
-  place(at: THREE.Vector3): void {
+  /** Move the car to `at`, at rest; `heading` (yaw 0 faces +Z) turns it too. */
+  place(at: THREE.Vector3, heading?: number): void {
     this.body.setTranslation(at, true)
+    if (heading !== undefined)
+      this.body.setRotation(
+        { x: 0, y: Math.sin(heading / 2), z: 0, w: Math.cos(heading / 2) },
+        true,
+      )
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true)
     this.snapshot()

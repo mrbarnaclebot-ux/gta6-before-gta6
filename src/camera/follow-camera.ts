@@ -57,6 +57,8 @@ export class FollowCamera {
   ignore: Collider
   private distance = RIGS.foot.distance
   private idle = 0
+  /** A fixed camera for filming (the trailer script): while set, the orbit and chase are skipped. */
+  shot: { eye: THREE.Vector3; target: THREE.Vector3; fov: number } | null = null
   private readonly pivot = new THREE.Vector3()
   private readonly dir = new THREE.Vector3()
   private readonly probe = new RAPIER.Ball(PROBE_RADIUS)
@@ -75,6 +77,7 @@ export class FollowCamera {
     focus: THREE.Vector3,
     chase?: ChaseTarget,
   ): void {
+    if (this.shot) return this.film(this.shot)
     const k = Math.min(1, dt * AIM_RATE)
     const aim = (this.aimBlend += (Number(this.aiming && !chase) - this.aimBlend) * k)
     const ready = (this.readyBlend +=
@@ -98,6 +101,14 @@ export class FollowCamera {
     const fov = chaseFov(chase?.speed ?? 0, this.baseFov) - AIM_ZOOM * aim
     if (Math.abs(fov - this.camera.fov) < 0.01) return
     this.camera.fov += (fov - this.camera.fov) * Math.min(1, dt * 3)
+    this.camera.updateProjectionMatrix()
+  }
+
+  private film({ eye, target, fov }: NonNullable<FollowCamera['shot']>): void {
+    this.camera.position.copy(eye)
+    this.camera.lookAt(target)
+    if (this.camera.fov === fov) return
+    this.camera.fov = fov
     this.camera.updateProjectionMatrix()
   }
 
