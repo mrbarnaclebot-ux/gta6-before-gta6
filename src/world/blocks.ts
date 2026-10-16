@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Rect } from '../city/layout'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { StaticColliders } from './static-colliders'
+import { splitByTile } from './chunks'
 
 export interface WorldCtx {
   scene: THREE.Scene
@@ -64,6 +65,20 @@ export function addMerged(
   ctx.scene.add(mesh)
   geos.forEach((g) => g.dispose())
   return mesh
+}
+
+/** Like addMerged, but cut along the terrain tiles: one mesh per tile, culled when out of view. */
+export function addTiled(
+  ctx: WorldCtx,
+  geos: THREE.BufferGeometry[],
+  material: THREE.Material,
+  shadows = { cast: true, receive: true },
+): void {
+  if (!geos.length) return
+  const whole = mergeGeometries(geos)
+  geos.forEach((g) => g.dispose())
+  for (const piece of splitByTile(whole)) addMerged(ctx, [piece], material, shadows)
+  whole.dispose()
 }
 
 // Rapier's f32 contact math lets the character sink into cuboids hundreds of

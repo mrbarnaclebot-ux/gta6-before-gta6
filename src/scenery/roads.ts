@@ -1,5 +1,5 @@
 import type { Land } from '../land/plan'
-import { addMerged, type WorldCtx } from '../world/blocks'
+import { addTiled, type WorldCtx } from '../world/blocks'
 import { pbr } from '../world/materials'
 import * as THREE from 'three'
 import { bridgeGeometry, LIFT, trimeshCollider } from './bridges'
@@ -8,7 +8,7 @@ import { strip, sweep } from './sweep'
 
 /**
  * Every road outside the city grid: asphalt, lane paint, and the highway's concrete.
- * One merged mesh per material: a few draw calls for the whole map. The highway and
+ * Merged per material and cut along the 256 m terrain tiles, so only tiles in view draw. The highway and
  * its ramps collide as triangle meshes (bridges); the rest rest on the terrain they
  * are cut into.
  */
@@ -23,7 +23,7 @@ export function buildRoads(ctx: WorldCtx, land: Land): void {
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
   })
-  addMerged(ctx, surfaces, asphalt, { cast: false, receive: true })
+  addTiled(ctx, surfaces, asphalt, { cast: false, receive: true })
   const paint = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.75,
@@ -31,7 +31,7 @@ export function buildRoads(ctx: WorldCtx, land: Land): void {
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   })
-  addMerged(ctx, markingGeometry(paved), paint, { cast: false, receive: true })
+  addTiled(ctx, markingGeometry(paved), paint, { cast: false, receive: true })
   const concrete = pbr('white_stucco', 0.3, { color: 0xcdc8c0, roughness: 0.92 })
   const under = paved.filter((p) => p.kind !== 'highway' && p.kind !== 'ramp')
   // Facet normals: concrete has hard edges, and smooth ones made the barrier look like a tube.
@@ -40,5 +40,5 @@ export function buildRoads(ctx: WorldCtx, land: Land): void {
     flat.computeVertexNormals()
     return flat
   }
-  addMerged(ctx, bridgeGeometry(ctx, land, elevated, under).map(crisp), concrete)
+  addTiled(ctx, bridgeGeometry(ctx, land, elevated, under).map(crisp), concrete)
 }
