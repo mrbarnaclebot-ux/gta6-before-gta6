@@ -27,7 +27,8 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - hdri/day_kloofendal_2k.hdr (2k) - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky - Greg Zaal, sky edits Jarod Guest - CC0
 - hdri/night_dikhololo_1k.hdr (1k) - https://polyhaven.com/a/dikhololo_night - Greg Zaal - CC0
 
-## PBR textures, 1k (Poly Haven, CC0). Each folder: diff.jpg (color), nor_gl.jpg (OpenGL normal), rough.jpg (roughness)
+## PBR textures, 1k (Poly Haven, CC0). Each folder: diff (color), nor_gl (OpenGL normal), rough (roughness)
+Shipped as KTX2 (Basis ETC1S) made by scripts/compress-assets.mjs from the JPEG sources kept in assets-src/textures; the four terrain layers are packed into textures/terrain_albedo.ktx2 and terrain_normal.ktx2. Every glb under models/ is Meshopt-compressed by the same script from the originals in assets-src/models (no visual change).
 - textures/asphalt_02 - https://polyhaven.com/a/asphalt_02 - Rob Tuytel
 - textures/concrete_pavement_02 - https://polyhaven.com/a/concrete_pavement_02 (sidewalk) - Charlotte Baglioni
 - textures/coast_sand_01 - https://polyhaven.com/a/coast_sand_01 (beach) - Rob Tuytel

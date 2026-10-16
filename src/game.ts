@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { BootAudio } from './audio/boot'
 import { gameSound } from './audio/game-audio'
 import { FollowCamera } from './camera/follow-camera'
@@ -30,6 +29,8 @@ import { parkCars } from './vehicle/fleet'
 import { underwaterLightAll } from './sea/caustics'
 import { buildCity } from './world/city'
 import { DETAIL_LAYER } from './world/instancing'
+import { modelLoader } from './world/load-model'
+import { initKtx2 } from './render/ktx2'
 
 const MAX_FRAME = 0.1
 
@@ -53,8 +54,8 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   // Every loader here uses three's default manager, so it sees each glb, hdr, and texture.
   const files = THREE.DefaultLoadingManager
   files.onProgress = (_url, loaded, total) => loading.files(loaded, total)
-  const gltf = new GLTFLoader()
-  const load = (url: string) => gltf.loadAsync(url)
+  initKtx2(renderer.gl)
+  const load = modelLoader()
   const [figures, city] = await Promise.all([
     loadFigures(load),
     buildCity({ scene, physics }, load, sky.ambient, renderer.gl),
