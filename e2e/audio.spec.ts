@@ -1,7 +1,14 @@
 import { expect, test, type Page } from '@playwright/test'
 import { LOAD_TIMEOUT, settle, SLOW } from './helpers'
 
-type AudioState = { context: string; prefs: Record<string, number | boolean> }
+type AudioState = {
+  context: string
+  prefs: Record<string, number | boolean>
+  loops?: string[]
+  beds?: Record<string, number> | null
+}
+const audioState = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __game: { audio: () => AudioState } }).__game.audio())
 
 /** Bytes of sound files the page has fetched so far. */
 const audioBytes = (page: Page) =>
@@ -46,11 +53,15 @@ test('audio: settings persist, and Play starts the sound', async ({ page }) => {
   await page.getByRole('button', { name: 'Play' }).click()
   await page.waitForFunction(() => '__game' in window, null, { timeout: LOAD_TIMEOUT })
   await settle(page)
-  const audio = await page.evaluate(() =>
-    (window as unknown as { __game: { audio: () => AudioState } }).__game.audio(),
-  )
+  const audio = await audioState(page)
   console.log(`audio context ${audio.context}`)
   expect(audio.context).toBe('running')
   expect(audio.prefs.music).toBe(0.4)
+  // The game's sound is fed, not just the context awake: an ambience bed is mixed in, and a
+  // loop starts once its file arrives.
+  expect(Math.max(...Object.values(audio.beds ?? {}))).toBeGreaterThan(0)
+  await expect
+    .poll(async () => (await audioState(page)).loops?.length ?? 0, { timeout: 30_000 * SLOW })
+    .toBeGreaterThan(0)
   expect(errors).toEqual([])
 })
