@@ -18,6 +18,8 @@ export interface MarinaPlan {
   deckY: number
   piles: { x: number; z: number }[]
   bollards: { x: number; z: number }[]
+  /** Low dock lamps along the deck edges, lit at night, each with the deck patch it lights. */
+  lamps: { x: number; z: number; pool: Rect }[]
   /** Boats tied up at the docks, then one anchored off the beach and one in the canal. */
   boats: BoatSpot[]
   /** A spot on the T-head beside a boat with open water ahead of it, for tests. */
@@ -64,6 +66,7 @@ export function planMarina(land: Land): MarinaPlan {
     deckY: DECK_Y,
     piles: [...edgePiles(pier, 'x'), ...edgePiles(head, 'z')],
     bollards: boats.slice(0, 6).map((b) => bollard(b, pier, head)),
+    lamps: lamps(pier, head),
     boats,
     dock: { x: head.x1 - 0.6, y: DECK_Y, z: boats[4].z },
     zone: { x0: start - 12, x1: END, z0: PIER_Z - 8, z1: PIER_Z + 8 },
@@ -78,6 +81,26 @@ function edgePiles(r: Rect, along: 'x' | 'z'): { x: number; z: number }[] {
     for (const edge of along === 'x' ? [r.z0, r.z1] : [r.x0, r.x1]) {
       out.push(along === 'x' ? { x: a, z: edge } : { x: edge, z: a })
     }
+  }
+  return out
+}
+
+const LAMP_GAP = 14
+
+const POOL_HALF = 3.5
+
+/**
+ * Lamps on alternating edges of the pier, then one at each end of the T-head. Each lights
+ * the deck across its full width for a few meters, and stops at the deck's edges.
+ */
+function lamps(pier: Rect, head: Rect): MarinaPlan['lamps'] {
+  const out: MarinaPlan['lamps'] = []
+  for (let x = pier.x0 + 6, i = 0; x < pier.x1 - 2; x += LAMP_GAP, i++) {
+    const pool = { ...pier, x0: x - POOL_HALF, x1: x + POOL_HALF }
+    out.push({ x, z: i % 2 ? pier.z0 + 0.2 : pier.z1 - 0.2, pool })
+  }
+  for (const z of [head.z0 + 1, head.z1 - 1]) {
+    out.push({ x: head.x1 - 0.2, z, pool: { ...head, z0: z - POOL_HALF, z1: z + POOL_HALF } })
   }
   return out
 }

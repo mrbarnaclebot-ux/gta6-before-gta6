@@ -5,6 +5,7 @@ import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
 import { underwaterLight } from '../sea/caustics'
 import { addMerged, rectBox, rectCollider, type WorldCtx } from '../world/blocks'
+import { buildDockLights } from './dock-lights'
 
 const DECK_THICK = 0.3
 const PILE_R = 0.17
@@ -31,8 +32,11 @@ function deckMaterial(): THREE.MeshStandardMaterial {
   })
 }
 
-/** The docks: plank decks on a beam, round piles down to the seabed, and white bollards. */
-export function buildMarina(ctx: WorldCtx, land: Land, plan: MarinaPlan): void {
+/**
+ * The docks: plank decks on a beam, round piles down to the seabed, white bollards, and
+ * lamps. Returns the lamps' night switch (0 by day to 1 at night).
+ */
+export function buildMarina(ctx: WorldCtx, land: Land, plan: MarinaPlan) {
   const top = plan.deckY
   const deck = deckMaterial()
   const timber = underwaterLight(
@@ -70,6 +74,7 @@ export function buildMarina(ctx: WorldCtx, land: Land, plan: MarinaPlan): void {
     plan.bollards.flatMap((b) => bollard(b, top)),
     white,
   )
+  return buildDockLights(ctx, plan)
 }
 
 /** One pile from below the seabed to the deck top, with its collider. */

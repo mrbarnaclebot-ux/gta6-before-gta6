@@ -14,7 +14,8 @@ const POOL = 15
 const REAL_LIGHTS = 4
 const LAMP = new THREE.Color(1.0, 0.8, 0.55)
 
-function poolTexture(): THREE.Texture {
+/** A soft round pool of lamplight, white in the middle, for additive quads on the ground. */
+export function poolTexture(): THREE.Texture {
   const c = document.createElement('canvas')
   c.width = c.height = 128
   const g = c.getContext('2d')!

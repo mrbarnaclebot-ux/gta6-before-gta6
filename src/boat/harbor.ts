@@ -12,7 +12,7 @@ type WaterQuery = (x: number, z: number) => number | null
 /** The marina's docks, every boat at its mooring, and the wake the driven one leaves. */
 export function buildHarbor(ctx: WorldCtx, land: Land, water: WaterQuery) {
   const plan = planMarina(land)
-  buildMarina(ctx, land, plan)
+  const setNight = buildMarina(ctx, land, plan)
   const models = new BoatModels()
   const boats = plan.boats.map((spot) => {
     const boat = new Boat(ctx.physics, models.make(), spot, water)
@@ -23,6 +23,8 @@ export function buildHarbor(ctx: WorldCtx, land: Land, water: WaterQuery) {
     boats,
     dock: plan.dock,
     wake: new Wake(ctx.scene, water),
+    /** 0 by day to 1 at night: lights the dock lamps. */
+    setNight,
     /** Fetches the boat model; call after the first frame, like the car bodies. */
     upgrade: (load: (url: string) => Promise<GLTF>) => models.load(load),
   }
