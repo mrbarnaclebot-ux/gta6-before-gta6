@@ -78,8 +78,8 @@ function decoParts(b: Building, p: Parts, wall: number, accent: number) {
   p.facade[b.style].push(tinted(walls(b, b.w, b.d, 0, h), wall))
   solid(p, b, b.w, b.d, 0, h)
   plinth(b, p, b.w, b.d, 0xd9d3c7)
-  // Art-deco "eyebrow" sun shades over every window band.
-  for (let i = 0; i < b.floors; i++) {
+  // Art-deco "eyebrow" sun shades over every window band but the ground floor's shops.
+  for (let i = 1; i < b.floors; i++) {
     p.trim.push(tinted(box(b, b.w + 0.9, 0.12, b.d + 0.9, 0, i * fh + fh * 0.76, 0), accent))
   }
   crownParts(b, p, b.w, b.d, h, wall)
@@ -144,11 +144,8 @@ function partsFor(list: Building[]): Parts {
   return p
 }
 
-/**
- * All buildings, merged per 250 m chunk and per material, with box colliders for each
- * solid part. Returns the facade materials so night can light their windows.
- */
-export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMaterial[] {
+/** All buildings, merged per 250 m chunk and per material, with box colliders for each solid part. */
+export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
   const styles: Style[] = ['deco', 'residential', 'glass']
   const facades = new Map(styles.map((s) => [s, facadeMaterial(s)]))
   const trim = pbr('white_stucco', 0.5, { vertexColors: true })
@@ -167,5 +164,4 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandard
       ctx.colliders.add(desc.setTranslation(at.x, at.y, at.z))
     }
   }
-  return [...facades.values()]
 }

@@ -23,8 +23,10 @@ import { buildCanal } from './canal'
 import { hospitals } from '../life/places'
 import { buildGround } from './ground'
 import { buildHospitalSigns } from './hospital-signs'
+import { ROOM_LIGHT } from './interior'
 import { buildMarkings } from './markings'
 import { buildNeon } from './neon'
+import { buildShopfronts } from './shopfronts'
 import { placeProps } from './props'
 import { buildStreetGlow } from './street-glow'
 import { plantVegetation } from './vegetation'
@@ -76,13 +78,13 @@ function landmarks(c: Land): Record<string, Point> {
   }
 }
 
-/** Everything that lights up after dark: windows, neon, street lamps, hospital signs. */
-function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMaterial[]) {
+/** Everything that lights up after dark: rooms behind the windows, neon, street lamps, hospital signs. */
+function buildNightLights(ctx: WorldCtx, c: Land) {
   const neon = buildNeon(ctx, c)
   const glow = buildStreetGlow(ctx, c, placeProps(ctx, c))
   const signs = buildHospitalSigns(ctx, hospitals(c))
-  return (k: number, focus: THREE.Vector3) => {
-    for (const w of windows) w.emissiveIntensity = 1.3 * k
+  return (k: number, day: number, focus: THREE.Vector3) => {
+    ROOM_LIGHT.value.set(day, k)
     signs.emissiveIntensity = 0.1 + 1.6 * k
     neon.setNight(k)
     glow.update(k, focus)
@@ -137,7 +139,9 @@ export async function buildCity(
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
-  const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
+  buildBuildings(ctx, layout)
+  buildShopfronts(ctx, layout)
+  const night = buildNightLights(ctx, layout)
   const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
@@ -155,7 +159,7 @@ export async function buildCity(
       return sea.underwater.depth
     },
     update(dt, camera, swimmer = null) {
-      night(light.night, camera.position)
+      night(light.night, light.day, camera.position)
       plants(camera.position, reach)
       sea.update(dt, camera, swimmer)
     },

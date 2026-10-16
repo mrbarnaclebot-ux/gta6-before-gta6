@@ -6,7 +6,9 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `ground.ts` roads, raised sidewalks with curbs, park lawns
 - `markings.ts` lane lines, crosswalks, stop lines (one draw call)
 - `buildings.ts` facades, trim, roofs, merged per chunk; box colliders
-- `facades.ts` procedural PBR window textures per building style
+- `facades.ts` procedural PBR window textures per building style; `interior.ts` the rooms seen through every window (interior mapping), lit at night
+- `shopfronts.ts` the owner's shopfront pictures on ground floors; `sign-material.ts` the material that draws them and the billboards from the sign atlas
+- `late-textures.ts` the room and sign atlases, loaded after the first frame
 - `canal.ts` seawalls, bridges, railings, and swim-out steps (ramp colliders)
 - `water.ts` reflective sea and canal water on the wave grid (shaders in `src/sea`); `wet-areas.ts` skips its mirror when no water is in view
 - `impostor.ts` 4-triangle cards baked from a model, for far palms
@@ -15,7 +17,6 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `props.ts` streetlights, one instanced batch for the whole city
 - `street-glow.ts` lamp light pools and the few real lights near the camera at night
 - `neon.ts` neon tubes and their color wash on art-deco and tower facades at night
-- `night-windows.ts` lit-window emissive maps for the facades
 - `hospital-signs.ts` lightbox signs at the respawn points
 - `instancing.ts`, `chunks.ts` instancing (grounded spots: height, tilt, tint) and frustum-culling helpers, `splitByTile`; `lod-instances.ts` levels of detail chosen per spot by distance, chunks that cannot change skipped, far impostors on 800 m chunks
 - `blocks.ts` shared geometry and collider helpers; `addTiled` merges and cuts meshes along the terrain tiles

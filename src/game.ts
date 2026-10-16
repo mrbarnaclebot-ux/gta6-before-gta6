@@ -32,6 +32,7 @@ import { DETAIL_LAYER } from './world/instancing'
 import { StaticColliders } from './world/static-colliders'
 import { modelLoader } from './world/load-model'
 import { initKtx2 } from './render/ktx2'
+import { loadLateTextures } from './world/late-textures'
 
 const MAX_FRAME = 0.1
 
@@ -138,7 +139,12 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     clock,
     carModels,
     harbor,
-    upgradeCars: () => Promise.all([carModels.upgrade(world.load), harbor.upgrade(world.load)]),
+    upgradeCars: () =>
+      Promise.all([
+        carModels.upgrade(world.load),
+        harbor.upgrade(world.load),
+        loadLateTextures().catch((e: unknown) => console.warn('room and sign art failed', e)),
+      ]),
   }
 }
 

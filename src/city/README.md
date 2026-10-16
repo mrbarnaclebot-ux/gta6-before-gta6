@@ -9,3 +9,4 @@ Pure, seeded city plan: plain data, no three.js or physics. `src/world` turns it
 - `terrain.ts` ground, water, and walkable surface heights, read from the land heightmap (`src/land`)
 - `rng.ts` seeded random numbers (Mulberry32) and pick/range helpers
 - `*.test.ts` determinism and layout invariants
+- `shops.ts` ground-floor shop slots on the street walls of low-rise buildings (drawn by `world/shopfronts.ts`)

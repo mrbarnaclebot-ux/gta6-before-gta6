@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { BAY, type Style } from '../city/lots'
 import { rng, type Rand } from '../city/rng'
-import { GLOW_BAYS, GLOW_FLOORS, windowGlow } from './night-windows'
+import { interiorMapped } from './interior'
 
 /*
  * Procedural PBR facade textures. No CC0 window texture fit Miami, so each style
@@ -64,34 +64,11 @@ function glass(r: Rand, base: [number, number, number], metal: number): Paint {
   return { albedo: shade(r, base, 0.25), rough: 0.05 + r() * 0.05, metal, height: 0.25 }
 }
 
-/** Interior blinds or curtains behind some windows break up the repetition. */
-function blinds(
-  l: Layers,
-  r: Rand,
-  bx: number,
-  fy: number,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-) {
-  if (r() > 0.35) return
-  const drop = h * (0.2 + r() * 0.6)
-  const tone: [number, number, number] = r() < 0.5 ? [214, 205, 188] : [170, 172, 168]
-  rect(l, bx, fy, [x, y + h - drop, w, drop], {
-    albedo: shade(r, tone, 0.1),
-    rough: 0.9,
-    metal: 0,
-    height: 0.25,
-  })
-}
-
 function deco(l: Layers, r: Rand, bx: number, fy: number) {
   rect(l, bx, fy, [0, 0, 1, 1], WALL)
   rect(l, bx, fy, [0.08, 0.26, 0.84, 0.48], FRAME)
   rect(l, bx, fy, [0.11, 0.29, 0.78, 0.42], glass(r, [112, 142, 150], 0.7))
   rect(l, bx, fy, [0.49, 0.29, 0.02, 0.42], FRAME)
-  blinds(l, r, bx, fy, 0.11, 0.29, 0.78, 0.42)
   rect(l, bx, fy, [0.06, 0.22, 0.88, 0.04], { ...WALL, albedo: '#e4e0d8', height: 0.75 })
 }
 
@@ -100,7 +77,6 @@ function residential(l: Layers, r: Rand, bx: number, fy: number) {
   rect(l, bx, fy, [0.1, 0.16, 0.8, 0.78], FRAME)
   rect(l, bx, fy, [0.12, 0.18, 0.76, 0.74], glass(r, [96, 122, 138], 0.7))
   rect(l, bx, fy, [0.495, 0.18, 0.01, 0.74], FRAME)
-  blinds(l, r, bx, fy, 0.12, 0.18, 0.76, 0.74)
   rect(l, bx, fy, [0, 0, 1, 0.1], { ...WALL, albedo: '#e8e5df', height: 0.7 })
 }
 
@@ -168,22 +144,19 @@ export function facadeMaterial(style: Style): THREE.MeshStandardMaterial {
     for (let fy = 0; fy < TILE_FLOORS; fy++) PAINTERS[style](l, r, bx, fy)
   }
   const orm = texture(l.orm.canvas, false)
-  const glow = windowGlow(style)
-  glow.repeat.set(TILE_BAYS / GLOW_BAYS, TILE_FLOORS / GLOW_FLOORS)
-  return new THREE.MeshStandardMaterial({
+  const m = new THREE.MeshStandardMaterial({
     map: texture(l.albedo.canvas, true),
     roughnessMap: orm,
     metalnessMap: orm,
     normalMap: texture(canvasOf(normalFrom(l.height, 6)), false),
-    // Lit windows; the day and night cycle raises the intensity after dusk.
-    emissiveMap: glow,
-    emissive: 0xffffff,
-    emissiveIntensity: 0,
     // The maps hold the real values; these scalars just pass them through.
     roughness: 1,
     metalness: 1,
     vertexColors: true,
   })
+  // Rooms behind the glass, lit at night (interior.ts).
+  interiorMapped(m, style)
+  return m
 }
 
 /** Facade UV scale: meters per texture tile, horizontally and vertically. */
