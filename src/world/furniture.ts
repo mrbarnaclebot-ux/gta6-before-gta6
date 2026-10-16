@@ -5,18 +5,20 @@ import { RAPIER } from '../physics'
 import { addMerged, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
 import { FURNITURE_HALF, furniturePieces, type Mat } from './furniture-models'
+import { DETAIL_LAYER } from './instancing'
 import { signMaterial } from './sign-material'
 
+/**
+ * Metal, paint, wood, and glass share one material: at their size the difference in sheen
+ * does not show, and every material is another draw call per chunk.
+ */
 function materials(): Record<Mat, THREE.Material> {
-  const lit = (p: THREE.MeshStandardMaterialParameters) =>
-    new THREE.MeshStandardMaterial({ vertexColors: true, ...p })
-  return {
-    metal: lit({ metalness: 0.6, roughness: 0.45 }),
-    paint: lit({ metalness: 0.1, roughness: 0.5 }),
-    wood: lit({ roughness: 0.75 }),
-    glass: lit({ metalness: 0.2, roughness: 0.05 }),
-    sign: signMaterial(),
-  }
+  const solid = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    metalness: 0.3,
+    roughness: 0.5,
+  })
+  return { metal: solid, paint: solid, wood: solid, glass: solid, sign: signMaterial() }
 }
 
 const turn = new THREE.Matrix4()
@@ -29,15 +31,17 @@ export function buildFurniture(ctx: WorldCtx, c: Land): void {
   const items = furnitureFor(c, [...c.palms, ...c.lights])
   const mats = materials()
   for (const list of groupByChunk(items).values()) {
-    const buckets = new Map<Mat, THREE.BufferGeometry[]>()
+    const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>()
     for (const f of list) {
       turn.makeRotationY(f.r).setPosition(f.x, f.y, f.z)
       for (const p of furniturePieces(f.kind, f.v)) {
-        const bucket = buckets.get(p.mat) ?? buckets.set(p.mat, []).get(p.mat)!
+        const mat = mats[p.mat]
+        const bucket = buckets.get(mat) ?? buckets.set(mat, []).get(mat)!
         bucket.push(p.geo.applyMatrix4(turn))
       }
     }
-    for (const [mat, geos] of buckets) addMerged(ctx, geos, mats[mat])
+    // Detail layer: not in the sea mirror, and no shadow pass for things this small.
+    for (const [mat, geos] of buckets) addMerged(ctx, geos, mat)?.layers.set(DETAIL_LAYER)
   }
   for (const f of items) {
     const [hx, hy, hz] = FURNITURE_HALF[f.kind]

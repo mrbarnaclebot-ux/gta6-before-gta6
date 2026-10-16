@@ -2,6 +2,7 @@ import { shopsFor } from '../city/shops'
 import type { CityLayout } from '../city/layout'
 import { addMerged, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
+import { DETAIL_LAYER } from './instancing'
 import { signMaterial, signQuad } from './sign-material'
 
 // In front of the wall and its 8 cm plinth, so neither shows through.
@@ -17,6 +18,7 @@ export function buildShopfronts(ctx: WorldCtx, c: CityLayout): void {
         .rotateY(Math.atan2(s.nx, s.nz))
         .translate(s.x + s.nx * OUT, 0, s.z + s.nz * OUT),
     )
-    addMerged(ctx, geos, mat, { cast: false, receive: true })
+    // Detail layer: the sea mirror and the shadow passes skip them.
+    addMerged(ctx, geos, mat, { cast: false, receive: true })?.layers.set(DETAIL_LAYER)
   }
 }
