@@ -71,8 +71,15 @@ float seaFoam() {
   float wall = smoothstep( w - 0.12, w + 0.04, foamNoise ) * ( 1.0 - w ) * smoothstep( 0.6, 1.5, fld.x );
   edge = max( edge, wall * 0.85 );
   // Breakers: the surf crest turns white in the shallows and leaves a trail that breaks up.
-  float psi = fract( seaSurfPhase( worldPosition.xz, seaTime, shore ) / 6.2831853 );
-  float breaking = seaSurfBuild( shore ) * ( 1.0 - smoothstep( 0.9, 2.6, fld.x ) );
+  float ph = seaSurfPhase( worldPosition.xz, seaTime, shore ) / 6.2831853;
+  float psi = fract( ph );
+  // Real surf breaks in sets with green water between. The crest's own index shifts the
+  // gaps, so each crest keeps its pattern all the way in and the next one breaks elsewhere.
+  float k = floor( ph + 0.5 );
+  vec2 q = worldPosition.xz;
+  float sets = sin( 0.09 * q.y + 0.02 * q.x + k * 2.4 ) + sin( 0.13 * q.y - 0.03 * q.x + k * 1.3 );
+  float broken = smoothstep( -0.3, 0.5, sets + ( foamNoise - 0.5 ) * 0.8 );
+  float breaking = seaSurfBuild( shore ) * ( 1.0 - smoothstep( 0.9, 2.6, fld.x ) ) * broken;
   float trail = smoothstep( psi * 6.0 - 0.04, psi * 6.0 + 0.12, foamNoise ) * ( 1.0 - smoothstep( 0.03, 0.16, psi ) );
   float lip = smoothstep( 0.965, 1.0, psi ) * smoothstep( 0.35, 0.6, foamNoise ) * 0.6;
   float breakers = breaking * max( trail, lip ) * 0.9;
