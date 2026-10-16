@@ -45,6 +45,8 @@ function startHour(): number {
 async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   installHeightFog()
   const scene = new THREE.Scene()
+  // runLoop updates the scene's matrices once a frame before drawing.
+  scene.matrixWorldAutoUpdate = false
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
   camera.layers.enable(DETAIL_LAYER)
   const renderer = new Renderer(canvas, scene, camera)
@@ -192,6 +194,8 @@ function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: numbe
     if (!menuKeys(ui, w, input)) acc = simulate(w, input, dt, acc)
     w.carModels.newFrame()
     look.update(dt)
+    // Once a frame, not once per scene render (the view, the sea mirror, and AO each drew it).
+    w.scene.updateMatrixWorld()
     w.renderer.render(dt)
     onFrame(dt)
     work.ms += performance.now() - t0
