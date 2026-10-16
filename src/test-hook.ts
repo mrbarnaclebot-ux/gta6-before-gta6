@@ -204,6 +204,18 @@ function seaHelpers({ city }: HookDeps) {
   }
 }
 
+/** The player's own vehicles: parked and stolen cars, and boats. */
+function vehicleHelpers({ driving }: HookDeps) {
+  const kind = (k: 'car' | 'boat') => driving.cars.filter((c) => c.kind === k)
+  return {
+    /** Every parked, stolen, or driven car's position (boats are in `boats`). */
+    cars: () => kind('car').map(({ position }) => xyz(position)),
+    /** Every boat: position and heading. */
+    boats: () =>
+      kind('boat').map((b) => ({ ...xyz(b.position), heading: attitudeYaw(b.quaternion) })),
+  }
+}
+
 /** Places, the camera, targets, and the GPS route. */
 function worldHelpers(deps: HookDeps) {
   const { driving, follow, city, combat } = deps
@@ -221,13 +233,7 @@ function worldHelpers(deps: HookDeps) {
         marina: { ...deps.dock },
       }
     },
-    /** Every parked or driven car's position (boats too: see `boats`). */
-    cars: () => driving.cars.filter((c) => c.kind === 'car').map(({ position }) => xyz(position)),
-    /** Every boat: position and heading. */
-    boats: () =>
-      driving.cars
-        .filter((c) => c.kind === 'boat')
-        .map((b) => ({ ...xyz(b.position), heading: attitudeYaw(b.quaternion) })),
+    ...vehicleHelpers(deps),
     teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
     /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
     ground: (x: number, z: number) => surfaceAt(city.layout, x, z),

@@ -21,16 +21,20 @@ function deckTexture(name: string, srgb: boolean): THREE.Texture {
   return t
 }
 
-/** The docks: plank decks on a beam, round piles down to the seabed, and white bollards. */
-export function buildMarina(ctx: WorldCtx, land: Land, plan: MarinaPlan): void {
-  const top = plan.deckY
-  const deck = new THREE.MeshStandardMaterial({
+function deckMaterial(): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
     map: deckTexture('diff', true),
     normalMap: deckTexture('nor_gl', false),
     roughnessMap: deckTexture('rough', false),
     // The scan is dark, wet-looking timber; lifted toward sun-bleached grey.
     color: new THREE.Color(1.55, 1.5, 1.42),
   })
+}
+
+/** The docks: plank decks on a beam, round piles down to the seabed, and white bollards. */
+export function buildMarina(ctx: WorldCtx, land: Land, plan: MarinaPlan): void {
+  const top = plan.deckY
+  const deck = deckMaterial()
   const timber = underwaterLight(
     new THREE.MeshStandardMaterial({ color: 0x5b4c3d, roughness: 0.85 }),
   )
