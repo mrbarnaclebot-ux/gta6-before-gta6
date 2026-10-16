@@ -23,6 +23,9 @@ const DUSK_FILL = {
 }
 // The night HDRI glows orange at the horizon; city nights in the references read violet-blue.
 const NIGHT_GRADE = [0.55, 0.5, 1.15]
+// Hours between which the night sky must be on hand: it loads a while before dusk.
+const NIGHT_FROM = 15
+const NIGHT_UNTIL = 8
 const DAY_ENV = 0.9
 const NIGHT_ENV = 0.6
 
@@ -61,6 +64,10 @@ export class Sky {
   private env = { day: null as THREE.Texture | null, night: null as THREE.Texture | null }
   private hdriSunAzimuth = 0
   private underwater = false
+  private gl: THREE.WebGLRenderer | null = null
+  private nightAsked = false
+  private dayWidth = 0
+  private hours = 12
   private waterDepth = 0
 
   constructor(private readonly scene: THREE.Scene) {
@@ -68,10 +75,13 @@ export class Sky {
     scene.add(this.sun, this.sun.target, this.dome.mesh, this.fill)
   }
 
-  /** Loads both skies and prefilters their lighting now, so dusk does not hitch. */
+  /**
+   * Loads the day sky and prefilters its lighting. The night sky waits until the clock nears
+   * dusk (see setTime): most sessions never need it in their first minutes.
+   */
   async load(gl: THREE.WebGLRenderer): Promise<void> {
-    const loader = new HDRLoader()
-    const [day, night] = await Promise.all([loader.loadAsync(DAY_URL), loader.loadAsync(NIGHT_URL)])
+    this.gl = gl
+    const day = await new HDRLoader().loadAsync(DAY_URL)
     const dayPixels = pixels(day)
     const [sx, , sz] = sunDirection(dayPixels.data, dayPixels.width, dayPixels.height)
     this.hdriSunAzimuth = Math.atan2(sz, sx)
@@ -80,24 +90,39 @@ export class Sky {
     // A "puresky" HDRI is nearly black below the horizon, which leaves every wall facing
     // away from the sun unlit. Sunlit pale ground gives the bounce light a bright city has.
     paintLowerHalf(day, [r * 0.8, g * 0.74, b * 0.64])
-    // Same size as the day sky, so both prefiltered maps share one shader variant and
-    // the switch at dusk does not recompile every material.
-    grade(night, NIGHT_GRADE)
-    upscale(night, dayPixels.width / (night.image as { width: number }).width)
-    paintLowerHalf(night, [0.02, 0.018, 0.03])
     const pmrem = new THREE.PMREMGenerator(gl)
-    this.env.day = pmrem.fromEquirectangular(day).texture
-    this.env.night = pmrem.fromEquirectangular(night).texture
+    this.env.day = this.env.night = pmrem.fromEquirectangular(day).texture
     pmrem.dispose()
-    this.dome.uniforms.dayMap.value = day
-    this.dome.uniforms.nightMap.value = night
+    this.dome.uniforms.dayMap.value = this.dome.uniforms.nightMap.value = day
+    this.dayWidth = dayPixels.width
     this.dome.mesh.visible = true
     this.fog = new THREE.FogExp2(new THREE.Color(), this.fogDensity)
     this.scene.fog = this.fog
   }
 
+  /** Fetches and prefilters the night sky once; until then the day sky stands in, dimmed. */
+  private loadNight(): void {
+    if (this.nightAsked || !this.gl) return
+    this.nightAsked = true
+    const gl = this.gl
+    void new HDRLoader().loadAsync(NIGHT_URL).then((night) => {
+      // Same size as the day sky, so both prefiltered maps share one shader variant and
+      // the switch at dusk does not recompile every material.
+      grade(night, NIGHT_GRADE)
+      upscale(night, this.dayWidth / (night.image as { width: number }).width)
+      paintLowerHalf(night, [0.02, 0.018, 0.03])
+      const pmrem = new THREE.PMREMGenerator(gl)
+      this.env.night = pmrem.fromEquirectangular(night).texture
+      pmrem.dispose()
+      this.dome.uniforms.nightMap.value = night
+      this.setTime(this.hours)
+    })
+  }
+
   /** Move the sun, moon, sky, haze, and image-based light to `hours` (0 to 24). */
   setTime(hours: number): void {
+    this.hours = hours
+    if (hours >= NIGHT_FROM || hours < NIGHT_UNTIL) this.loadNight()
     const l = lighting(hours)
     const a = this.ambient
     a.day = l.day

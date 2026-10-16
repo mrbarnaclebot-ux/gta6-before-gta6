@@ -2,13 +2,14 @@
 //   node scripts/compress-assets.mjs [textures] [models]
 // Textures: each PBR set becomes three KTX2 files (Basis ETC1S, mipmapped); the terrain's four
 // layers become two KTX2 array textures (color with roughness in alpha, and normals).
-// Models: every glb gets Meshopt geometry compression (quantized, reordered).
-// Needs basisu (brew install basis_universal) and ffmpeg. Takes about a minute.
+// Models: every glb gets Meshopt geometry compression (quantized, reordered); JPEG textures
+// become WebP, and plant textures are capped at 1024 px (cards seen from metres away).
+// Needs basisu (brew install basis_universal), ffmpeg, and cwebp/dwebp (brew install webp).
 import { NodeIO } from '@gltf-transform/core'
-import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
+import { ALL_EXTENSIONS, EXTTextureWebP } from '@gltf-transform/extensions'
 import { dedup, meshopt, prune } from '@gltf-transform/functions'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { MeshoptEncoder } from 'meshoptimizer'
@@ -84,6 +85,26 @@ function walk(dir) {
   })
 }
 
+const PLANT_MAX = 1024
+
+/** Re-encodes one glb texture as WebP, shrunk to `max` px; skipped when it would not help. */
+function toWebp(doc, texture, max) {
+  const [w, h] = texture.getSize()
+  const mime = texture.getMimeType()
+  if (mime === 'image/webp' && Math.max(w, h) <= max) return
+  const src = join(tmp, `in.${mime.split('/')[1]}`)
+  writeFileSync(src, texture.getImage())
+  const png = join(tmp, 'in.png')
+  if (mime === 'image/webp') execFileSync('dwebp', ['-quiet', src, '-o', png])
+  const k = Math.min(1, max / Math.max(w, h))
+  const out = join(tmp, 'out.webp')
+  const size = ['-resize', String(Math.round(w * k)), String(Math.round(h * k))]
+  const input = mime === 'image/webp' ? png : src
+  execFileSync('cwebp', ['-quiet', '-q', '85', '-alpha_q', '100', ...size, input, '-o', out])
+  texture.setImage(new Uint8Array(readFileSync(out))).setMimeType('image/webp')
+  doc.createExtension(EXTTextureWebP)
+}
+
 async function models() {
   await MeshoptEncoder.ready
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
@@ -91,6 +112,8 @@ async function models() {
   })
   for (const file of walk(join(SRC, 'models')).filter((f) => f.endsWith('.glb'))) {
     const doc = await io.read(file)
+    const max = file.includes('vegetation') ? PLANT_MAX : 4096
+    for (const t of doc.getRoot().listTextures()) toWebp(doc, t, max)
     await doc.transform(dedup(), prune(), meshopt({ encoder: MeshoptEncoder }))
     const out = file.replace(SRC, OUT)
     mkdirSync(dirname(out), { recursive: true })
