@@ -129,7 +129,8 @@ test('swims in the ocean and dives under', async ({ page }) => {
 
 test('gets into a parked car and drives it', async ({ page }) => {
   // SwiftShader draws a dozen detailed cars at well under 1 fps; Low skips post-processing.
-  test.setTimeout(180_000 * SLOW)
+  // About a minute alone, but three minutes beside the other long specs on the same CPU.
+  test.setTimeout(300_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/?quality=low')

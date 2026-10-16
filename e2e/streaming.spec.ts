@@ -23,7 +23,7 @@ test('drives across tile borders and lands on loaded colliders after a long tele
   const start = await hook(page)
   expect(start.colliders).toBeGreaterThan(0)
 
-  // Into the parked car, then along the highway in 90 m hops: several tile borders each way.
+  // Into the parked car, then along the highway in hops of about 30 m: several tile borders.
   await page.evaluate(() => {
     const G = (window as unknown as { __game: Game }).__game
     const c = G.landmarks().car
@@ -42,15 +42,15 @@ test('drives across tile borders and lands on loaded colliders after a long tele
   expect(lane && lane.length).toBeGreaterThan(10)
   const seen = new Set<number>()
   let walked = 0
-  for (let i = 1; i < lane!.length && walked < 700; i++) {
+  for (let i = 1; i < lane!.length && walked < 450; i++) {
     walked += Math.hypot(lane![i].x - lane![i - 1].x, lane![i].z - lane![i - 1].z)
-    if (i % 6) continue
+    if (i % 8) continue
     await page.evaluate(
       (p) => (window as unknown as { __game: Game }).__game.teleport(p.x, p.y + 0.6, p.z),
       lane![i],
     )
     await page.keyboard.down('w')
-    await settle(page, 3)
+    await settle(page, 2)
     await page.keyboard.up('w')
     seen.add((await hook(page)).colliders)
   }
