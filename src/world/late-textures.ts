@@ -24,12 +24,15 @@ type Slot = { value: THREE.Texture }
 export const ROOMS: Slot = { value: standIn(6, [92, 84, 74]) }
 export const SIGNS: Slot = { value: standIn(10, [200, 196, 188]) }
 
-/** Fetches both arrays and swaps them in. A failed fetch keeps the stand-ins. */
+/** Fetches both arrays and swaps them in. A failed fetch keeps the stand-ins and only warns. */
 export async function loadLateTextures(): Promise<void> {
   const load = async (slot: Slot, name: string) => {
     const t = await ktx2().loadAsync(`/assets/textures/${name}.ktx2`)
     t.anisotropy = 8
+    slot.value.dispose()
     slot.value = t
   }
-  await Promise.all([load(ROOMS, 'rooms'), load(SIGNS, 'signs')])
+  await Promise.all([load(ROOMS, 'rooms'), load(SIGNS, 'signs')]).catch((e: unknown) =>
+    console.warn('room and sign art failed', e),
+  )
 }

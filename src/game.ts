@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type { BootAudio } from './audio/boot'
 import { gameSound } from './audio/game-audio'
 import { FollowCamera } from './camera/follow-camera'
@@ -140,21 +139,9 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     clock,
     carModels,
     harbor,
-    upgradeCars: () => lateLoads(world.load, carModels, harbor),
+    upgradeCars: () =>
+      Promise.all([carModels.upgrade(world.load), harbor.upgrade(world.load), loadLateTextures()]),
   }
-}
-
-/** What loads once the first frame is up: car and boat bodies, and the room and sign art. */
-function lateLoads(
-  load: (url: string) => Promise<GLTF>,
-  cars: CarModels,
-  harbor: { upgrade: CarModels['upgrade'] },
-): Promise<unknown> {
-  return Promise.all([
-    cars.upgrade(load),
-    harbor.upgrade(load),
-    loadLateTextures().catch((e: unknown) => console.warn('room and sign art failed', e)),
-  ])
 }
 
 export type World = Awaited<ReturnType<typeof buildScene>>
@@ -256,7 +243,8 @@ export async function startGame(
     boot.audio.enterGame()
     ui.tip('map')
     ui.tip('car')
-    // The car bodies are the heaviest download; fetch them once the city is on screen.
+    // Car and boat bodies, and the room and sign art, are the heaviest downloads; fetch them once
+    // the city is on screen.
     // A failed fetch leaves the box bodies in, so streaming still counts as done.
     void w
       .upgradeCars()
