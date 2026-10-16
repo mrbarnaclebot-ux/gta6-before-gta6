@@ -63,6 +63,9 @@ const f = (v: number) => v.toFixed(4)
 
 /** Adds wind (and, for leaves, backlight) to a plant material, after any patch it has. */
 export function swaying<T extends THREE.Material>(m: T, s: Sway): T {
+  // A second call would inject the wind block twice and not compile.
+  if (m.userData.sway) return m
+  m.userData.sway = true
   const own = m.onBeforeCompile.bind(m)
   const key = m.customProgramCacheKey()
   m.onBeforeCompile = (shader, renderer) => {

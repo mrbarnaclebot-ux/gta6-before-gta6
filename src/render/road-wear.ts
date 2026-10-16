@@ -57,10 +57,10 @@ const ASPHALT = /* glsl */ `
   float patched = rwPatch(p) * nearRoad;
   float ring;
   rwIron = rwCover(p, ring) * nearRoad;
-  diffuseColor.rgb *= (1.0 - 0.3 * oil) * mix(1.0, 0.68, patched);
+  diffuseColor.rgb *= (1.0 - 0.4 * oil) * mix(1.0, 0.68, patched);
   float grip = 0.85 + 0.3 * step(0.5, fract((p.x + p.y) * 9.0));
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.075, 0.07, 0.065) * grip * (1.0 - 0.6 * ring), rwIron);
-  rwGloss = max(oil * 0.5, patched * 0.15);
+  rwGloss = max(oil * 0.12, patched * 0.15);
 }
 `
 const ASPHALT_ROUGH = /* glsl */ `
@@ -94,6 +94,9 @@ function patch<T extends THREE.Material>(
   pars: string,
   edits: [string, string][],
 ): T {
+  // One wear per material: a second patch would inject the VERTEX block twice and not compile.
+  if (m.userData.roadWear) return m
+  m.userData.roadWear = key
   const own = m.onBeforeCompile.bind(m)
   const before = m.customProgramCacheKey()
   m.onBeforeCompile = (shader, renderer) => {
