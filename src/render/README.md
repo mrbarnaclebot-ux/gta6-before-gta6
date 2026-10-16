@@ -26,3 +26,5 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 - `card-normals.ts` leaf and grass cards: keep their up-leaning normals on back faces, and draw them matte
 - `*.test.ts` checks for the pure parts
 - `foliage.ts` wind sway for trees, palms, and ferns, and sunlight through backlit leaves
+- `road-wear.ts` procedural repair patches, manhole covers, oil stains, worn lane paint, and weathered paving
+- `skin.ts` skin and fabric shading for the generated people

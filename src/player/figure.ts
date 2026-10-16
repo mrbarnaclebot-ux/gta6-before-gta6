@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { facingYaw, mapBones, type BoneMap } from './bone-map'
+import { skinShading } from '../render/skin'
 import { Retarget } from './retarget'
 
 const DIR = '/assets/models/character/'
@@ -97,6 +98,8 @@ function rigFigure(gltf: GLTF, height: number, mannequin: GLTF): Figure {
   const bones = mesh!.skeleton.bones
   standUp(model, bones, height)
   castShadows(root)
+  // The player wears these; the crowd's dyed copies get the same shading (life/outfit.ts).
+  skinShading(mesh!.material as THREE.Material)
   const map = mapBones(bones)
   pinHead(mesh!, map)
   const source = clone(mannequin.scene)
