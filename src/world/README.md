@@ -8,6 +8,9 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `buildings.ts` facades, trim, roofs, merged per chunk; box colliders
 - `facades.ts` procedural PBR window textures per building style; `interior.ts` the rooms seen through every window (interior mapping), lit at night
 - `shopfronts.ts` the owner's shopfront pictures on ground floors; `sign-material.ts` the material that draws them and the billboards from the sign atlas
+- `furniture.ts`, `furniture-models.ts` benches, bins, hydrants, meters, newspaper boxes, bus stops, and signs on the sidewalks (placed by `src/city/furniture.ts`)
+- `billboards.ts` parody billboards on low-rise roofs and on poles by the highway (placed by `src/land/billboards.ts`)
+- `rooftops.ts` AC units, water tanks, and antennas, merged into each chunk's trim
 - `late-textures.ts` the room and sign atlases, loaded after the first frame
 - `canal.ts` seawalls, bridges, railings, and swim-out steps (ramp colliders)
 - `water.ts` reflective sea and canal water on the wave grid (shaders in `src/sea`); `wet-areas.ts` skips its mirror when no water is in view

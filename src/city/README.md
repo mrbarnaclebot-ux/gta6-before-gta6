@@ -8,5 +8,6 @@ Pure, seeded city plan: plain data, no three.js or physics. `src/world` turns it
 - `parking.ts` curbside parked-car spots, the first one near the spawn
 - `terrain.ts` ground, water, and walkable surface heights, read from the land heightmap (`src/land`)
 - `rng.ts` seeded random numbers (Mulberry32) and pick/range helpers
+- `furniture.ts` street furniture spots along the sidewalks
 - `*.test.ts` determinism and layout invariants
 - `shops.ts` ground-floor shop slots on the street walls of low-rise buildings (drawn by `world/shopfronts.ts`)

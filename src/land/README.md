@@ -27,3 +27,4 @@ The 2 x 2 km world around the city as pure, seeded data: no three.js. `src/scene
 - `beach-props.ts` lifeguard towers and umbrellas, set on the sand (kept off the pier)
 - `marina-plan.ts` the pier, its T-head, piles and bollards, and where every boat is moored
 - `*.test.ts` terrain, grade, bridge clearance, lane and road connectivity checks; `grounding.test.ts` checks nothing floats
+- `billboards.ts` where the billboards stand: some low-rise roofs, and poles beside the highway

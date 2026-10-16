@@ -26,6 +26,8 @@ import { buildGround } from './ground'
 import { buildHospitalSigns } from './hospital-signs'
 import { ROOM_LIGHT } from './interior'
 import { buildMarkings } from './markings'
+import { buildBillboards } from './billboards'
+import { buildFurniture } from './furniture'
 import { buildNeon } from './neon'
 import { buildShopfronts } from './shopfronts'
 import { placeProps } from './props'
@@ -143,6 +145,8 @@ export async function buildCity(
   buildCanal(ctx, layout)
   buildBuildings(ctx, layout)
   buildShopfronts(ctx, layout)
+  buildFurniture(ctx, layout)
+  buildBillboards(ctx, layout)
   const night = buildNightLights(ctx, layout)
   const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
