@@ -109,7 +109,7 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
 function pauseInPortrait(pause: PauseMenu): void {
   const q =
     typeof matchMedia === 'function'
-      ? matchMedia('(orientation: portrait) and (pointer: coarse)')
+      ? matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 700px)')
       : null
   q?.addEventListener?.('change', (e) => {
     if (e.matches && !pause.open) pause.show()

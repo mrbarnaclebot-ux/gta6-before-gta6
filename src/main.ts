@@ -88,7 +88,7 @@ async function play(): Promise<void> {
   }
 }
 
-/** Phones: fullscreen and landscape where the browser allows it (Android); iOS has neither, and that is fine. */
+/** Touch devices: fullscreen and a landscape lock where the browser allows them; iPhone Safari has neither, and that is fine. */
 function fullscreen(): void {
   try {
     const done = document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })

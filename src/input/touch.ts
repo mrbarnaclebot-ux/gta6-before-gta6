@@ -1,6 +1,6 @@
 import { shape, thumbstick, type Vec } from './analog'
 import type { Action } from './bindings'
-import type { Context, Input } from './input'
+import type { Axes, Context, Input } from './input'
 
 // Full stick deflection, in CSS pixels from where the thumb landed.
 const STICK_RADIUS = 56
@@ -65,7 +65,7 @@ export class TouchControls {
   private readonly knob: HTMLElement
   private readonly uses: HTMLElement[] = []
   private readonly toggles: [HTMLElement, Action][] = []
-  private stick: { id: number; origin: Vec } | null = null
+  private stick: { id: number; origin: Vec; axes: Axes } | null = null
   private readonly looks = new Map<number, Vec>()
 
   constructor(private readonly input: Input) {
@@ -81,7 +81,9 @@ export class TouchControls {
     this.topButton('map', 'Map', 'tb-map')
     this.topButton('pause', PAUSE_ICON, 'tb-pause')
     // No page scroll, pinch, double-tap zoom, or long-press callout from the controls.
-    this.root.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false })
+    this.root.addEventListener('touchstart', (e) => e.cancelable && e.preventDefault(), {
+      passive: false,
+    })
     this.root.addEventListener('contextmenu', (e) => e.preventDefault())
   }
 
@@ -96,6 +98,8 @@ export class TouchControls {
     if (this.root.dataset.mode !== mode) {
       this.root.dataset.mode = mode
       this.input.release('touch')
+      // A thumb still on the stick keeps steering into the new mode without having to move.
+      if (this.stick) this.input.setAxes('touch', this.stick.axes)
     }
     for (const u of this.uses) {
       const label = mode === 'driving' ? 'Exit' : (prompt ?? 'Use')
@@ -118,9 +122,14 @@ export class TouchControls {
     // A new thumb on the left half always takes the stick, so a lost pointerup cannot jam it.
     zone.addEventListener('pointerdown', (e) => {
       zone.setPointerCapture?.(e.pointerId)
-      const r = STICK_RADIUS + 8
-      const origin = { x: Math.max(r, e.clientX), y: Math.min(innerHeight - r, e.clientY) }
-      this.stick = { id: e.pointerId, origin }
+      // The resting spot is the corner limit, safe-area insets included (a notch in landscape).
+      this.base.style.left = this.base.style.top = ''
+      const rest = this.base.getBoundingClientRect()
+      const origin = {
+        x: Math.max(rest.left + rest.width / 2, e.clientX),
+        y: Math.min(rest.top + rest.height / 2, e.clientY),
+      }
+      this.stick = { id: e.pointerId, origin, axes: { x: 0, z: 0, throttle: 0 } }
       this.base.style.left = `${origin.x}px`
       this.base.style.top = `${origin.y}px`
       this.base.classList.add('live')
@@ -148,7 +157,8 @@ export class TouchControls {
     this.knob.style.transform = `translate(${knob.x}px, ${knob.y}px)`
     const v = shape(value, STICK_DEADZONE, STICK_CURVE)
     // Screen up is forward on foot and the throttle in a car; down is back and the brake.
-    this.input.setAxes('touch', { x: v.x, z: -v.y, throttle: -v.y })
+    this.stick.axes = { x: v.x, z: -v.y, throttle: -v.y }
+    this.input.setAxes('touch', this.stick.axes)
   }
 
   /** Drag anywhere on the right half (or from a look button) to turn the camera. */

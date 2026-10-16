@@ -25,7 +25,7 @@ export const PAD = {
 // A trigger counts as a button press past this, for fire and aim.
 const TRIGGER_DOWN = 0.5
 
-/** Buttons that mean the same thing in every context. RT fires and LT aims only on foot (the car reads them as pedals). */
+/** Buttons that mean the same thing in every context. RT and LT also map to fire and aim in a car, where the shooter is disarmed and the car reads them as pedals. */
 const ALWAYS: [number, Action][] = [
   [PAD.A, 'jump'],
   [PAD.X, 'reload'],
