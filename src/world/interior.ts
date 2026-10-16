@@ -141,7 +141,7 @@ void roomTrace() {
   vec3 fabric = mix(vec3(0.68, 0.63, 0.55), vec3(0.42, 0.43, 0.41), step(0.16, b));
   room = mix(room, fabric * 0.6, blind);
   float lit = roomLit(center, id, t, n);
-  float light = roomLight.x * (0.32 + 0.25 * lit) + roomLight.y * mix(0.025, 0.95, lit);
+  float light = roomLight.x * (0.2 + 0.22 * lit) + roomLight.y * mix(0.025, 0.95, lit);
   // Far off, a room is a few dim pixels behind glass that mostly reflects: not a bright tile.
   roomSeen = room * light * ROOM_SEE * (1.0 - 0.5 * far);
   roomJamb *= inside * (1.0 - far);
