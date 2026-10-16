@@ -1,6 +1,19 @@
 # Phase 11 summary: optimisation, chunked world, and the GTA 6 BEFORE GTA 6 title
 
-Status: built and verified on branch `phase-11-optimise` (from `phase-10e-audio`). Not pushed, not deployed. Code Reviewer and Designer passes have not run yet.
+Status: built and verified on branch `phase-11-optimise` (from `phase-10e-audio`). Not pushed, not deployed.
+
+## Review
+
+Code Reviewer: 0 blockers. Designer: realism 6. The review notes, Phase 11 and the Phase 10e audio ones, are fixed on this branch:
+
+- `sky.ts` the lazy night sky load has a catch: it warns and retries after 30 s instead of rejecting unhandled.
+- `game.ts` `startGame` and `loadWorld` split under 40 lines (the test hook is `exposeGame`); streaming counts as done even if the car bodies fail to load.
+- `index.html` under 300 lines: the tab panels get `aria-labelledby` from their tabs in `pause.ts`.
+- READMEs for `assets-src/models/vegetation` and `e2e`.
+- `vite.config.ts` imports `build-assets.ts` with its extension (`allowImportingTsExtensions` on).
+- `splitByTile` throws on interleaved attributes; `static-colliders.ts` notes that only the player and camera stream colliders.
+- Audio: the horn and Q/E radio keys do nothing while paused; crashes come from horizontal jolts only; the siren doppler resets on a new cruiser; `StepDetector.reset` clears its timers; the audio e2e checks a bed and a loop are playing.
+- The horn note in `scripts/audio.mjs` was wrong, not the file: measured with ffmpeg, the trimmed horn sustains from about 0.01 to 0.20 s, so `HORN_LOOP` [0.05, 0.17] sits inside it. Skipping the trim would have put the attack at 0.05 s and added 40 ms of silence before the honk, so the trim stays.
 
 Research: `.planning/phases/11-RESEARCH.md`. The before/after tables are in `README.md` (Performance) and below.
 
