@@ -1,0 +1,278 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: 'Anton';
+        src: url('../public/assets/fonts/anton-latin-400.woff2') format('woff2');
+      }
+      :root {
+        --ink: #fff7f0;
+        --pink: #ff4fa0;
+        --orange: #ffb347;
+        --night: #120c24;
+        --sunset: linear-gradient(100deg, #ffcf6e 0%, #ff8a5c 38%, #ff4fa0 72%, #c86bff 100%);
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        background: transparent;
+        overflow: hidden;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        color: var(--ink);
+      }
+      section {
+        position: absolute;
+        inset: 0;
+        display: none;
+      }
+      body[data-card='rating'] {
+        background: #000;
+      }
+      body[data-card='rating'] #rating,
+      body[data-card='presents'] #presents,
+      body[data-card='chyron'] #chyron,
+      body[data-card='social'] #social,
+      body[data-card='endtext'] #endtext,
+      body[data-card='logo'] #logo {
+        display: block;
+      }
+
+      #rating .box {
+        position: absolute;
+        left: 300px;
+        top: 230px;
+        width: 560px;
+        border: 5px solid #fff;
+        background: #000;
+      }
+      #rating .top {
+        background: #fff;
+        color: #000;
+        font:
+          700 46px/1.08 'Arial Narrow',
+          Arial,
+          sans-serif;
+        letter-spacing: -0.5px;
+        text-align: center;
+        padding: 26px 18px 22px;
+        text-transform: uppercase;
+      }
+      #rating .bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 26px;
+        font:
+          400 34px/1.2 Arial,
+          sans-serif;
+      }
+      #rating .seal {
+        width: 104px;
+        height: 70px;
+        border: 4px solid #fff;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font:
+          900 30px Arial,
+          sans-serif;
+        letter-spacing: 1px;
+      }
+
+      #presents p {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 470px;
+        margin: 0;
+        text-align: center;
+        font:
+          600 54px/1.15 'Helvetica Neue',
+          Arial,
+          sans-serif;
+        letter-spacing: 16px;
+        text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+      }
+      #presents small {
+        display: block;
+        font-size: 34px;
+        letter-spacing: 14px;
+      }
+
+      #chyron .bar {
+        position: absolute;
+        left: 120px;
+        right: 120px;
+        bottom: 96px;
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      }
+      #chyron .live {
+        position: absolute;
+        left: 120px;
+        bottom: 258px;
+        background: #e3192b;
+        border: 3px solid #fff;
+        font:
+          400 40px/1 'Anton',
+          Impact,
+          sans-serif;
+        letter-spacing: 3px;
+        padding: 8px 16px 6px;
+      }
+      #chyron .brand {
+        background: #fff;
+        color: #0a2a5c;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        font:
+          400 40px/0.95 'Anton',
+          Impact,
+          sans-serif;
+      }
+      #chyron .brand span {
+        display: block;
+        background: #0a2a5c;
+        color: #fff;
+        font:
+          700 22px/1.6 Arial,
+          sans-serif;
+        padding: 0 10px;
+        margin-top: 6px;
+      }
+      #chyron .head {
+        background: linear-gradient(180deg, #d4111f, #a00b18);
+        font:
+          400 58px/1 'Anton',
+          Impact,
+          sans-serif;
+        letter-spacing: 1px;
+        padding: 18px 28px 14px;
+        text-transform: uppercase;
+        border-top: 3px solid #fff;
+        border-bottom: 3px solid #fff;
+      }
+      #chyron .sub {
+        grid-column: 1 / span 2;
+        background: #f2f2f2;
+        color: #111;
+        font:
+          700 28px/1 Arial,
+          sans-serif;
+        padding: 12px 28px;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+
+      #social .post {
+        position: absolute;
+        left: 676px;
+        width: 568px;
+        bottom: 70px;
+        font:
+          600 30px/1.3 'Helvetica Neue',
+          Arial,
+          sans-serif;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+      }
+      #social .who {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 10px;
+        font-weight: 700;
+      }
+      #social .avatar {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: var(--sunset);
+        border: 2px solid #fff;
+      }
+      #social .follow {
+        border: 2px solid #fff;
+        border-radius: 8px;
+        padding: 2px 12px;
+        font-size: 22px;
+      }
+
+      #endtext p {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 868px;
+        margin: 0;
+        text-align: center;
+        font:
+          400 46px/1 'Anton',
+          Impact,
+          sans-serif;
+        letter-spacing: 12px;
+        color: var(--ink);
+      }
+      #endtext small {
+        display: block;
+        margin-top: 22px;
+        font:
+          600 26px/1 'Helvetica Neue',
+          Arial,
+          sans-serif;
+        letter-spacing: 10px;
+        color: var(--orange);
+      }
+      #logo img {
+        position: absolute;
+        left: 50%;
+        top: 120px;
+        width: 1240px;
+        transform: translateX(-50%);
+      }
+    </style>
+  </head>
+  <body>
+    <section id="rating">
+      <div class="box">
+        <div class="top">May contain content inappropriate for friends</div>
+        <div class="bottom">
+          <span>Ask your group chat<br />for rating information</span>
+          <span class="seal">BFF</span>
+        </div>
+      </div>
+    </section>
+    <section id="presents">
+      <p>A WEEKEND PROJECT<small>PRESENTS</small></p>
+    </section>
+    <section id="chyron">
+      <div class="live">LIVE</div>
+      <div class="bar">
+        <div class="brand">SUNSHINE<span>NEWS 6 · 4:12 ET</span></div>
+        <div class="head">Man "borrows" car, calls it a test drive</div>
+        <div class="sub">
+          Witnesses say he "looked like a guy who could not wait for GTA 6" · Car later found parked
+          on the beach, engine running
+        </div>
+      </div>
+    </section>
+    <section id="social">
+      <div class="post">
+        <div class="who">
+          <span class="avatar"></span>@sandsquad.vc<span class="follow">Follow</span>
+        </div>
+        Target practice on the beach AGAIN. Some of us are trying to tan
+      </div>
+    </section>
+    <section id="logo"><img src="../public/assets/ui/logo.webp" alt="" /></section>
+    <section id="endtext">
+      <p>PLAY FREE IN YOUR BROWSER<small>NO DOWNLOAD · NO WAIT · NO GTA 6</small></p>
+    </section>
+    <script>
+      document.body.dataset.card = new URLSearchParams(location.search).get('card')
+    </script>
+  </body>
+</html>
