@@ -112,11 +112,12 @@ export class Hud {
     text(this.reserveEl, String(w.reserve))
   }
 
-  /** Context hint next to the F key, such as "Get in" beside a car; null hides it. */
-  setPrompt(action: string | null): void {
+  /** Context hint next to its key (F, or Y on a pad), such as "Get in" beside a car; null hides it. */
+  setPrompt(action: string | null, key: string): void {
     this.promptEl.hidden = action === null
     const label = this.promptEl.querySelector('span')!
     if (action && label.textContent !== action) label.textContent = action
+    text(this.promptEl.querySelector('kbd')!, key)
   }
 
   /** "Click to look around", while the mouse waits to be captured again. */

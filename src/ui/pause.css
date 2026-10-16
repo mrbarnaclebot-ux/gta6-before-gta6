@@ -180,3 +180,37 @@
     letter-spacing: 0.08em;
   }
 }
+
+/* Phones on their side: one compact header row, so the settings get most of the 390 px. */
+@media (max-height: 500px) {
+  .pause {
+    padding: max(6px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+      max(6px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+  .pause-head {
+    flex-wrap: nowrap;
+    gap: 8px 16px;
+    padding: 8px 16px 0;
+  }
+  .pause-head h2 {
+    margin-bottom: 8px;
+    font-size: 24px;
+  }
+  .tabs [role='tab'] {
+    min-height: 44px;
+    padding: 0 10px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+  .resume {
+    margin-bottom: 8px;
+    padding: 10px 18px;
+    font-size: 13px;
+  }
+  .row {
+    padding: 8px 10px;
+  }
+  .pause-foot {
+    display: none;
+  }
+}

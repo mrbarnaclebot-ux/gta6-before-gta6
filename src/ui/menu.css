@@ -150,18 +150,23 @@
   margin-left: 12px;
 }
 
-/* Phones and tablets: the game needs a keyboard and mouse, so say it plainly. */
-@media (pointer: coarse) {
-  .menu-keys {
-    display: none;
+/* Short landscape screens (phones on their side): a smaller logo and list so Terms still fits. */
+@media (max-height: 500px) {
+  .wordmark img {
+    width: min(100%, 44vh);
   }
-  .desktop-note {
-    padding: 8px 14px;
-    border-radius: 999px;
-    background: var(--glass);
-    border: 1px solid rgba(255, 179, 71, 0.6);
-    color: var(--ink);
-    backdrop-filter: var(--glass-blur);
+  .menu-tag {
+    margin: 6px 0 10px;
+    font-size: 13px;
+  }
+  .menu-item {
+    font-size: 24px;
+    line-height: 1.05;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .menu-foot {
+    bottom: max(10px, env(safe-area-inset-bottom));
   }
 }
 

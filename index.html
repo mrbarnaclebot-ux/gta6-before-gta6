@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>GTA 6 BEFORE GTA 6</title>
     <meta
       name="description"
@@ -45,7 +48,7 @@
         <p id="status" class="status" role="status"></p>
       </div>
       <footer class="menu-foot">
-        <span class="menu-keys" aria-hidden="true">
+        <span class="menu-keys" data-for="keys" aria-hidden="true">
           <kbd
             ><svg viewBox="0 0 10 10"><path d="M5 2 9 8H1z" /></svg></kbd
           ><kbd
@@ -53,7 +56,11 @@
           ></kbd>
           Select <kbd>Enter</kbd> Confirm
         </span>
-        <span class="desktop-note">Built for a desktop with keyboard and mouse</span>
+        <span class="menu-keys" data-for="pad" aria-hidden="true">
+          <kbd>D-pad</kbd> Select <kbd>A</kbd> Confirm <kbd>B</kbd> Back
+        </span>
+        <span class="menu-keys" data-for="touch">Tap to choose. Play in landscape.</span>
+        <span class="menu-note">Keyboard and mouse, gamepad, or touch</span>
       </footer>
       <div
         id="credits"
@@ -145,6 +152,12 @@
     </p>
     <div id="underwater" class="underwater" hidden></div>
     <p id="prompt" class="prompt" hidden><kbd>F</kbd><span></span></p>
+    <div class="rotate" role="alert">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <rect x="15" y="6" width="18" height="36" rx="3" />
+      </svg>
+      <p>Turn your device sideways to play</p>
+    </div>
     <p id="look-hint" class="prompt look-hint" hidden>Click to look around</p>
     <div id="speedo" class="speedo" hidden>
       <svg class="speed-dial" viewBox="0 0 120 120" aria-hidden="true">
@@ -205,9 +218,9 @@
       <header class="worldmap-head">
         <h2 id="worldmap-title">Map</h2>
         <p class="worldmap-hint">
-          Drag to pan &middot; Wheel to zoom &middot; Click to set a waypoint &middot;
-          <kbd>M</kbd> or <kbd>Esc</kbd> to close
+          Drag to pan &middot; Wheel or pinch to zoom &middot; Click or tap to set a waypoint
         </p>
+        <button id="worldmap-close" type="button" class="worldmap-close">Close</button>
       </header>
       <ul class="legend" aria-label="Legend">
         <li><i class="lg-you"></i>You</li>
@@ -254,34 +267,7 @@
         <section id="tab-controls" class="panel" role="tabpanel" hidden>
           <div id="control-rows"></div>
           <h3 id="keys-title">Keys</h3>
-          <dl class="keys" aria-labelledby="keys-title">
-            <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt>
-            <dd>Move, or drive</dd>
-            <dt><kbd>Shift</kbd></dt>
-            <dd>Run, swim faster</dd>
-            <dt><kbd>Space</kbd></dt>
-            <dd>Jump, surface, climb out, handbrake</dd>
-            <dt><kbd>Ctrl</kbd> or <kbd>C</kbd></dt>
-            <dd>Dive</dd>
-            <dt><kbd>F</kbd></dt>
-            <dd>Get in or out of a car</dd>
-            <dt>Right mouse</dt>
-            <dd>Aim</dd>
-            <dt>Left mouse</dt>
-            <dd>Fire</dd>
-            <dt><kbd>R</kbd></dt>
-            <dd>Reload</dd>
-            <dt>Mouse</dt>
-            <dd>Look</dd>
-            <dt><kbd>H</kbd></dt>
-            <dd>Horn</dd>
-            <dt><kbd>Q</kbd> <kbd>E</kbd></dt>
-            <dd>Radio station, in a car or boat</dd>
-            <dt><kbd>M</kbd></dt>
-            <dd>Map: click to set a waypoint</dd>
-            <dt><kbd>Esc</kbd></dt>
-            <dd>Pause and resume</dd>
-          </dl>
+          <dl id="keys" class="keys" aria-labelledby="keys-title"></dl>
         </section>
         <p class="pause-foot">Changes apply instantly and are saved in this browser.</p>
       </div>
