@@ -20,8 +20,10 @@ type Load = (url: string) => Promise<GLTF>
 const tinted = <T extends { tint?: number }>(spots: T[], tints: number[]) =>
   spots.map((s, i) => ({ ...s, tint: tints[(i * 5 + 3) % tints.length] }))
 
-/** Seagrass, kelp, corals, and rocks on the floor; surf rocks collide. */
-async function seabed(ctx: WorldCtx, plan: ReefPlan, load: Load): Promise<void> {
+type SeabedCtx = Pick<WorldCtx, 'physics'> & { scene: THREE.Object3D }
+
+/** Seagrass, kelp, corals, and rocks on the floor; rocks collide, plants and corals do not. */
+async function seabed(ctx: SeabedCtx, plan: ReefPlan, load: Load): Promise<void> {
   const one = (s: { s: number }) => s.s
   const grass: Part = { geometry: seagrass(), material: swayMaterial(0.16, 1.3) }
   instanceParts(ctx, [grass], plan.grass, { scale: one })
@@ -48,6 +50,11 @@ async function seabed(ctx: WorldCtx, plan: ReefPlan, load: Load): Promise<void> 
     const body = RAPIER.ColliderDesc.cylinder(r.s / 2, r.s * 0.45)
     ctx.physics.createCollider(body.setTranslation(r.x, r.y + r.s / 2, r.z))
   }
+  // Reef boulders are squat: a ball sunk into the sand matches the visible dome.
+  for (const r of plan.rocks) {
+    const body = RAPIER.ColliderDesc.ball(r.s * 0.45)
+    ctx.physics.createCollider(body.setTranslation(r.x, r.y + r.s * 0.3, r.z))
+  }
 }
 
 /** Every sea creature and plant; returns the per-frame update. */
@@ -59,7 +66,7 @@ export async function buildSeaLife(
 ) {
   const group = new THREE.Group()
   ctx.scene.add(group)
-  await seabed({ ...ctx, scene: group as unknown as THREE.Scene }, plan, load)
+  await seabed({ ...ctx, scene: group }, plan, load)
   const fish = buildFish(group, plan.reefs, world)
   const rays = buildRays(group, plan.reefs)
   // Detail layer: the sea mirror and the sun's shadow map skip it all.

@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import type { Grounded } from '../city/layout'
-import type { WorldCtx } from './blocks'
 import { CHUNK, groupByChunk } from './chunks'
 
 export interface Part {
@@ -89,7 +88,7 @@ function instanced(parts: Part[], spots: Grounded[], place: Placement) {
  * so whole chunks can be frustum-culled. Pass Infinity for one batch over the whole city.
  */
 export function instanceParts(
-  ctx: WorldCtx,
+  ctx: { scene: THREE.Object3D },
   parts: Part[],
   spots: Grounded[],
   place: Placement,
