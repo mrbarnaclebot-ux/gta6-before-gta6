@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { BAY, FLOOR_H, type Style } from '../city/lots'
+import { reflectiveOut } from '../render/ssr'
 import { ROOMS } from './late-textures'
 
 /*
@@ -182,6 +183,7 @@ export function interiorMapped(m: THREE.MeshStandardMaterial, style: Style): voi
       .replace('#include <color_fragment>', COLOR)
       .replace('#include <metalnessmap_fragment>', ROUGH)
       .replace('#include <emissivemap_fragment>', EMISSIVE)
+      .replace('#include <opaque_fragment>', reflectiveOut('roomGlass * (0.25 + ROOM_METAL)'))
   }
   m.customProgramCacheKey = () => `facade-${style}`
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { HSV_GLSL } from '../render/hsv-glsl'
+import { reflectiveOut } from '../render/ssr'
 
 /*
  * The generated car bodies are one textured mesh each: paint, glass, trim, and lamps
@@ -92,6 +93,7 @@ export function carBodyMaterial(
       .replace('#include <map_fragment>', `#include <map_fragment>${LAMPS}`)
       .replace('#include <metalnessmap_fragment>', SURFACE)
       .replace('#include <normal_fragment_maps>', FLAKES)
+      .replace('#include <opaque_fragment>', reflectiveOut('carGlass * 0.6 + carPaint * 0.35'))
       .replace(
         '#include <emissivemap_fragment>',
         '#include <emissivemap_fragment>\n  totalEmissiveRadiance += carGlow;',

@@ -65,8 +65,8 @@ export const GRAPHICS_ROWS: GraphicsRow[] = [
   {
     kind: 'choice',
     key: 'reflections',
-    label: 'Water reflections',
-    hint: 'Sharpness of the mirror on the sea and canal. Medium cost near water.',
+    label: 'Reflections',
+    hint: 'Sharpness of the sea and canal mirror; High and Ultra add screen-space reflections on glass and cars. Medium cost.',
     options: options(CHOICES.reflections),
   },
   {

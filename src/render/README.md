@@ -4,7 +4,7 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 
 - `renderer.ts` WebGL renderer; rebuilds the post chain live when a setting needs it
 - `graphics.ts` the graphics settings, the Low to Ultra presets, and saving them
-- `post-chain.ts` builds the composer: AO, motion blur, depth of field, god rays, bloom, lens flare, AgX, grade, vignette, SMAA, film grain
+- `post-chain.ts` builds the composer: screen-space reflections, AO, motion blur, depth of field, god rays, bloom, lens flare, AgX, grade, vignette, SMAA, film grain
 - `ao-pass.ts` N8AO ambient occlusion per tier
 - `motion-blur.ts` camera motion blur effect; `motion-blur-math.ts` its math, mirrored for tests
 - `distance-blur.ts` cheap far-field depth of field
@@ -28,3 +28,4 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 - `foliage.ts` wind sway for trees, palms, and ferns, and sunlight through backlit leaves
 - `road-wear.ts` procedural repair patches, manhole covers, oil stains, worn lane paint, and weathered paving
 - `skin.ts` skin and fabric shading for the generated people
+- `ssr.ts` screen-space reflections (High and Ultra), masked by the mirror amount glossy materials write to alpha

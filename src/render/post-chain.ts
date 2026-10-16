@@ -22,6 +22,7 @@ import { gradeLut } from './grade'
 import type { Graphics } from './graphics'
 import { LensFlareEffect } from './lens-flare'
 import { MotionBlurEffect } from './motion-blur'
+import { SsrEffect } from './ssr'
 import type { SunFx } from './sun-fx'
 
 /** The composer plus the effects that need per-frame input. Absent when switched off. */
@@ -100,11 +101,16 @@ function filmEffects(): Effect[] {
   return [ca, grain]
 }
 
+/** Screen-space reflections come with the High and Ultra reflection settings. */
+export const ssrOn = (g: Graphics) => g.reflections === 'high' || g.reflections === 'ultra'
+
 /** Builds the post-processing chain for these settings. */
 export function buildChain(c: Ctx, g: Graphics, w: number, h: number): Chain {
   const composer = new EffectComposer(c.gl, { frameBufferType: THREE.HalfFloatType })
   const out: Chain = { composer }
   composer.addPass(new RenderPass(c.scene, c.camera))
+  // First, while the alpha still holds how mirror-like each pixel is (ssr.ts).
+  if (ssrOn(g)) composer.addPass(new EffectPass(c.camera, new SsrEffect(c.camera)))
   if (g.ao !== 'off') composer.addPass(aoPass(c.scene, c.camera, w, h, g.ao))
   if (g.motionBlur)
     composer.addPass(new EffectPass(c.camera, (out.blur = new MotionBlurEffect(c.camera))))

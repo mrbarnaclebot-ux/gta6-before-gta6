@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { needsComposer, type Graphics } from './graphics'
-import { buildChain, type Chain } from './post-chain'
+import { buildChain, ssrOn, type Chain } from './post-chain'
 import { SunFx } from './sun-fx'
 
 const EXPOSURE = 1.0
@@ -22,7 +22,7 @@ export interface FrameView {
 }
 
 const postKey = (g: Graphics) =>
-  [g.ao, g.smaa, g.bloom, g.dof, g.motionBlur, g.godRays, g.lensFlare, g.filmGrain].join()
+  [g.ao, g.smaa, g.bloom, g.dof, g.motionBlur, g.godRays, g.lensFlare, g.filmGrain, ssrOn(g)].join()
 
 /**
  * The WebGL renderer and its post-processing chain, rebuilt live when a setting needs it.
