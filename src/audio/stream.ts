@@ -3,6 +3,8 @@ import type { Mixer } from './mixer'
 /**
  * A song streamed by an audio element into the music bus, so a three-minute track is never
  * downloaded or decoded whole before it plays. Fades by gain; pauses once faded out.
+ * ponytail: an element's own `loop` can leave a few ms of gap at the seam of the menu and chase
+ * loops; decode those two into buffers (about 30 MB of memory) if the gap is ever audible.
  */
 export class Stream {
   readonly el = new Audio()

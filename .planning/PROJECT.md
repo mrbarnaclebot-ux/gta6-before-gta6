@@ -60,6 +60,7 @@ Multiplayer, missions and story, character customization, save games, mobile con
     - **10b Vegetation and grounding.** Trees in the forest and hills, grass and shrubs, and contact shading so props and buildings sit on the ground.
     - **10c Ocean.** A better sea: waves, shoreline foam, and depth color over the new coast.
     - **10d Boats and carjacking.** Boats on the sea and canal; pulling drivers out of traffic cars.
+    - **10e Sound effects and music.** Owner request, lifting the earlier "simple SFX only" limit: Epidemic Sound files from the owner's subscription, processed by `scripts/audio.mjs`; a Web Audio mixer with volume settings; footsteps, vehicles, combat, ambience by area and time, menu and chase music, and an in-car radio. Audio before Play stays under 1.5 MB.
 
 ## Gaps found in the original idea (added above)
 
