@@ -12,9 +12,15 @@ describe('grass tiles', () => {
   it('are the same each time, cheap to build, and stay inside their square', () => {
     const { hillside } = outerLandmarks(land)
     const [ti, tj] = [Math.floor(hillside.x / GRASS_TILE), Math.floor(hillside.z / GRASS_TILE)]
-    const t0 = performance.now()
     const a = grassTile(land, clear, ti, tj)
-    const ms = performance.now() - t0
+    // Fastest of a few warm runs: one cold call on a shared CI runner measures the JIT, not the code.
+    const ms = Math.min(
+      ...Array.from({ length: 5 }, () => {
+        const t0 = performance.now()
+        grassTile(land, clear, ti, tj)
+        return performance.now() - t0
+      }),
+    )
     expect(a.length / CLUMP_STRIDE).toBeGreaterThan(200)
     expect(grassTile(land, clear, ti, tj)).toEqual(a)
     for (let k = 0; k < a.length; k += CLUMP_STRIDE) {
