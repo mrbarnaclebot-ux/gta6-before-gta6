@@ -4,6 +4,7 @@ import { FLOOR_H, type Building, type Style } from '../city/lots'
 import { RAPIER } from '../physics'
 import { addMerged, metricBox, tinted, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
+import { DETAIL_LAYER } from './instancing'
 import { facadeMaterial, tileSize } from './facades'
 import { pbr } from './materials'
 import { roofClutter } from './rooftops'
@@ -192,7 +193,8 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
     for (const style of styles) addMerged(ctx, p.facade[style], facades.get(style)!)
     addMerged(ctx, p.trim, trim)
     addMerged(ctx, p.roof, roof)
-    addMerged(ctx, p.rails, rails, { cast: false, receive: true })
+    // Detail layer: the sea mirror skips them, and they cast no shadow worth a pass.
+    addMerged(ctx, p.rails, rails, { cast: false, receive: true })?.layers.set(DETAIL_LAYER)
     for (const s of p.solids) {
       const half = s.getSize(new THREE.Vector3()).multiplyScalar(0.5)
       const at = s.getCenter(new THREE.Vector3())

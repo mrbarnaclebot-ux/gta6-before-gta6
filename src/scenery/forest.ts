@@ -53,7 +53,8 @@ const share = <T>(spots: T[], n: number, i: number) => spots.filter((_, k) => k 
 // so they read pale. Deeper, warmer greens, closer to the reference shots.
 const LEAF_TONE = new THREE.Color(0.5, 0.66, 0.36)
 
-const LEAVES = { bend: 0.012, flutter: 0.004, translucent: 0.35 }
+// No flutter on tree cards: thousands of them per tree made it the forest's biggest cost.
+const LEAVES = { bend: 0.012, flutter: 0, translucent: 0.35 }
 const BARK = { bend: 0.012, flutter: 0, translucent: 0 }
 
 /**

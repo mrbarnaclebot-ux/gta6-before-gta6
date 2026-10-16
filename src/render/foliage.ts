@@ -38,7 +38,9 @@ float swayGust = sin(swayPhase) + 0.45 * sin(swayPhase * 2.3 + 1.7);
 transformed.xz += vec2(0.8, 0.45) * swayGust * SWAY_BEND * swayH * swayH;
 float swayOut = smoothstep(0.03, 0.25, length(position.xz));
 vSwayOut = swayOut;
+#ifdef SWAY_FLUTTER
 transformed += sin(windTime * 6.0 + position.yzx * 37.0 + swayRoot.zxy) * SWAY_FLUTTER * swayOut * swayH;
+#endif
 `
 // Lambert keeps its lights in reflectedLight; directionalLights[0] is the sun (or the moon).
 // Only leaves glow: vSwayOut is 0 on the trunk, which shares a material with the fronds on palms.
@@ -66,7 +68,8 @@ export function swaying<T extends THREE.Material>(m: T, s: Sway): T {
   m.onBeforeCompile = (shader, renderer) => {
     own(shader, renderer)
     shader.uniforms.windTime = WIND
-    const defs = `#define SWAY_BEND ${f(s.bend)}\n#define SWAY_FLUTTER ${f(s.flutter)}\n`
+    const flutter = s.flutter > 0 ? `#define SWAY_FLUTTER ${f(s.flutter)}\n` : ''
+    const defs = `#define SWAY_BEND ${f(s.bend)}\n${flutter}`
     shader.vertexShader = (defs + VERTEX_PARS + shader.vertexShader).replace(
       '#include <begin_vertex>',
       VERTEX,
