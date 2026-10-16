@@ -7,6 +7,7 @@ import { buildingHeight } from '../city/lots'
 import { surfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
 import type { Ambient } from '../render/sky'
+import { WIND } from '../render/foliage'
 import { buildBeach } from '../scenery/beach'
 import { plantDuneGrass } from '../scenery/dune-grass'
 import { buildHouses } from '../scenery/houses'
@@ -15,6 +16,7 @@ import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
 import { buildForest } from '../scenery/forest'
 import { plantGrass } from '../scenery/grass'
+import { plantLawn } from '../scenery/lawn'
 import type { Flora } from '../land/flora'
 import { planWorld, type WorldPlan } from '../land/world-plan'
 import type { WorldCtx } from './blocks'
@@ -23,8 +25,12 @@ import { buildCanal } from './canal'
 import { hospitals } from '../life/places'
 import { buildGround } from './ground'
 import { buildHospitalSigns } from './hospital-signs'
+import { ROOM_LIGHT } from './interior'
 import { buildMarkings } from './markings'
+import { buildBillboards } from './billboards'
+import { buildFurniture } from './furniture'
 import { buildNeon } from './neon'
+import { buildShopfronts } from './shopfronts'
 import { placeProps } from './props'
 import { buildStreetGlow } from './street-glow'
 import { plantVegetation } from './vegetation'
@@ -76,13 +82,13 @@ function landmarks(c: Land): Record<string, Point> {
   }
 }
 
-/** Everything that lights up after dark: windows, neon, street lamps, hospital signs. */
-function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMaterial[]) {
+/** Everything that lights up after dark: rooms behind the windows, neon, street lamps, hospital signs. */
+function buildNightLights(ctx: WorldCtx, c: Land) {
   const neon = buildNeon(ctx, c)
   const glow = buildStreetGlow(ctx, c, placeProps(ctx, c))
   const signs = buildHospitalSigns(ctx, hospitals(c))
-  return (k: number, focus: THREE.Vector3) => {
-    for (const w of windows) w.emissiveIntensity = 1.3 * k
+  return (k: number, day: number, focus: THREE.Vector3) => {
+    ROOM_LIGHT.value.set(day, k)
     signs.emissiveIntensity = 0.1 + 1.6 * k
     neon.setNight(k)
     glow.update(k, focus)
@@ -115,6 +121,7 @@ async function buildPlants(
     await buildForest(ctx, gl, load, layout, flora),
     plantDuneGrass(ctx, layout),
     plantGrass(ctx, layout, flora.clear),
+    plantLawn(ctx, layout, flora.clear),
   ]
   return (eye: THREE.Vector3, reach: number) => updates.forEach((u) => u(eye, reach))
 }
@@ -123,6 +130,17 @@ async function buildPlants(
 function spawnPoint(c: Land): THREE.Vector3 {
   const { x, z } = c.spawn
   return new THREE.Vector3(x, surfaceAt(c, x, z) + 0.05, z)
+}
+
+/** The city grid: streets, canal, buildings, shopfronts, furniture, and billboards. */
+function buildStreets(ctx: WorldCtx, layout: Land) {
+  buildGround(ctx, layout)
+  buildMarkings(ctx, layout)
+  buildCanal(ctx, layout)
+  buildBuildings(ctx, layout)
+  buildShopfronts(ctx, layout)
+  buildFurniture(ctx, layout)
+  buildBillboards(ctx, layout)
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
@@ -134,10 +152,8 @@ export async function buildCity(
 ): Promise<City> {
   const plan = await planWorld()
   const { land: layout, flora } = plan
-  buildGround(ctx, layout)
-  buildMarkings(ctx, layout)
-  buildCanal(ctx, layout)
-  const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
+  buildStreets(ctx, layout)
+  const night = buildNightLights(ctx, layout)
   const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
@@ -155,7 +171,8 @@ export async function buildCity(
       return sea.underwater.depth
     },
     update(dt, camera, swimmer = null) {
-      night(light.night, camera.position)
+      WIND.value = performance.now() / 1000
+      night(light.night, light.day, camera.position)
       plants(camera.position, reach)
       sea.update(dt, camera, swimmer)
     },

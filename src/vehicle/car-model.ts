@@ -99,7 +99,10 @@ export class CarModels {
     const spec = CAR_SPECS[m.kind]
     const base = source.material as THREE.MeshStandardMaterial
     const paint = spec.paints[m.variant % spec.paints.length]
-    const body = new THREE.Mesh(source.geometry, carBodyMaterial(base, paint, m.visual.lamps))
+    const body = new THREE.Mesh(
+      source.geometry,
+      carBodyMaterial(base, paint, m.visual.lamps, spec.belt),
+    )
     body.scale.copy(bodyScale(spec))
     body.position.y = spec.clearance + (spec.size[1] / 2) * spec.length
     body.castShadow = body.receiveShadow = true

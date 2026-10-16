@@ -32,6 +32,7 @@ import { DETAIL_LAYER } from './world/instancing'
 import { StaticColliders } from './world/static-colliders'
 import { modelLoader } from './world/load-model'
 import { initKtx2 } from './render/ktx2'
+import { loadLateTextures } from './world/late-textures'
 
 const MAX_FRAME = 0.1
 
@@ -138,7 +139,8 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     clock,
     carModels,
     harbor,
-    upgradeCars: () => Promise.all([carModels.upgrade(world.load), harbor.upgrade(world.load)]),
+    upgradeCars: () =>
+      Promise.all([carModels.upgrade(world.load), harbor.upgrade(world.load), loadLateTextures()]),
   }
 }
 
@@ -241,7 +243,8 @@ export async function startGame(
     boot.audio.enterGame()
     ui.tip('map')
     ui.tip('car')
-    // The car bodies are the heaviest download; fetch them once the city is on screen.
+    // Car and boat bodies, and the room and sign art, are the heaviest downloads; fetch them once
+    // the city is on screen.
     // A failed fetch leaves the box bodies in, so streaming still counts as done.
     void w
       .upgradeCars()

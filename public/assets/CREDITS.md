@@ -19,6 +19,8 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - ui/load_car.webp, ui/load_police.webp, ui/load_beach.webp, ui/load_swim.webp (1344x752) - loading screen slideshow.
 - ui/logo.webp (1113x590, transparent) - the "GTA 6 BEFORE GTA 6" title logo: neon synthwave chrome lettering with a sunset and a palm. Generated 2026-10-16 (gpt_image_2_5, option 1 of 4 chosen by the owner), background removed with Higgsfield image_background_remover. Original design, not derived from any official logo.
 - ../apple-touch-icon.png (180x180) - the same logo fitted into a square. ../favicon.svg is hand-drawn (a "6" on the logo's sunset), no generated art.
+- textures/rooms.ktx2 (6 layers, 512x512) - rooms seen through the windows (interior mapping): living room, office, hotel room, bar, bedroom, kitchen. Generated 2026-10-16 (gpt_image_2_5, 1024x1024, one-point perspective). Originals and `SOURCE.md` in `assets-src/textures/rooms/`.
+- textures/signs.ktx2 (10 layers, 1024x576) - eight fictional ground-floor shopfronts (Coastline Coffee, Salt and Swell Surf, Ocean Drive Pharmacy, Lucky 7 Pawn, Sunny Side Diner, Neon Palms Club, Iron Beach Gym, Mango Loco) and two parody billboards (Surge Rush energy drink, Vice Heights condos). Generated 2026-10-16 (gpt_image_2_5, 1344x752). All names invented. Originals and `SOURCE.md` in `assets-src/textures/signs/`.
 
 ## Font (SIL Open Font License 1.1)
 - fonts/anton-latin-400.woff2 - Anton by Vernon Adams, https://fonts.google.com/specimen/Anton (latin subset woff2 from Fontsource, https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.5) - OFL 1.1

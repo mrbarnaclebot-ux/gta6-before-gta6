@@ -4,8 +4,10 @@ import { FLOOR_H, type Building, type Style } from '../city/lots'
 import { RAPIER } from '../physics'
 import { addMerged, metricBox, tinted, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
+import { DETAIL_LAYER } from './instancing'
 import { facadeMaterial, tileSize } from './facades'
 import { pbr } from './materials'
+import { roofClutter } from './rooftops'
 
 // Miami: mostly white and cream, with art-deco pastels; glass tints stay subtle.
 const WALLS: Record<Style, number[]> = {
@@ -19,6 +21,8 @@ interface Parts {
   facade: Record<Style, THREE.BufferGeometry[]>
   trim: THREE.BufferGeometry[]
   roof: THREE.BufferGeometry[]
+  /** Glass balcony rails: single quads, drawn from both sides. */
+  rails: THREE.BufferGeometry[]
   /** Boxes the player collides with: each tier and each rooftop core. */
   solids: THREE.Box3[]
 }
@@ -72,21 +76,42 @@ function crownParts(b: Building, p: Parts, w: number, d: number, top: number, co
   solid(p, b, t, d, top, top + 1.1, -(w - t) / 2, 0)
 }
 
+/** Rooftop clutter on a w x d deck at `top` around a centered core of share `core`. */
+function clutter(b: Building, p: Parts, top: number, w: number, d: number, core: number) {
+  const out = roofClutter(b, top, w, d, core)
+  p.trim.push(...out.trim)
+  p.solids.push(...out.solids)
+}
+
 function decoParts(b: Building, p: Parts, wall: number, accent: number) {
   const fh = FLOOR_H.deco
   const h = b.floors * fh
   p.facade[b.style].push(tinted(walls(b, b.w, b.d, 0, h), wall))
   solid(p, b, b.w, b.d, 0, h)
   plinth(b, p, b.w, b.d, 0xd9d3c7)
-  // Art-deco "eyebrow" sun shades over every window band.
-  for (let i = 0; i < b.floors; i++) {
+  // Art-deco "eyebrow" sun shades over every window band but the ground floor's shops.
+  for (let i = 1; i < b.floors; i++) {
     p.trim.push(tinted(box(b, b.w + 0.9, 0.12, b.d + 0.9, 0, i * fh + fh * 0.76, 0), accent))
   }
   crownParts(b, p, b.w, b.d, h, wall)
+  clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, 0)
   if (b.seed % 3 === 0) {
     const side = b.seed % 2 ? 1 : -1
     // Straddles the side wall so above the roof it grows out of the parapet, not beside it.
     p.trim.push(tinted(box(b, 1.2, h * 0.5 + 5, 3.2, (side * b.w) / 2, h * 0.5, 0), accent))
+  }
+}
+
+/** A 1 m glass rail along the two outer edges of a balcony slab whose top is at `y`. */
+function balconyRails(b: Building, p: Parts, alongX: boolean, y: number) {
+  const reach = (alongX ? b.d : b.w) / 2 + 1.25
+  const len = (alongX ? b.w : b.d) + 0.1
+  for (const side of [-1, 1]) {
+    const q = new THREE.PlaneGeometry(len, 1).translate(0, y + 0.5, 0)
+    if (!alongX) q.rotateY(Math.PI / 2)
+    p.rails.push(
+      q.translate(b.x + (alongX ? 0 : side * reach), 0, b.z + (alongX ? side * reach : 0)),
+    )
   }
 }
 
@@ -100,10 +125,12 @@ function residentialParts(b: Building, p: Parts, wall: number) {
   for (let i = 1; i < b.floors; i++) {
     const [w, d] = alongX ? [b.w + 0.1, b.d + 2.6] : [b.w + 2.6, b.d + 0.1]
     p.trim.push(tinted(box(b, w, 0.22, d, 0, i * fh - 0.11, 0), 0xf8f7f4))
+    balconyRails(b, p, alongX, i * fh + 0.11)
   }
   crownParts(b, p, b.w, b.d, h, wall)
   p.trim.push(tinted(box(b, b.w * 0.35, 3.2, b.d * 0.35, 0, h, 0), wall))
   solid(p, b, b.w * 0.35, b.d * 0.35, h, h + 3.2)
+  clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, 0.35)
 }
 
 function glassParts(b: Building, p: Parts, wall: number) {
@@ -125,6 +152,7 @@ function glassParts(b: Building, p: Parts, wall: number) {
   solid(p, b, w + 0.4, d + 0.4, h, h + 1.6)
   p.trim.push(tinted(box(b, w * 0.4, 4, d * 0.4, 0, h + 1.6, 0), 0xdedfdd))
   solid(p, b, w * 0.4, d * 0.4, h, h + 5.6)
+  clutter(b, p, h + 1.6, w + 0.4, d + 0.4, 0.4)
   if (b.seed % 3 === 0) p.trim.push(tinted(box(b, 0.6, 14, 0.6, 0, h + 5.6, 0), 0xdedfdd))
 }
 
@@ -133,6 +161,7 @@ function partsFor(list: Building[]): Parts {
     facade: { deco: [], residential: [], glass: [] },
     trim: [],
     roof: [],
+    rails: [],
     solids: [],
   }
   for (const b of list) {
@@ -144,22 +173,28 @@ function partsFor(list: Building[]): Parts {
   return p
 }
 
-/**
- * All buildings, merged per 250 m chunk and per material, with box colliders for each
- * solid part. Returns the facade materials so night can light their windows.
- */
-export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMaterial[] {
+/** All buildings, merged per 250 m chunk and per material, with box colliders for each solid part. */
+export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
   const styles: Style[] = ['deco', 'residential', 'glass']
   const facades = new Map(styles.map((s) => [s, facadeMaterial(s)]))
   const trim = pbr('white_stucco', 0.5, { vertexColors: true })
   // Light membrane roofs, like the cool roofs all over Miami.
   const roof = pbr('white_stucco', 0.25, { color: 0xc4c2bd })
+  // Tinted, glossy, and opaque: real balustrade glass reads as a pale mirror from the street.
+  const rails = new THREE.MeshStandardMaterial({
+    color: 0x9fb3bb,
+    metalness: 0.3,
+    roughness: 0.08,
+    side: THREE.DoubleSide,
+  })
   const all = c.blocks.flatMap((b) => b.buildings)
   for (const list of groupByChunk(all).values()) {
     const p = partsFor(list)
     for (const style of styles) addMerged(ctx, p.facade[style], facades.get(style)!)
     addMerged(ctx, p.trim, trim)
     addMerged(ctx, p.roof, roof)
+    // Detail layer: the sea mirror skips them, and they cast no shadow worth a pass.
+    addMerged(ctx, p.rails, rails, { cast: false, receive: true })?.layers.set(DETAIL_LAYER)
     for (const s of p.solids) {
       const half = s.getSize(new THREE.Vector3()).multiplyScalar(0.5)
       const at = s.getCenter(new THREE.Vector3())
@@ -167,5 +202,4 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandard
       ctx.colliders.add(desc.setTranslation(at.x, at.y, at.z))
     }
   }
-  return [...facades.values()]
 }

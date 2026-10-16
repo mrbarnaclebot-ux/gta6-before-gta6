@@ -84,8 +84,14 @@ float grass = max(0.0, 1.0 - rock - sand - dirt);
 groundWeights = vec4(grass, dirt, rock, sand);
 vec4 ground = layer(0.0, TILE.x, grass) + layer(1.0, TILE.y, dirt)
   + layer(2.0, TILE.z, rock) + layer(3.0, TILE.w, sand);
-// Large patches of lusher and drier grass, so a field never reads as one flat tint.
-vec3 grassTint = mix(vec3(0.82, 0.86, 0.62), vec3(1.05, 1.08, 0.86), vSplat.w);
+// The grass layer's photo is half bare soil: pull it toward a sward, its own detail kept as
+// brightness. Large patches of lusher and drier grass, and a finer mottle, break up the field.
+float grassLuma = dot(ground.rgb, vec3(0.3, 0.59, 0.11)) / max(grass, 1e-3);
+float mottle = textureGrad(groundAlbedo, vec3(vGroundPos.xz / 61.0, 0.0), gdx / 61.0, gdy / 61.0).g;
+vec3 sward = mix(vec3(0.34, 0.56, 0.13), vec3(0.66, 0.64, 0.28), smoothstep(0.35, 0.8, vSplat.w));
+sward *= 0.75 + 0.6 * mottle;
+ground.rgb = mix(ground.rgb, sward * grassLuma * 1.5 * grass, 0.65 * grass);
+vec3 grassTint = mix(vec3(0.9, 0.95, 0.75), vec3(1.05, 1.06, 0.9), vSplat.w);
 vec3 tint = grassTint * grass + vec3(1.0) * (dirt + rock) + vec3(1.3, 1.26, 1.18) * sand;
 float depth = ${SEA_LEVEL.toFixed(2)} - vGroundPos.y;
 float wet = sandWetness(depth) * sand;

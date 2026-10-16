@@ -149,6 +149,7 @@ export class Sky {
     u.night.value = 1 - l.day
     u.yaw.value = this.hdriSunAzimuth - Math.atan2(a.sunDir.z, a.sunDir.x)
     u.glow.value.copy(DUSK).multiplyScalar(l.dusk)
+    u.sunLight.value.copy(this.sun.color).multiplyScalar(this.sun.intensity)
     this.fill.intensity = 1.4 * l.dusk
     u.sunDisk.value.fromArray(l.color).multiplyScalar(l.day > 0 ? 12 : 4)
     this.fogColor.copy(NIGHT_FOG).lerp(this.dayFog, l.day)

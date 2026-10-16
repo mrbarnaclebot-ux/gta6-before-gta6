@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { HSV_GLSL } from '../render/hsv-glsl'
+import { skinShading } from '../render/skin'
 
 // Hue turn and brightness for each outfit; the first keeps the generated clothes.
 export const DYES: [hue: number, value: number][] = [
@@ -33,5 +34,5 @@ export function outfit(base: THREE.Material, dye: number): THREE.Material {
       .replace('#include <common>', `#include <common>\nuniform vec2 uDye;\n${HSV_GLSL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>${DYE}`)
   }
-  return mat
+  return skinShading(mat)
 }

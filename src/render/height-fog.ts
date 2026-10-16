@@ -4,6 +4,8 @@ import * as THREE from 'three'
 export const FOG_SCALE_HEIGHT = 110
 // Above this the fog is the underwater murk, which stays even in every direction.
 const UNDERWATER_DENSITY = 0.02
+/** Forward scattering in the haze toward the sun, for a cosine `fogMu` (sky-dome.ts uses it too). */
+export const SUN_HAZE = '( 0.06 * pow( fogMu, 10.0 ) + 0.025 * fogMu * fogMu )'
 
 /**
  * How much thicker (above 1) or thinner (below 1) the haze is along a ray from a camera
@@ -57,7 +59,14 @@ const FRAGMENT = /* glsl */ `
   #else
     float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
   #endif
-  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+  vec3 fogLit = fogColor;
+  #if defined( RE_Direct ) && NUM_DIR_LIGHTS > 0
+    // Sunlight scattered forward by the haze: it glows toward the sun (the sky dome matches).
+    float fogMu = max( dot( normalize( - vViewPosition ), directionalLights[ 0 ].direction ), 0.0 );
+    float fogAir = fogDensity > ${UNDERWATER_DENSITY} ? 0.0 : 1.0;
+    fogLit += directionalLights[ 0 ].color * ${SUN_HAZE} * fogAir;
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogLit, fogFactor );
 #endif
 `
 

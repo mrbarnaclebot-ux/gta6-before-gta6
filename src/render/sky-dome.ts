@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { SUN_HAZE } from './height-fog'
 
 const VERTEX = /* glsl */ `
 varying vec3 vDir;
@@ -26,6 +27,7 @@ uniform vec3 horizon;
 uniform vec3 sunDir;
 uniform vec3 sunDisk;
 uniform vec3 glow;
+uniform vec3 sunLight;
 varying vec3 vDir;
 
 vec3 turned(vec3 d) {
@@ -47,7 +49,9 @@ void main() {
   float low = pow(1.0 - max(d.y, 0.0), 5.0);
   sky += glow * (pow(toSun, 12.0) * 1.5 + low * (0.25 + 0.75 * pow(toSun, 2.0)));
   sky += sunDisk * smoothstep(0.99990, 0.99996, toSun);
-  gl_FragColor = vec4(mix(horizon, sky, smoothstep(0.0, 0.06, d.y)), 1.0);
+  float fogMu = toSun;
+  vec3 haze = horizon + sunLight * ${SUN_HAZE};
+  gl_FragColor = vec4(mix(haze, sky, smoothstep(0.0, 0.06, d.y)), 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -63,6 +67,8 @@ export type DomeUniforms = {
   sunDir: { value: THREE.Vector3 }
   sunDisk: { value: THREE.Color }
   glow: { value: THREE.Color }
+  /** The sun's light (color times intensity), for the haze's glow toward it. */
+  sunLight: { value: THREE.Color }
 }
 
 /** The sky: drawn first behind everything, also by the water's mirror camera. */
@@ -77,6 +83,7 @@ export function skyDome(): { mesh: THREE.Mesh; uniforms: DomeUniforms } {
     sunDir: { value: new THREE.Vector3(0, 1, 0) },
     sunDisk: { value: new THREE.Color() },
     glow: { value: new THREE.Color() },
+    sunLight: { value: new THREE.Color() },
   }
   const material = new THREE.ShaderMaterial({
     uniforms,

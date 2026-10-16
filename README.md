@@ -74,6 +74,8 @@ High:
 | downtown-night | 25.6 | 48.9 | 100 | 33.4 | 21 | 0 | 555 | 501 |
 | drive: the highway loop at 40 m/s, 86 s | 29.9 | 47 | 100 | 33.4 | 226 | 1 | | |
 
+Phase 12b (visual realism) numbers, before and after, are in `.planning/phases/012b-SUMMARY.md`: Medium still holds 60 in every scene.
+
 Ultra on the hillside: 17.6 to 23 fps (uncapped 22.8 to 32). The biggest single win was in Rapier, not the renderer: its `step()` re-mapped every one of about 40k colliders through JavaScript each physics step. Details, and what was tried and dropped: `.planning/phases/011-SUMMARY.md`.
 
 ## Controls
