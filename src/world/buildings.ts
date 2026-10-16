@@ -164,7 +164,7 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): THREE.MeshStandard
       const half = s.getSize(new THREE.Vector3()).multiplyScalar(0.5)
       const at = s.getCenter(new THREE.Vector3())
       const desc = RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z)
-      ctx.physics.createCollider(desc.setTranslation(at.x, at.y, at.z))
+      ctx.colliders.add(desc.setTranslation(at.x, at.y, at.z))
     }
   }
   return [...facades.values()]

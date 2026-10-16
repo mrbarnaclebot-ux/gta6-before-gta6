@@ -29,6 +29,7 @@ import { parkCars } from './vehicle/fleet'
 import { underwaterLightAll } from './sea/caustics'
 import { buildCity } from './world/city'
 import { DETAIL_LAYER } from './world/instancing'
+import { StaticColliders } from './world/static-colliders'
 import { modelLoader } from './world/load-model'
 import { initKtx2 } from './render/ktx2'
 
@@ -50,6 +51,7 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   const sky = new Sky(scene)
   const shadows = new Shadows(scene, camera, sky.sun)
   const physics = await createPhysics()
+  const colliders = new StaticColliders(physics)
   loading.finish('physics')
   // Every loader here uses three's default manager, so it sees each glb, hdr, and texture.
   const files = THREE.DefaultLoadingManager
@@ -58,31 +60,45 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   const load = modelLoader()
   const [figures, city] = await Promise.all([
     loadFigures(load),
-    buildCity({ scene, physics }, load, sky.ambient, renderer.gl),
+    buildCity({ scene, physics, colliders }, load, sky.ambient, renderer.gl),
     sky.load(renderer.gl),
   ])
   files.onProgress = () => {}
   loading.finish('files')
   // Car bodies load after the first frame (see startGame); box bodies stand in till then.
   const carModels = new CarModels(scene)
-  return { scene, camera, renderer, sky, shadows, physics, figures, city, carModels, load }
+  return {
+    scene,
+    camera,
+    renderer,
+    sky,
+    shadows,
+    physics,
+    colliders,
+    figures,
+    city,
+    carModels,
+    load,
+  }
 }
 
 /** The player on foot, the parked cars, the boats, and who is driving what. */
 function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
-  const { scene, physics, figures, city } = world
+  const { scene, physics, colliders, figures, city } = world
+  const ctx = { scene, physics, colliders }
   const avatar = new Avatar(figures.male)
   underwaterLightAll(avatar.root)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
-  const harbor = buildHarbor({ scene, physics }, city.layout, city.water)
-  const cars = [...parkCars({ scene, physics }, city, world.carModels.make), ...harbor.boats]
+  const harbor = buildHarbor(ctx, city.layout, city.water)
+  const cars = [...parkCars(ctx, city, world.carModels.make), ...harbor.boats]
   return { player, cars, harbor, driving: new Driving(physics, cars, player, scene, city.water) }
 }
 
 async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
   const world = await loadWorld(canvas, loading)
-  const { scene, camera, renderer, sky, shadows, physics, figures, city, carModels } = world
+  const { scene, camera, renderer, sky, shadows, physics, colliders, figures, city, carModels } =
+    world
   const makeCar = carModels.make
   const { player, cars, harbor, driving } = spawnPlayer(world)
   const follow = new FollowCamera(camera, physics, player.collider)
@@ -105,6 +121,7 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     sky,
     shadows,
     physics,
+    colliders,
     player,
     driving,
     follow,
@@ -124,6 +141,8 @@ const VIEW = new THREE.Vector3()
 
 /** One frame of play: fixed 60 Hz physics with render-rate interpolation, then everything that follows it. */
 function simulate(w: World, input: Input, dt: number, acc: number): number {
+  // Before the step: after a teleport the colliders around the new spot exist already.
+  w.colliders.update([w.driving.position, w.camera.position])
   for (acc += dt; acc >= FIXED_STEP; acc -= FIXED_STEP) {
     w.driving.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
     w.physics.step()
@@ -203,6 +222,7 @@ export async function startGame(
   // screen (in parallel where the browser can), not mid-drive when it first comes into view.
   await w.renderer.gl.compileAsync(w.scene, w.camera)
   let frames = 0
+  let carsIn = false
   runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
     sound.update(dt)
@@ -213,7 +233,7 @@ export async function startGame(
     ui.tip('map', 'Press M for the map. Click on it to set a waypoint.')
     ui.tip('car', 'Walk up to a parked car and press F to get in.')
     // The car bodies are the heaviest download; fetch them once the city is on screen.
-    void w.upgradeCars()
+    void w.upgradeCars().then(() => (carsIn = true))
   })
   exposeTestHook({
     ...w,
@@ -233,6 +253,9 @@ export async function startGame(
       geometries: w.renderer.gl.info.memory.geometries,
       textures: w.renderer.gl.info.memory.textures,
       cpu: { ...CPU_WORK },
+      ...w.colliders.stats,
+      /** Everything around the player is in: car bodies fetched, collider tiles built. */
+      streamed: carsIn && !w.colliders.busy,
     }),
   })
 }

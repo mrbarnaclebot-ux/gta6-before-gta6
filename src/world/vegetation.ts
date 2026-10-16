@@ -85,7 +85,7 @@ export async function plantVegetation(
   const updates = [palms, ...plantFerns(ctx, fernVariants(await load(FERN)), c.bushes)]
   for (const p of all) {
     const trunk = RAPIER.ColliderDesc.cylinder(2, 0.25)
-    ctx.physics.createCollider(trunk.setTranslation(p.x, p.y + 2, p.z))
+    ctx.colliders.add(trunk.setTranslation(p.x, p.y + 2, p.z))
   }
   return (eye, reach) => updates.forEach((u) => u(eye, reach))
 }

@@ -105,7 +105,7 @@ function collide(ctx: WorldCtx, h: House): void {
   const desc = RAPIER.ColliderDesc.cuboid(h.w / 2, height / 2, h.d / 2)
     .setTranslation(h.x, h.y + height / 2, h.z)
     .setRotation(q)
-  ctx.physics.createCollider(desc)
+  ctx.colliders.add(desc)
 }
 
 /** Every house, merged per 250 m chunk and material, with drives, back-yard fences, and colliders. */

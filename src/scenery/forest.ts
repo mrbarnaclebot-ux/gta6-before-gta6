@@ -114,7 +114,7 @@ async function rocks(ctx: WorldCtx, load: Load, flora: Flora) {
 function colliders(ctx: WorldCtx, flora: Flora) {
   const trunk = (t: Grounded, radius: number) => {
     const desc = RAPIER.ColliderDesc.cylinder(2, radius)
-    ctx.physics.createCollider(desc.setTranslation(t.x, t.y + 2, t.z))
+    ctx.colliders.add(desc.setTranslation(t.x, t.y + 2, t.z))
   }
   for (const t of flora.conifers) trunk(t, Math.max(0.2, TRUNK * t.s))
   // The broadleaves fork low into thick limbs: the camera should stop short of them.
@@ -122,7 +122,7 @@ function colliders(ctx: WorldCtx, flora: Flora) {
   for (const t of flora.garden) trunk(t, GARDEN_TRUNK * t.s)
   for (const r of flora.rocks.filter((q) => q.s > 0.8)) {
     const body = RAPIER.ColliderDesc.cylinder(r.s / 2, r.s * ROCK_SPREAD * 0.55)
-    ctx.physics.createCollider(body.setTranslation(r.x, r.y + r.s / 2, r.z))
+    ctx.colliders.add(body.setTranslation(r.x, r.y + r.s / 2, r.z))
   }
 }
 

@@ -2,10 +2,13 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import type { Rect } from '../city/layout'
 import { RAPIER, type PhysicsWorld } from '../physics'
+import type { StaticColliders } from './static-colliders'
 
 export interface WorldCtx {
   scene: THREE.Scene
   physics: PhysicsWorld
+  /** Small fixed colliders go here: they stream in tiles around the player. */
+  colliders: StaticColliders
 }
 
 /**

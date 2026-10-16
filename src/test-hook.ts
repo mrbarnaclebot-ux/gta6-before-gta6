@@ -14,8 +14,10 @@ import { PRESETS, type Graphics, type Preset } from './render/graphics'
 import type { Driving } from './vehicle/driving'
 import type { City } from './world/city'
 import type { Ui } from './ui/hud-sync'
+import type { StaticColliders } from './world/static-colliders'
 
 interface HookDeps {
+  colliders: StaticColliders
   /** A spot on the marina's T-head beside a boat with open water ahead. */
   dock: { x: number; y: number; z: number }
   physics: PhysicsWorld
@@ -43,6 +45,10 @@ interface HookDeps {
     geometries: number
     textures: number
     cpu: { ms: number; frames: number }
+    colliders: number
+    tiles: number
+    queued: number
+    streamed: boolean
   }
 }
 
@@ -189,6 +195,10 @@ export function exposeTestHook(deps: HookDeps): void {
     ...actorHelpers(deps),
     ...lifeHelpers(deps),
     groundGaps: groundGaps(deps),
+    /** Streamed static colliders (trunks, posts, buildings) alive within r meters of (x, z). */
+    collidersNear: (x: number, z: number, r: number) => deps.colliders.countNear(x, z, r),
+    /** Solid ground height found by a short ray down from (x, y, z), or null. */
+    probe: (x: number, y: number, z: number) => groundProbe(deps.physics)(x, y, z),
     audio: () => structuredClone(deps.audio()),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })

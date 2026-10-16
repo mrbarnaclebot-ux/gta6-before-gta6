@@ -73,6 +73,6 @@ export function buildBeach(ctx: WorldCtx, land: Land): void {
   }
   for (const t of things.filter((q) => q.kind === 'tower')) {
     const desc = RAPIER.ColliderDesc.cuboid(1.8, 2.4, 1.8).setTranslation(t.x, t.y + 2.4, t.z)
-    ctx.physics.createCollider(desc)
+    ctx.colliders.add(desc)
   }
 }
