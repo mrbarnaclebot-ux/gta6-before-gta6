@@ -9,7 +9,8 @@ export default defineConfig({
   forbidOnly: CI,
   // SwiftShader on a shared runner stalls now and then; one retry tells a flake from a break.
   retries: CI ? 1 : 0,
-  workers: CI ? 1 : undefined,
+  // Each worker is a SwiftShader renderer on the CPU; past three at once the long specs time out.
+  workers: CI ? 1 : 3,
   reporter: CI ? 'list' : undefined,
   use: {
     baseURL: `http://localhost:${PORT}`,
