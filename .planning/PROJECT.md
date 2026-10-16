@@ -12,8 +12,8 @@ Hobby project. Friends want a playable "GTA before GTA 6" toy they can open with
 
 ## Who it is for / not for
 
-- For: the owner and friends, on desktop browsers with keyboard and mouse.
-- Not for: mobile or touch players, console players, anyone expecting AAA visuals, story missions, or multiplayer.
+- For: the owner and friends, on desktop browsers with keyboard and mouse, a gamepad, or a phone or tablet in landscape (Phase 12a).
+- Not for: console players, anyone expecting AAA visuals, story missions, or multiplayer.
 
 ## Success criteria
 
@@ -23,7 +23,7 @@ Hobby project. Friends want a playable "GTA before GTA 6" toy they can open with
 
 ## Out of scope for v1
 
-Multiplayer, missions and story, character customization, save games, mobile controls, audio beyond simple SFX, motorcycles, boats, aircraft, interiors, licensed or ripped assets.
+Multiplayer, missions and story, character customization, save games, audio beyond simple SFX, motorcycles, boats, aircraft, interiors, licensed or ripped assets.
 
 ## Key decisions (default chosen, reason)
 
@@ -38,7 +38,7 @@ Multiplayer, missions and story, character customization, save games, mobile con
 | Auth | None | Single-player, no accounts | none |
 | Hosting | Railway, static build served by a tiny static server (Phase 7) | Owner choice | Cloudflare Pages |
 | Offline | No | Not needed | none |
-| Mobile | No (desktop only, shows a "use a desktop" notice) | Mouse aim and WASD | Touch controls later |
+| Mobile | Yes from Phase 12a: touch controls in landscape, a rotate notice in portrait, Low with dynamic resolution by default on touch | Owner request after launch at gta6beforegta6.xyz | Desktop-only notice (v1 to Phase 11) |
 | Multi-user | No | v1 scope | none |
 | Cost ceiling | $0 except Railway usage and any approved AI asset credits | Owner choice | none |
 | Tests | Vitest for pure logic (damage, wanted level, input mapping), Playwright smoke test that loads the game, presses keys, and screenshots | Project standard | none |
@@ -62,6 +62,10 @@ Multiplayer, missions and story, character customization, save games, mobile con
     - **10d Boats and carjacking.** Boats on the sea and canal; pulling drivers out of traffic cars.
     - **10e Sound effects and music.** Owner request, lifting the earlier "simple SFX only" limit: Epidemic Sound files from the owner's subscription, processed by `scripts/audio.mjs`; a Web Audio mixer with volume settings; footsteps, vehicles, combat, ambience by area and time, menu and chase music, and an in-car radio. Audio before Play stays under 1.5 MB.
 11. **Phase 11: Optimisation, chunked world, and the new title.** Owner request. The game is renamed "GTA 6 BEFORE GTA 6" with the owner's Higgsfield logo on the menu and loading screen, and a simple favicon. Research first (`.planning/phases/11-RESEARCH.md`), measure first (`scripts/perf.mjs`: cold and warm loads, transfer, memory, frame-time percentiles, a full-map drive), then keep only what measures well. Decisions: KTX2 (Basis ETC1S) textures and Meshopt models built by `scripts/compress-assets.mjs` from sources in `assets-src`; Caddy cache headers and precompressed files through Railpack's `Caddyfile.template`; a service worker keyed by content hash for repeat visits; shader prewarm, Rapier and world generation (in a Web Worker) during the menu; small static colliders streamed in 128 m tiles with hysteresis; roads cut along the terrain tiles; far impostors on big chunks as the HLOD. Targets on the M4 at 1920x1080 DSF2: warm Play to in-game under 3 s, cold transfer under 20 MB, Medium 60 fps with p99 under 33 ms in every perf scene, no frame over 50 ms on a drive across the map, High no worse than before.
+
+12. **Phase 12: Controls everywhere and visual realism.** Owner request after the game went live at https://gta6beforegta6.xyz. Two parts, each its own branch and summary:
+    - **12a Mobile touch and gamepad controls.** One action layer that keyboard and mouse, the Gamepad API (standard mapping, hot-plug, deadzone and response curve, D-pad menus), and touch (a floating thumbstick, drag to look, context buttons of at least 48 px inside the safe area, multi-touch) all feed. Prompts, tips, and the Controls tab follow the last device used. Phones play in landscape with a rotate notice in portrait, start on Low with dynamic resolution, and the HUD moves out from under the thumbs. Menus, settings, the map (tap for a waypoint, drag and pinch), and pause all work by touch. Decisions: B is hold-to-run on foot and hold-to-dive in water; aim and run are toggles on touch; no radio buttons on touch. Tests: Vitest for the stick math and pad mapping, Playwright touch (844x390, hasTouch, isMobile) and stubbed-gamepad specs, one touch check tagged `@smoke`.
+    - **12b Visual realism.** As close to the references as the browser allows, on top of Phase 8 and 10.
 
 ## Gaps found in the original idea (added above)
 
