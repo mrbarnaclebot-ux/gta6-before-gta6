@@ -34,6 +34,7 @@ export type Game = {
   aimAt: (x: number, y: number, z: number) => void
   peds: () => (Point & { health: number; state: string })[]
   traffic: () => (Point & { id: number; speed: number; heading: number })[]
+  boats: () => (Point & { heading: number })[]
   hospitals: () => (Point & { name: string })[]
   hurt: (amount: number) => void
   skipDeath: () => void

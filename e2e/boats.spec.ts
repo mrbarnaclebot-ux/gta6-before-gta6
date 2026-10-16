@@ -88,9 +88,18 @@ async function boatRide(page: Page) {
   expect(Math.hypot(s.position.x - start.x, s.position.z - start.z)).toBeGreaterThan(15)
   // Afloat: the hull's waterline stays within the swell of sea level (-1.2 m).
   expect(Math.abs(s.position.y + 1.2)).toBeLessThan(0.8)
+  // Stop dead first: a coasting hull slides out from under whoever steps off it.
+  await page.evaluate(({ x, y, z }) => {
+    ;(window as unknown as { __game: Game }).__game.teleport(x, y, z)
+  }, s.position)
+  await settle(page, 20)
   await page.keyboard.press('f')
   await settle(page, 6)
-  expect((await game(page)).mode).toBe('swimming')
+  s = await game(page)
+  expect(s.mode).toBe('swimming')
+  const boats = await page.evaluate(() => (window as unknown as { __game: Game }).__game.boats())
+  const gap = Math.min(...boats.map((b) => Math.hypot(b.x - s.position.x, b.z - s.position.z)))
+  expect(gap, 'swimming beside the hull, not standing on it').toBeGreaterThan(1.5)
 }
 
 // One page for both: each load costs a minute of SwiftShader beside the other specs.

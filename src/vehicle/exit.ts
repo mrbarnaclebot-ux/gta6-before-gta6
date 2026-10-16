@@ -38,6 +38,8 @@ export function findExit(
   const p = new THREE.Vector3()
   for (const dryOnly of [true, false]) {
     for (const [x, y, z] of candidates(v.visual.bounds)) {
+      // The roof ray lands on the vehicle itself, which is not dry ground beside it.
+      if (dryOnly && y > 0) continue
       p.set(x, y, z).applyQuaternion(v.quaternion).add(v.position)
       const from = { x: p.x, y: p.y + 2, z: p.z }
       const hit = physics.castRay(new RAPIER.Ray(from, DOWN), 4, true)
