@@ -144,7 +144,7 @@ void roomTrace() {
   float lit = roomLit(center, id, t, n);
   float light = roomLight.x * (0.2 + 0.22 * lit) + roomLight.y * mix(0.025, 0.95, lit);
   // Far off, a room is a few dim pixels behind glass that mostly reflects: not a bright tile.
-  roomSeen = room * light * ROOM_SEE * (1.0 - 0.5 * far);
+  roomSeen = room * light * ROOM_SEE * (1.0 - 0.75 * far);
   roomJamb *= inside * (1.0 - far);
   roomGlass *= 1.0 - roomJamb;
 }

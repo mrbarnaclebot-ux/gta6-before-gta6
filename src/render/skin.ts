@@ -31,7 +31,7 @@ const SCATTER = /* glsl */ `
   float skinNl = dot(normal, directionalLights[0].direction);
   float skinWrap = max(0.0, (skinNl + 0.45) / 1.45 - max(skinNl, 0.0));
   reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color
-    * skinWrap * vec3(0.9, 0.38, 0.26) * 0.5 * skinMask;
+    * skinWrap * vec3(0.9, 0.45, 0.34) * 0.32 * skinMask;
 }
 #endif
 `
