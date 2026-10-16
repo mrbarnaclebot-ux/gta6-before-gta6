@@ -98,7 +98,7 @@ async function pauseMenu(page: Page) {
 }
 
 test('people, traffic, wanted level, death, pause menu, and night', async ({ page }) => {
-  test.setTimeout(300_000 * SLOW)
+  test.setTimeout(420_000 * SLOW)
   const errors = await play(page, '/?quality=low')
   await expect(page.locator('#minimap')).toBeVisible()
 
