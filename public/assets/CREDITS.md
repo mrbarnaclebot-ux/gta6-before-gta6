@@ -17,6 +17,8 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - ui/menu.webp (2560x1434) - sunset boulevard, the player leaning on an orange supercar on the right third: the main menu backdrop.
 - ui/menu_night.webp (2560x1434) - dusk skyline from the ocean with neon hotels: the pause menu backdrop (blurred) and a loading slide.
 - ui/load_car.webp, ui/load_police.webp, ui/load_beach.webp, ui/load_swim.webp (1344x752) - loading screen slideshow.
+- ui/logo.webp (1113x590, transparent) - the "GTA 6 BEFORE GTA 6" title logo: neon synthwave chrome lettering with a sunset and a palm. Generated 2026-10-16 (gpt_image_2_5, option 1 of 4 chosen by the owner), background removed with Higgsfield image_background_remover. Original design, not derived from any official logo.
+- ../apple-touch-icon.png (180x180) - the same logo fitted into a square. ../favicon.svg is hand-drawn (a "6" on the logo's sunset), no generated art.
 
 ## Font (SIL Open Font License 1.1)
 - fonts/anton-latin-400.woff2 - Anton by Vernon Adams, https://fonts.google.com/specimen/Anton (latin subset woff2 from Fontsource, https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.5) - OFL 1.1

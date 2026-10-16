@@ -1,4 +1,4 @@
-# Vice Demo (gta6-before-gta6)
+# GTA 6 BEFORE GTA 6 (gta6-before-gta6)
 
 A browser open-world demo set in a sunny Miami-like coastal city. Three.js, Rapier physics, plain DOM HUD.
 

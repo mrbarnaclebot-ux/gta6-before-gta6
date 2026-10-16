@@ -3,8 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vice Demo</title>
+    <title>GTA 6 BEFORE GTA 6</title>
+    <meta
+      name="description"
+      content="GTA 6 BEFORE GTA 6: a free open-world hobby game on a sunny coast, in your browser. Walk, swim, drive, and shoot."
+    />
+    <meta name="theme-color" content="#1b1030" />
+    <meta property="og:title" content="GTA 6 BEFORE GTA 6" />
+    <meta
+      property="og:description"
+      content="A free open-world drive down a sunny coast, in your browser."
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link
       rel="preload"
       href="/assets/fonts/anton-latin-400.woff2"
@@ -13,13 +24,16 @@
       crossorigin
     />
     <link rel="preload" href="/assets/ui/menu.webp" as="image" />
+    <link rel="preload" href="/assets/ui/logo.webp" as="image" fetchpriority="high" />
   </head>
   <body>
     <canvas id="view" tabindex="0"></canvas>
     <section id="menu" class="menu">
       <div class="menu-art" aria-hidden="true"></div>
       <div class="menu-body">
-        <h1 class="wordmark"><span>Vice</span> <span>Demo</span></h1>
+        <h1 class="wordmark">
+          <img src="/assets/ui/logo.webp" width="1113" height="590" alt="GTA 6 BEFORE GTA 6" />
+        </h1>
         <p class="menu-tag">An open-world drive down a sunny coast, in your browser</p>
         <nav class="menu-list" aria-label="Main menu">
           <button id="play" type="button" class="menu-item" autofocus>Play</button>
@@ -51,7 +65,7 @@
       >
         <h2 id="credits-title">Credits</h2>
         <dl class="credit-list">
-          <dt>Art direction, menu and loading art</dt>
+          <dt>Art direction, title logo, menu and loading art</dt>
           <dd>The project owner, generated with Higgsfield</dd>
           <dt>Player, people, cars, palms</dt>
           <dd>The project owner, generated with AssetHub (Tripo)</dd>
@@ -95,7 +109,7 @@
         <img alt="" data-src="/assets/ui/load_swim.webp" />
         <img alt="" data-src="/assets/ui/menu_night.webp" />
       </div>
-      <p class="load-mark" aria-hidden="true"><span>Vice</span> Demo</p>
+      <img class="load-mark" src="/assets/ui/logo.webp" width="1113" height="590" alt="" />
       <div class="load-foot">
         <div class="tip">
           <span class="tip-label">Tip</span>

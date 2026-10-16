@@ -45,26 +45,15 @@
 }
 
 .wordmark {
-  margin: 0;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(72px, 10vw, 156px);
-  line-height: 0.84;
-  letter-spacing: 0.005em;
-  text-transform: uppercase;
+  margin: 0 0 0 -2%;
+  line-height: 0;
   filter: drop-shadow(0 6px 24px rgba(20, 4, 30, 0.55));
 }
 
-.wordmark span {
-  display: block;
-  width: fit-content;
-}
-
-.wordmark span:first-child {
-  background: var(--sunset);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* The logo is 1113x590; it is capped by height too so the menu list always fits below it. */
+.wordmark img {
+  width: min(100%, max(260px, 30vw), 62vh);
+  height: auto;
 }
 
 .menu-tag {
@@ -192,8 +181,8 @@
     bottom: clamp(72px, 10vh, 120px);
     transform: none;
   }
-  .wordmark {
-    font-size: clamp(64px, 17vw, 150px);
+  .wordmark img {
+    width: min(100%, 440px, 34vh);
   }
 }
 

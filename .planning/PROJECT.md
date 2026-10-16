@@ -1,4 +1,4 @@
-# PROJECT: Vice Demo (working title)
+# PROJECT: GTA 6 BEFORE GTA 6 (was Vice Demo)
 
 Status: APPROVED 2026-10-15. Owner changes: realistic graphics, free 3D assets first, Higgsfield/fal allowed if free assets fall short, host on Railway.
 
