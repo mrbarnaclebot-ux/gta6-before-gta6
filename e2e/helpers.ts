@@ -38,6 +38,7 @@ export type Game = {
   setTime: (hours: number) => void
   waypoint: () => (Point & { route: { x: number; z: number }[] }) | null
   waterAt: (x: number, z: number) => number | null
+  ground: (x: number, z: number) => number
   sea: () => { reefs: Point[]; schools: number; fish: Point[] }
   groundGaps: () => { kind: string; x: number; y: number; z: number; gap: number | null }[]
 }

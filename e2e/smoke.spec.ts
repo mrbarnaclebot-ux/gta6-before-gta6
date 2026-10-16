@@ -113,14 +113,16 @@ test('swims in the ocean and dives under', async ({ page }) => {
   const after = await page.evaluate(
     (r) => {
       const g = (window as unknown as { __game: Game }).__game
-      return { h: g.waterAt(r.x + 20, r.z), sea: g.sea() }
+      const sea = g.sea()
+      const fish = sea.fish.map((f) => ({ ...f, floor: g.ground(f.x, f.z) }))
+      return { h: g.waterAt(r.x + 20, r.z), schools: sea.schools, fish }
     },
     { x: reef.x, z: reef.z },
   )
   expect(reef.h).not.toBeNull()
-  expect(after.h).not.toBe(reef.h)
-  expect(after.sea.schools).toBeGreaterThan(0)
-  for (const f of after.sea.fish) expect(f.y).toBeGreaterThan(reef.y - 1)
+  expect(Math.abs(after.h! - reef.h!)).toBeGreaterThan(0.01)
+  expect(after.schools).toBeGreaterThan(0)
+  for (const f of after.fish) expect(f.y).toBeGreaterThan(f.floor)
   await page.screenshot({ path: 'test-results/reef.png' })
   expect(errors).toEqual([])
 })
