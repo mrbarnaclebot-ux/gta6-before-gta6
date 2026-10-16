@@ -23,6 +23,7 @@ import type { PauseMenu } from './ui/pause'
 import { CarModels } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
+import { underwaterLightAll } from './sea/caustics'
 import { buildCity } from './world/city'
 import { DETAIL_LAYER } from './world/instancing'
 
@@ -66,6 +67,7 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
 function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
   const { scene, physics, figures, city } = world
   const avatar = new Avatar(figures.male)
+  underwaterLightAll(avatar.root)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
   const cars = parkCars({ scene, physics }, city, world.carModels.make)
@@ -131,8 +133,9 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
   w.life.update(dt, VIEW, { count: shots, ...lastShot }, ambient.night)
   w.clock.hours = advance(w.clock.hours, dt)
   w.sky.setTime(w.clock.hours)
-  w.city.update(dt, w.camera)
-  w.sky.setUnderwater(w.city.underwater)
+  const swimmer = w.driving.mode === 'swimming' ? w.driving.position : null
+  w.city.update(dt, w.camera, swimmer)
+  w.sky.setUnderwater(w.city.underwater, w.city.underwaterDepth)
   return acc
 }
 

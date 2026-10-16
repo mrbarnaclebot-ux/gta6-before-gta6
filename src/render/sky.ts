@@ -7,9 +7,10 @@ import { skyDome, type DomeUniforms } from './sky-dome'
 const DAY_URL = '/assets/hdri/day_kloofendal_2k.hdr'
 const NIGHT_URL = '/assets/hdri/night_dikhololo_1k.hdr'
 // Underwater: blue-green murk that hides everything past about 50 m.
-const WATER_FOG = new THREE.Color(0x0e5f6a)
-const WATER_DENSITY = 0.07
+const WATER_FOG = new THREE.Color(0x147a84)
+const WATER_DENSITY = 0.055
 const WATER_DARK = new THREE.Color()
+const ABSORB = new THREE.Color()
 // Night: a haze lit violet by the city.
 const NIGHT_FOG = new THREE.Color(0.016, 0.018, 0.045)
 const DUSK = new THREE.Color(1.0, 0.36, 0.12)
@@ -60,6 +61,7 @@ export class Sky {
   private env = { day: null as THREE.Texture | null, night: null as THREE.Texture | null }
   private hdriSunAzimuth = 0
   private underwater = false
+  private waterDepth = 0
 
   constructor(private readonly scene: THREE.Scene) {
     this.dome = skyDome()
@@ -132,10 +134,14 @@ export class Sky {
     this.applyFogColor()
   }
 
-  /** Mutates the one fog rather than swapping it: materials keep their compiled fog uniforms. */
-  setUnderwater(on: boolean): void {
-    if (on === this.underwater) return
+  /**
+   * Mutates the one fog rather than swapping it: materials keep their compiled fog uniforms.
+   * `depth`: meters below the surface; the murk darkens and thickens deeper down.
+   */
+  setUnderwater(on: boolean, depth = 0): void {
+    if (on === this.underwater && (!on || Math.abs(depth - this.waterDepth) < 0.05)) return
     this.underwater = on
+    this.waterDepth = depth
     this.applyFogColor()
   }
 
@@ -150,14 +156,19 @@ export class Sky {
     const color = this.underwater ? this.waterFog() : this.fogColor
     if (this.post) fog.color.copy(color)
     else fog.color.fromArray(acesFilmic(color.toArray()))
-    fog.density = this.underwater ? WATER_DENSITY : this.fogDensity
+    fog.density = this.underwater ? WATER_DENSITY * (1 + this.waterDepth * 0.03) : this.fogDensity
     this.dome.mesh.visible = !this.underwater
     // Underwater the backdrop is the fog color itself, so everything fades into it.
     this.scene.background = this.underwater ? fog.color : null
   }
 
+  /** Blue-green near the surface; red goes first with depth, then green, so it deepens to blue. */
   private waterFog(): THREE.Color {
-    return WATER_DARK.copy(WATER_FOG).multiplyScalar(0.15 + 0.85 * this.ambient.day)
+    const d = this.waterDepth
+    WATER_DARK.copy(WATER_FOG).multiplyScalar(0.15 + 0.85 * this.ambient.day)
+    return WATER_DARK.multiply(
+      ABSORB.setRGB(Math.exp(-d * 0.12), Math.exp(-d * 0.045), Math.exp(-d * 0.03)),
+    )
   }
 }
 

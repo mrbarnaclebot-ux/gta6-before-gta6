@@ -159,11 +159,29 @@ export function exposeTestHook(deps: HookDeps): void {
     /** Change some graphics settings, keeping the rest. */
     setGraphics: (patch: Partial<Graphics>) => setGraphics({ ...graphics(), ...patch }),
     ...worldHelpers(deps),
+    ...seaHelpers(deps),
     ...actorHelpers(deps),
     ...lifeHelpers(deps),
     groundGaps: groundGaps(deps),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
+}
+
+/** The water surface and the sea life. */
+function seaHelpers({ city }: HookDeps) {
+  return {
+    /** Water surface height at (x, z) right now, waves included, or null on land. */
+    waterAt: (x: number, z: number) => city.water(x, z),
+    /** Reef centers on the seabed, and how many fish schools are swimming near the camera. */
+    sea: () => ({
+      reefs: city.sea.life.reefs.map((r) => ({ ...r })),
+      schools: city.sea.life.fish.swimmers.filter((s) => s.awake).length,
+      /** The lead fish of each swimming school. */
+      fish: city.sea.life.fish.swimmers
+        .filter((s) => s.awake)
+        .map(({ school: { pos } }) => ({ x: pos[0], y: pos[1], z: pos[2] })),
+    }),
+  }
 }
 
 /** Places, the camera, targets, and the GPS route. */

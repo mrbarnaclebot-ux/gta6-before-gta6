@@ -2,6 +2,7 @@ import { CELL, gridRect } from '../land/grid'
 import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
 import { rectCollider, type WorldCtx } from '../world/blocks'
+import type { SeaUniforms } from '../sea/sea-glsl'
 import { terrainMaterial } from './terrain-material'
 import { buildTerrainMesh } from './terrain-mesh'
 import { terrainTextures } from './terrain-textures'
@@ -10,10 +11,11 @@ import { terrainTextures } from './terrain-textures'
 export async function buildTerrain(
   ctx: WorldCtx,
   land: Land,
-  canopy: Float32Array | null = null,
+  canopy: Float32Array | null,
+  sea: SeaUniforms,
 ): Promise<void> {
   const tex = await terrainTextures()
-  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal), canopy)
+  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal, sea), canopy)
   const g = land.ground
   const w = g.nx * CELL
   const d = g.nz * CELL
