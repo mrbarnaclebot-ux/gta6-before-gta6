@@ -74,6 +74,9 @@ export class SsrEffect extends Effect {
 /**
  * The opaque output chunk with `mirror` (0 to 1, a GLSL expression) written to alpha as
  * 1 - mirror. Swap it for '#include <opaque_fragment>' in a glossy material's shader.
+ * Contract: SSR reads scene alpha as the mirror mask, so every other opaque material must
+ * write alpha 1 (three's default) and the canvas stays alpha: false. Transparent passes
+ * (water, particles) blend alpha toward 1 over what they cover, so they never fake a mirror.
  */
 export const reflectiveOut = (mirror: string) => /* glsl */ `
 #ifdef OPAQUE

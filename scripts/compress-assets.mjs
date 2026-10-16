@@ -88,7 +88,7 @@ function terrain() {
   ])
 }
 
-// One layer per picture, in this order (src/world/room-atlas.ts and src/world/sign-atlas.ts).
+// One layer per picture, in this order (read by src/world/late-textures.ts and src/world/interior.ts).
 const ROOMS = ['living', 'office', 'hotel', 'bar', 'bedroom', 'kitchen']
 const SIGNS = [
   ...['shop_cafe', 'shop_surf', 'shop_pharmacy', 'shop_pawn', 'shop_diner', 'shop_club'],

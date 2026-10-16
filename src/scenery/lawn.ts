@@ -4,6 +4,7 @@ import type { Clearance } from '../land/clearance'
 import { LAWN_CELL, lawnTile, PATCH_STRIDE } from '../land/lawn'
 import type { Land } from '../land/plan'
 import { KEEP_NORMAL } from '../render/card-normals'
+import { WIND } from '../render/foliage'
 import type { WorldCtx } from '../world/blocks'
 import { DETAIL_LAYER } from '../world/instancing'
 import { GrassTiles } from './grass-tiles'
@@ -75,10 +76,10 @@ transformed.xz += vec2(0.06, 0.035) * gust * tip;
 transformed.y *= 1.0 - smoothstep(range * 0.6, range, distance(root, cameraPosition));
 `
 
-function material(time: { value: number }, range: { value: number }): THREE.MeshLambertMaterial {
+function material(range: { value: number }): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })
   m.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, { time, range })
+    Object.assign(shader.uniforms, { time: WIND, range })
     shader.vertexShader = (VERTEX + shader.vertexShader).replace('#include <begin_vertex>', BEGIN)
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <normal_fragment_begin>',
@@ -138,10 +139,9 @@ function refill(mesh: THREE.InstancedMesh, tiles: GrassTiles, x: number, z: numb
 
 /** The lawn around the camera. Returns the per-frame update. */
 export function plantLawn(ctx: WorldCtx, land: Land, clear: Clearance) {
-  const time = { value: 0 }
   const range = { value: RANGE }
   const cap = Math.ceil((Math.PI * (RANGE * 1.5) ** 2) / LAWN_CELL ** 2)
-  const mesh = new THREE.InstancedMesh(patch(), material(time, range), cap)
+  const mesh = new THREE.InstancedMesh(patch(), material(range), cap)
   mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3)
   mesh.frustumCulled = false
   mesh.receiveShadow = true
@@ -151,7 +151,6 @@ export function plantLawn(ctx: WorldCtx, land: Land, clear: Clearance) {
   const tiles = new GrassTiles((i, j) => bake(land, clear, i, j))
   const last = new THREE.Vector3(Infinity, 0, 0)
   return (eye: THREE.Vector3, reach = 1) => {
-    time.value = performance.now() / 1000
     const moved = range.value !== RANGE * reach || last.distanceToSquared(eye) >= REFILL * REFILL
     range.value = RANGE * reach
     if (!tiles.fill(eye.x, eye.z, range.value, BUDGET) && !moved) return
