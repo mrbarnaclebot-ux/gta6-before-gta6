@@ -3,6 +3,7 @@ import { CURB_H, inset, ROAD_HALF, type CityLayout, type Rect } from '../city/la
 import { PARK_TOP, UNDER_CITY } from '../city/terrain'
 import { addMerged, rectBox, rectCollider, type WorldCtx } from './blocks'
 import { pbr } from './materials'
+import { wornAsphalt, wornPaving } from '../render/road-wear'
 
 const CURB_W = 0.3
 
@@ -41,8 +42,8 @@ function slabParts(r: Rect) {
 }
 
 export function buildGround(ctx: WorldCtx, c: CityLayout): void {
-  const asphalt = pbr('asphalt_02', 0.25, { color: 0xb8b4ae })
-  const paving = pbr('concrete_pavement_02', 0.5, { color: 0xf6f0e6 })
+  const asphalt = wornAsphalt(pbr('asphalt_02', 0.25, { color: 0xb8b4ae }))
+  const paving = wornPaving(pbr('concrete_pavement_02', 0.5, { color: 0xf6f0e6 }))
   const curb = pbr('white_stucco', 0.5, { color: 0xd9d6d0, roughness: 0.9 })
   const grass = pbr('aerial_grass_rock', 0.2, { color: 0xc0d098 })
 

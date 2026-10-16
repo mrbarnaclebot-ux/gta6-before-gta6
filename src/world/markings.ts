@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { ROAD_HALF, type CityLayout, type Road } from '../city/layout'
+import { wornPaint } from '../render/road-wear'
 import type { WorldCtx } from './blocks'
 
 const WHITE = new THREE.Color(0xe8e6df)
@@ -79,13 +80,15 @@ export function buildMarkings(ctx: WorldCtx, c: CityLayout): void {
   const quads = c.roads.flatMap((road) =>
     quadsFor(road, road.axis === 'x' ? c.xRoads : c.zRoads).map((q) => ({ road, q })),
   )
-  const material = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.75,
-    polygonOffset: true,
-    polygonOffsetFactor: -2,
-    polygonOffsetUnits: -2,
-  })
+  const material = wornPaint(
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.75,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  )
   const mesh = new THREE.Mesh(toGeometry(quads), material)
   mesh.receiveShadow = true
   ctx.scene.add(mesh)
