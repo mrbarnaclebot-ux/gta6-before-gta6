@@ -173,6 +173,13 @@ const SWAY = /* glsl */ `
 }
 `
 
+// Plants have no collision, so the camera passes through them: dither them away up close
+// (screen-space hash) instead of letting one blade fill the frame.
+const NEAR_FADE = /* glsl */ `
+#include <clipping_planes_fragment>
+if ( fract( 52.9829189 * fract( dot( gl_FragCoord.xy, vec2( 0.06711056, 0.00583715 ) ) ) ) > smoothstep( 0.6, 1.6, vViewPosition.z ) ) discard;
+`
+
 /** Matte plant material that sways with the swell; `amount` is the tip's swing per meter of height. */
 export function swayMaterial(amount: number, speed: number): THREE.MeshLambertMaterial {
   const m = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })
@@ -184,7 +191,11 @@ export function swayMaterial(amount: number, speed: number): THREE.MeshLambertMa
         `#include <common>\n${SEA_TIME_GLSL}\nconst float swayAmount = ${amount.toFixed(3)};\nconst float swaySpeed = ${speed.toFixed(3)};`,
       )
       .replace('#include <begin_vertex>', SWAY)
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <clipping_planes_fragment>',
+      NEAR_FADE,
+    )
   }
-  m.customProgramCacheKey = () => `sway-${amount}-${speed}`
+  m.customProgramCacheKey = () => `sway-${amount}-${speed}-fade`
   return underwaterLight(keepCardNormals(m))
 }
