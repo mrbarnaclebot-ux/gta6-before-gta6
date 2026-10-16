@@ -2,6 +2,7 @@ import { range, type Rand } from '../city/rng'
 import { heightAt } from '../city/terrain'
 import { stand } from './footing'
 import { gridRect } from './grid'
+import { inMarina, planMarina } from './marina-plan'
 import type { Land } from './plan'
 import { coastX } from './shape'
 
@@ -52,5 +53,7 @@ export function beachProps(land: Land, r: Rand): BeachProp[] {
       }
     }
   }
-  return out
+  // Drawn from the same random sequence as before, then thinned, so the rest stay put.
+  const { zone } = planMarina(land)
+  return out.filter((p) => !inMarina(zone, p.x, p.z))
 }
