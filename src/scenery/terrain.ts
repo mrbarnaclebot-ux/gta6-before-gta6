@@ -11,11 +11,12 @@ import { terrainTextures } from './terrain-textures'
 export async function buildTerrain(
   ctx: WorldCtx,
   land: Land,
-  canopy: Float32Array | null,
+  /** Per grid vertex: sand, dirt, crown shade, variation (land/splat.ts). */
+  splat: Float32Array,
   sea: SeaUniforms,
 ): Promise<void> {
   const tex = await terrainTextures()
-  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal, sea), canopy)
+  buildTerrainMesh(ctx.scene, land, terrainMaterial(tex.albedo, tex.normal, sea), splat)
   const g = land.ground
   const w = g.nx * CELL
   const d = g.nz * CELL

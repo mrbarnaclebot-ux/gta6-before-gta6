@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SEA_LEVEL } from '../city/layout'
 import { heightAt } from '../city/terrain'
-import { gridRect } from '../land/grid'
 import type { Land } from '../land/plan'
 import type { Ambient } from '../render/sky'
 import type { WorldCtx } from '../world/blocks'
@@ -10,54 +9,30 @@ import { buildUnderwater } from '../world/underwater'
 import { buildWater } from '../world/water'
 import type { V3 } from './boids'
 import { CAUSTICS } from './caustics'
-import { bakeSeaField, seaAt, type SeaField } from './field'
-import { planReefs, type ReefPlan } from './reef-plan'
+import { seaAt } from './field'
 import { seaUniforms, type SeaUniforms } from './sea-glsl'
 import { buildSeaLife } from './sea-life'
 import { MAX_WAVE, waveHeightAt } from './waves'
+import type { SeaData } from './sea-plan'
 
 type Load = (url: string) => Promise<GLTF>
 
-export interface SeaPlan {
-  reefs: ReefPlan
-  field: SeaField
+export interface SeaPlan extends SeaData {
   uniforms: SeaUniforms
 }
 
-/** Ground height with the surf rocks stamped in, so the field sees them as land the surf foams around. */
-function withRocks(c: Land, rocks: ReefPlan['surfRocks']) {
-  return (x: number, z: number) => {
-    const h = heightAt(c, x, z)
-    const hit = rocks.find((r) => Math.hypot(r.x - x, r.z - z) < r.s * 0.4)
-    return hit ? Math.max(h, hit.y + hit.s) : h
-  }
-}
-
-/** Reefs and the baked sea field: plain data the terrain and water shaders both need first. */
-export function planSea(c: Land): SeaPlan {
-  const grid = gridRect(c.ground)
-  const floor = (x: number, z: number) => heightAt(c, x, z)
-  const reefs = planReefs(
-    {
-      depth: (x, z) => SEA_LEVEL - floor(x, z),
-      floor,
-      x0: c.land.x1,
-      z0: grid.z0,
-      z1: grid.z1,
-    },
-    SEA_LEVEL,
-  )
-  // Water exists only from the canal east: the land west of it never dips below sea level.
-  const rect = { ...grid, x0: c.canal.x0 - 40 }
-  const field = bakeSeaField(withRocks(c, reefs.surfRocks), SEA_LEVEL, rect, c.canal)
-  return { reefs, field, uniforms: seaUniforms(field) }
+/** Reefs and the baked sea field (sea-plan.ts, built in the plan worker) plus their shader uniforms. */
+export function planSea(data: SeaData): SeaPlan {
+  return { ...data, uniforms: seaUniforms(data.field) }
 }
 
 /** The sea, the view from under it, and its life. */
 export async function buildSea(ctx: WorldCtx, c: Land, light: Ambient, load: Load, plan: SeaPlan) {
   const water = buildWater(ctx, c, light, plan.uniforms)
   const time = plan.uniforms.seaTime
-  const at = (x: number, z: number) => seaAt(plan.field, x, z)
+  // One sample object reused: the wave query reads it before asking for the next.
+  const sample = { scale: 1, shore: 0 }
+  const at = (x: number, z: number) => seaAt(plan.field, x, z, sample)
   /** Water surface height at (x, z), waves included, or null on land. */
   const surfaceAt = (x: number, z: number) => {
     const top = SEA_LEVEL + waveHeightAt(x, z, time.value, at)

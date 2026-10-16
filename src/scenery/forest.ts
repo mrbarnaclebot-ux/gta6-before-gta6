@@ -11,6 +11,7 @@ import { matteCard } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { impostor } from '../world/impostor'
 import { modelParts, type Part } from '../world/instancing'
+import { thinCards } from './thin-cards'
 import { instanceByDistance } from '../world/lod-instances'
 
 /*
@@ -25,7 +26,8 @@ const TREES = {
   broadleaf: ['jacaranda.glb', 'island_tree_01.glb'],
   garden: ['island_tree_02.glb', 'tree_small_02.glb'],
 }
-const BUSHES = ['bush_a.glb', 'bush_b.glb', 'bush_c.glb', 'bush_d.glb']
+// One file, one node per bush (scripts/compress-assets.mjs merges them: they share textures).
+const BUSHES = ['bush_a', 'bush_b', 'bush_c', 'bush_d']
 const ROCKS = ['rocks_moss_01.glb', 'rocks_moss_02.glb']
 /**
  * Full card trees within NEAR (times the render distance's plant reach), the same cards on
@@ -34,6 +36,8 @@ const ROCKS = ['rocks_moss_01.glb', 'rocks_moss_02.glb']
 const NEAR = 60
 const MID = 130
 const BUSH_RANGE = 120
+/** Impostor chunks: about a ninth of the map each. */
+const FAR_CHUNK = 800
 /** Deep in the woods at ground level, trunks hide everything past this: it is not drawn. */
 const WOODS_SIGHT = 350
 const ROCK_RANGE = 450
@@ -59,13 +63,18 @@ function toneLeaves(scene: THREE.Object3D) {
   })
 }
 
-/** A tree file holds `bark`, `lite` (the same trunk, far simpler), and `foliage` (the cards). */
-function treeLevels(scene: THREE.Object3D): Part[][] {
+/**
+ * A tree file holds `bark`, `lite` (the same trunk, far simpler), and `foliage` (the cards).
+ * Near: bark and every card. Mid: the lite trunk and half the cards, grown to fill in. The
+ * impostor is baked from the lite trunk with every card.
+ */
+function treeLevels(scene: THREE.Object3D): { near: Part[]; mid: Part[]; bake: Part[] } {
   toneLeaves(scene)
   const height = new THREE.Box3().setFromObject(scene).max.y
-  const parts = (names: string[]) =>
-    names.flatMap((n) => modelParts(scene.getObjectByName(n)!, true, height))
-  return [parts(['bark', 'foliage']), parts(['lite', 'foliage'])]
+  const parts = (name: string) => modelParts(scene.getObjectByName(name)!, true, height)
+  const [bark, lite, cards] = [parts('bark'), parts('lite'), parts('foliage')]
+  const thin = cards.map((p) => ({ ...p, geometry: thinCards(p.geometry) }))
+  return { near: [...bark, ...cards], mid: [...lite, ...thin], bake: [...lite, ...cards] }
 }
 
 /**
@@ -80,22 +89,28 @@ async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: 
   for (const [kind, files] of Object.entries(TREES) as [keyof typeof TREES, string[]][]) {
     const models = await Promise.all(files.map((f) => load(DIR + f)))
     models.forEach((m, i) => {
-      const [near, mid] = treeLevels(m.scene)
-      const place = { scale: (s: Grounded) => s.s, ranges: [NEAR, MID], shadowLevels: 1 }
+      const { near, mid, bake } = treeLevels(m.scene)
+      const place = {
+        scale: (s: Grounded) => s.s,
+        ranges: [NEAR, MID],
+        shadowLevels: 1,
+        farChunk: FAR_CHUNK,
+      }
       const spots = share(flora[kind], models.length, i)
-      updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, mid))], spots, place))
+      updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, bake))], spots, place))
     })
   }
   return updates
 }
 
 async function bushes(ctx: WorldCtx, load: Load, flora: Flora) {
-  const models = await Promise.all(BUSHES.map((f) => load(DIR + f)))
+  const file = await load(DIR + 'bushes.glb')
+  toneLeaves(file.scene)
   const place = { scale: (s: Grounded) => s.s, ranges: [BUSH_RANGE] }
-  return models.map((m, i) => {
-    toneLeaves(m.scene)
+  return BUSHES.map((name, i) => {
     const spots = share(flora.bushes, BUSHES.length, i)
-    return instanceByDistance(ctx, [modelParts(m.scene, true), []], spots, place)
+    const parts = modelParts(file.scene.getObjectByName(name)!, true)
+    return instanceByDistance(ctx, [parts, []], spots, place)
   })
 }
 
@@ -112,7 +127,7 @@ async function rocks(ctx: WorldCtx, load: Load, flora: Flora) {
 function colliders(ctx: WorldCtx, flora: Flora) {
   const trunk = (t: Grounded, radius: number) => {
     const desc = RAPIER.ColliderDesc.cylinder(2, radius)
-    ctx.physics.createCollider(desc.setTranslation(t.x, t.y + 2, t.z))
+    ctx.colliders.add(desc.setTranslation(t.x, t.y + 2, t.z))
   }
   for (const t of flora.conifers) trunk(t, Math.max(0.2, TRUNK * t.s))
   // The broadleaves fork low into thick limbs: the camera should stop short of them.
@@ -120,7 +135,7 @@ function colliders(ctx: WorldCtx, flora: Flora) {
   for (const t of flora.garden) trunk(t, GARDEN_TRUNK * t.s)
   for (const r of flora.rocks.filter((q) => q.s > 0.8)) {
     const body = RAPIER.ColliderDesc.cylinder(r.s / 2, r.s * ROCK_SPREAD * 0.55)
-    ctx.physics.createCollider(body.setTranslation(r.x, r.y + r.s / 2, r.z))
+    ctx.colliders.add(body.setTranslation(r.x, r.y + r.s / 2, r.z))
   }
 }
 

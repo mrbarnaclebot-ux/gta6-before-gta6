@@ -52,6 +52,15 @@
   font-size: 15px;
 }
 
+.credit-tracks {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
 .credit-more {
   margin: 20px 0;
   font-size: 13px;

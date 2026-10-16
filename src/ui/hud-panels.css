@@ -233,3 +233,50 @@
     }
   }
 }
+
+/* Radio station name, top center, for a few seconds after getting in or tuning. */
+.radio-toast {
+  position: fixed;
+  top: calc(var(--edge) + 4px);
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 20px 10px;
+  border-radius: 12px;
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  backdrop-filter: var(--glass-blur);
+  transform: translateX(-50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.radio-toast.on {
+  animation: radio-life 3.5s ease both;
+}
+
+@keyframes radio-life {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  8%,
+  85% {
+    opacity: 1;
+  }
+}
+
+.radio-name {
+  font-family: var(--font-display);
+  font-size: calc(30px * var(--hud-scale, 1));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.radio-song {
+  font-size: calc(13px * var(--hud-scale, 1));
+  color: var(--ink-dim);
+}

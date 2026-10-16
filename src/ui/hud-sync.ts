@@ -49,6 +49,8 @@ function takeOverPause(
   // The tab last picked on the title screen (often Controls) should not stick into the game.
   pause.selectTab('graphics')
   pause.hooks = {
+    // The mixer outlives the title screen, so its hook carries over unchanged.
+    onAudio: pause.hooks.onAudio,
     onGraphics: (g) => {
       o.look.apply(g)
       saveGraphics(g)

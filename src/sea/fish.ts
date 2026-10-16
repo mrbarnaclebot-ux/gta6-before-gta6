@@ -15,8 +15,8 @@ const SIM_RANGE = 120
 interface Swimmer {
   school: School
   size: number
-  tints: number[]
-  first: number
+  /** Each fish's color, picked once: RGB per fish. */
+  colors: Float32Array
   awake: boolean
 }
 
@@ -25,9 +25,9 @@ const f = new THREE.Vector3()
 const side = new THREE.Vector3()
 const up = new THREE.Vector3()
 const m = new THREE.Matrix4()
-const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0)
 
-function pose(s: Swimmer, mesh: THREE.InstancedMesh): void {
+/** Writes a school's fish into the mesh from instance `at` on. */
+function pose(s: Swimmer, mesh: THREE.InstancedMesh, at: number): void {
   const { pos, vel, n } = s.school
   for (let i = 0; i < n; i++) {
     f.fromArray(vel, i * 3).normalize()
@@ -35,17 +35,14 @@ function pose(s: Swimmer, mesh: THREE.InstancedMesh): void {
     up.crossVectors(f, side)
     m.makeBasis(side, up, f).scale(side.setScalar(s.size))
     m.setPosition(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2])
-    mesh.setMatrixAt(s.first + i, m)
+    mesh.setMatrixAt(at + i, m)
   }
-}
-
-function hide(s: Swimmer, mesh: THREE.InstancedMesh): void {
-  for (let i = 0; i < s.school.n; i++) mesh.setMatrixAt(s.first + i, HIDDEN)
+  mesh.instanceColor!.array.set(s.colors, at * 3)
 }
 
 /** Two schools per reef: baitfish, then grunts or tangs in turn. */
 function schools(reefs: V3[], r: Rand): Swimmer[] {
-  let total = 0
+  const color = new THREE.Color()
   return reefs.flatMap((reef, k) =>
     [0, 1 + (k % 2)].map((kind) => {
       const sp = SPECIES[kind]
@@ -55,24 +52,24 @@ function schools(reefs: V3[], r: Rand): Swimmer[] {
         z: reef.z + range(r, -6, 6),
       }
       const school = makeSchool(sp.n, home, r, sp.speed, 7)
-      const swimmer = { school, size: sp.size, tints: sp.tints, first: total, awake: false }
-      total += sp.n
-      return swimmer
+      const colors = new Float32Array(sp.n * 3)
+      for (let i = 0; i < sp.n; i++) color.set(pick(r, sp.tints)).toArray(colors, i * 3)
+      return { school, size: sp.size, colors, awake: false }
     }),
   )
 }
 
-/** The fish of every reef in one instanced mesh, simulated only near the camera. */
+/**
+ * The fish of every reef in one instanced mesh, simulated only near the camera. Awake schools
+ * are packed at the front and `count` stops there, so far schools cost nothing to draw.
+ */
 export function buildFish(parent: THREE.Object3D, reefs: V3[], world: Omit<BoidWorld, 'threat'>) {
   const r = rng(23)
   const swimmers = schools(reefs, r)
   const total = swimmers.reduce((n, s) => n + s.school.n, 0)
   const mesh = new THREE.InstancedMesh(fishGeometry(), fishMaterial(), total)
-  const color = new THREE.Color()
-  for (const s of swimmers) {
-    for (let i = 0; i < s.school.n; i++) mesh.setColorAt(s.first + i, color.set(pick(r, s.tints)))
-    hide(s, mesh)
-  }
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(total * 3), 3)
+  mesh.count = 0
   mesh.frustumCulled = false
   parent.add(mesh)
   const boids: BoidWorld = { ...world, threat: null }
@@ -82,19 +79,18 @@ export function buildFish(parent: THREE.Object3D, reefs: V3[], world: Omit<BoidW
     /** `threat` is the swimmer the fish flee, or null when nobody is in the water. */
     update(dt: number, eye: THREE.Vector3, threat: V3 | null) {
       boids.threat = threat
-      let any = false
+      let at = 0
       for (const s of swimmers) {
         const h = s.school.home
-        const near = Math.hypot(h.x - eye.x, h.y - eye.y, h.z - eye.z) < SIM_RANGE
-        if (near) {
-          stepSchool(s.school, boids, Math.min(dt, 1 / 20))
-          pose(s, mesh)
-        } else if (s.awake) hide(s, mesh)
-        s.awake = near
-        any ||= near
+        s.awake = Math.hypot(h.x - eye.x, h.y - eye.y, h.z - eye.z) < SIM_RANGE
+        if (!s.awake) continue
+        stepSchool(s.school, boids, Math.min(dt, 1 / 20))
+        pose(s, mesh, at)
+        at += s.school.n
       }
-      mesh.visible = any
-      mesh.instanceMatrix.needsUpdate = any
+      mesh.count = at
+      mesh.visible = at > 0
+      mesh.instanceMatrix.needsUpdate = mesh.instanceColor!.needsUpdate = at > 0
     },
   }
 }

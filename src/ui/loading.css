@@ -67,22 +67,11 @@
 
 .load-mark {
   position: absolute;
-  top: clamp(16px, 4vh, 36px);
-  left: clamp(20px, 5vw, 64px);
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  top: clamp(12px, 3vh, 28px);
+  left: clamp(16px, 4vw, 56px);
+  width: clamp(120px, 13vw, 210px);
+  height: auto;
   filter: drop-shadow(0 2px 12px rgba(0, 0, 0, 0.6));
-}
-
-.load-mark span {
-  background: var(--sunset);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
 }
 
 .load-foot {

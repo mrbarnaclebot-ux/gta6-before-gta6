@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SEA_LEVEL } from '../city/layout'
 import { outerLandmarks } from '../land/landmarks'
-import { generateLand, type Land } from '../land/plan'
+import type { Land } from '../land/plan'
 import { buildingHeight } from '../city/lots'
 import { surfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
@@ -15,8 +15,8 @@ import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
 import { buildForest } from '../scenery/forest'
 import { plantGrass } from '../scenery/grass'
-import { canopyGrid } from '../land/canopy'
-import { generateFlora, type Flora } from '../land/flora'
+import type { Flora } from '../land/flora'
+import { planWorld, type WorldPlan } from '../land/world-plan'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -30,10 +30,6 @@ import { buildStreetGlow } from './street-glow'
 import { plantVegetation } from './vegetation'
 import type { V3 } from '../sea/boids'
 import { buildSea, planSea, type SeaPlan } from '../sea/sea'
-
-// The city core is 1 km square; the land plan grows the world around it to about 2 x 2 km.
-export const CITY_SEED = 7
-export const CITY_SIZE = 1000
 
 type Point = { x: number; y: number; z: number }
 type Load = (url: string) => Promise<GLTF>
@@ -94,11 +90,11 @@ function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMat
 }
 
 /** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the sea plan. */
-async function buildScenery(ctx: WorldCtx, layout: Land, flora: Flora): Promise<SeaPlan> {
+async function buildScenery(ctx: WorldCtx, plan: WorldPlan): Promise<SeaPlan> {
+  const layout = plan.land
   // The sea field comes first: the terrain shader draws the swash and caustics from it.
-  const sea = planSea(layout)
-  const trees = [...flora.conifers, ...flora.broadleaf, ...flora.garden]
-  await buildTerrain(ctx, layout, canopyGrid(layout.ground, trees), sea.uniforms)
+  const sea = planSea(plan.sea)
+  await buildTerrain(ctx, layout, plan.splat, sea.uniforms)
   buildRoads(ctx, layout)
   buildHouses(ctx, layout)
   buildVillas(ctx, layout)
@@ -136,13 +132,13 @@ export async function buildCity(
   light: Ambient,
   gl: THREE.WebGLRenderer,
 ): Promise<City> {
-  const layout = generateLand(CITY_SEED, CITY_SIZE)
+  const plan = await planWorld()
+  const { land: layout, flora } = plan
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  const flora = generateFlora(layout)
-  const seaPlan = await buildScenery(ctx, layout, flora)
+  const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
   let reach = 1

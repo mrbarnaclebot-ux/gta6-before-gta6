@@ -44,7 +44,7 @@ export function placeProps(ctx: WorldCtx, c: Pick<Land, 'lights'>): THREE.MeshSt
   instanceParts(ctx, streetlight(lens), c.lights, { scale: () => 1 }, Infinity)
   for (const s of c.lights) {
     const pole = RAPIER.ColliderDesc.cylinder(POLE_H / 2, 0.15)
-    ctx.physics.createCollider(pole.setTranslation(s.x, s.y + POLE_H / 2, s.z))
+    ctx.colliders.add(pole.setTranslation(s.x, s.y + POLE_H / 2, s.z))
   }
   return lens
 }

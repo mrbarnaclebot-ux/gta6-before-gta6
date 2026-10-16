@@ -8,7 +8,7 @@ import { facingYaw, mapBones } from './bone-map'
 async function bonesOf(file: string): Promise<Map<string, string>> {
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.stubGlobal('self', globalThis)
-  const buf = readFileSync(`public/assets/models/character/${file}`)
+  const buf = readFileSync(`assets-src/models/character/${file}`)
   const data = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
   const gltf = await new GLTFLoader().parseAsync(data, '')
   const bones: THREE.Object3D[] = []

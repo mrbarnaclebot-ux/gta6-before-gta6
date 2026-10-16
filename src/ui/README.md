@@ -10,7 +10,7 @@ Plain DOM menus and HUD over the canvas. Markup lives in `index.html`; these fil
 - `map-paint.ts` the city painted once to a canvas both maps draw from; `map-icons.ts` their markers
 - `nav.ts` the waypoint and its road route (A* over every road, `src/land/route-search.ts`)
 - `map-terrain.ts` the hill-shaded terrain under both maps
-- `pause.ts` settings menu: Esc in game, Settings on the title screen; Graphics, Display, and Controls tabs
+- `pause.ts` settings menu: Esc in game, Settings on the title screen; Graphics, Display, Audio, and Controls tabs
 - `settings-rows.ts` every settings row: label, cost hint, and control kind
 - `settings-panel.ts` renders rows as segmented choices, switches, and sliders, and reports changes
-- CSS: `menu.css`, `credits.css`, `loading.css`, `hud.css` (frame), `hud-panels.css` (weapon, speedometer, prompt, toasts), `death.css`, `worldmap.css`, `pause.css`, `settings.css`
+- CSS: `menu.css`, `credits.css`, `loading.css`, `hud.css` (frame), `hud-panels.css` (weapon, speedometer, prompt, toasts, radio station), `death.css`, `worldmap.css`, `pause.css`, `settings.css`

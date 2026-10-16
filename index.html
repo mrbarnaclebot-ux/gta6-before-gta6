@@ -3,8 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vice Demo</title>
+    <title>GTA 6 BEFORE GTA 6</title>
+    <meta
+      name="description"
+      content="GTA 6 BEFORE GTA 6: a free open-world hobby game on a sunny coast, in your browser. Walk, swim, drive, and shoot."
+    />
+    <meta name="theme-color" content="#1b1030" />
+    <meta property="og:title" content="GTA 6 BEFORE GTA 6" />
+    <meta
+      property="og:description"
+      content="A free open-world drive down a sunny coast, in your browser."
+    />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link
       rel="preload"
       href="/assets/fonts/anton-latin-400.woff2"
@@ -13,13 +24,16 @@
       crossorigin
     />
     <link rel="preload" href="/assets/ui/menu.webp" as="image" />
+    <link rel="preload" href="/assets/ui/logo.webp" as="image" fetchpriority="high" />
   </head>
   <body>
     <canvas id="view" tabindex="0"></canvas>
     <section id="menu" class="menu">
       <div class="menu-art" aria-hidden="true"></div>
       <div class="menu-body">
-        <h1 class="wordmark"><span>Vice</span> <span>Demo</span></h1>
+        <h1 class="wordmark">
+          <img src="/assets/ui/logo.webp" width="1113" height="590" alt="GTA 6 BEFORE GTA 6" />
+        </h1>
         <p class="menu-tag">An open-world drive down a sunny coast, in your browser</p>
         <nav class="menu-list" aria-label="Main menu">
           <button id="play" type="button" class="menu-item" autofocus>Play</button>
@@ -51,7 +65,7 @@
       >
         <h2 id="credits-title">Credits</h2>
         <dl class="credit-list">
-          <dt>Art direction, menu and loading art</dt>
+          <dt>Art direction, title logo, menu and loading art</dt>
           <dd>The project owner, generated with Higgsfield</dd>
           <dt>Player, people, cars, palms</dt>
           <dd>The project owner, generated with AssetHub (Tripo)</dd>
@@ -61,6 +75,20 @@
           <dd>Poly Haven: Greg Zaal, Rob Tuytel, and others (CC0)</dd>
           <dt>Water normals</dt>
           <dd>three.js authors (MIT)</dd>
+          <dt>Sound effects and music</dt>
+          <dd>
+            Epidemic Sound, owner subscription
+            <ul class="credit-tracks">
+              <li>Miami Heatwave - Ben Elson</li>
+              <li>WANTED - BLUE STEEL</li>
+              <li>Thinkin' About You - Sven Lindvall, Bri Sarikcioglu, Daniel Fridell</li>
+              <li>Unchain - Lupus Nocte, Zorro</li>
+              <li>$O COLD (Clean Version) - Baha Bank$</li>
+              <li>Suit and Loafers (Clean Version) - Nyck Caution</li>
+              <li>Latina - Alik, Manuelo Jersey</li>
+              <li>Bendito (Clean Version) - El Jiggy, Manuelo Jersey</li>
+            </ul>
+          </dd>
           <dt>Display type</dt>
           <dd>Anton by Vernon Adams (SIL Open Font License)</dd>
           <dt>Engine</dt>
@@ -81,7 +109,7 @@
         <img alt="" data-src="/assets/ui/load_swim.webp" />
         <img alt="" data-src="/assets/ui/menu_night.webp" />
       </div>
-      <p class="load-mark" aria-hidden="true"><span>Vice</span> Demo</p>
+      <img class="load-mark" src="/assets/ui/logo.webp" width="1113" height="590" alt="" />
       <div class="load-foot">
         <div class="tip">
           <span class="tip-label">Tip</span>
@@ -112,6 +140,9 @@
       </div>
     </div>
     <div id="toasts" class="toasts" aria-live="polite"></div>
+    <p id="radio" class="radio-toast" aria-live="polite" hidden>
+      <span class="radio-name"></span><span class="radio-song"></span>
+    </p>
     <div id="underwater" class="underwater" hidden></div>
     <p id="prompt" class="prompt" hidden><kbd>F</kbd><span></span></p>
     <p id="look-hint" class="prompt look-hint" hidden>Click to look around</p>
@@ -208,32 +239,19 @@
             <button type="button" role="tab" id="tab-btn-display" aria-controls="tab-display">
               Display
             </button>
+            <button type="button" role="tab" id="tab-btn-audio" aria-controls="tab-audio">
+              Audio
+            </button>
             <button type="button" role="tab" id="tab-btn-controls" aria-controls="tab-controls">
               Controls
             </button>
           </div>
           <button id="resume" type="button" class="resume">Resume</button>
         </header>
-        <section
-          id="tab-graphics"
-          class="panel"
-          role="tabpanel"
-          aria-labelledby="tab-btn-graphics"
-        ></section>
-        <section
-          id="tab-display"
-          class="panel"
-          role="tabpanel"
-          aria-labelledby="tab-btn-display"
-          hidden
-        ></section>
-        <section
-          id="tab-controls"
-          class="panel"
-          role="tabpanel"
-          aria-labelledby="tab-btn-controls"
-          hidden
-        >
+        <section id="tab-graphics" class="panel" role="tabpanel"></section>
+        <section id="tab-display" class="panel" role="tabpanel" hidden></section>
+        <section id="tab-audio" class="panel" role="tabpanel" hidden></section>
+        <section id="tab-controls" class="panel" role="tabpanel" hidden>
           <div id="control-rows"></div>
           <h3 id="keys-title">Keys</h3>
           <dl class="keys" aria-labelledby="keys-title">
@@ -255,6 +273,10 @@
             <dd>Reload</dd>
             <dt>Mouse</dt>
             <dd>Look</dd>
+            <dt><kbd>H</kbd></dt>
+            <dd>Horn</dd>
+            <dt><kbd>Q</kbd> <kbd>E</kbd></dt>
+            <dd>Radio station, in a car or boat</dd>
             <dt><kbd>M</kbd></dt>
             <dd>Map: click to set a waypoint</dd>
             <dt><kbd>Esc</kbd></dt>

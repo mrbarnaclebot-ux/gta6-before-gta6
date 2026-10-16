@@ -8,7 +8,9 @@ import './ui/death.css'
 import './ui/worldmap.css'
 import './ui/pause.css'
 import './ui/settings.css'
+import { bootAudio } from './audio/boot'
 import { Input } from './input/input'
+import { planWorld } from './land/world-plan'
 import { loadGraphics, saveGraphics } from './render/graphics'
 import { loadPrefs, savePref } from './settings'
 import { Loading } from './ui/loading'
@@ -19,13 +21,15 @@ const canvas = document.getElementById('view') as HTMLCanvasElement
 const status = document.getElementById('status') as HTMLElement
 const playButton = document.getElementById('play') as HTMLButtonElement
 const input = new Input(canvas)
+const audio = bootAudio()
 
 // Built here so Settings works on the title screen; the game takes it over on start.
 const pause = new PauseMenu(
-  { graphics: loadGraphics(), prefs: loadPrefs() },
+  { graphics: loadGraphics(), prefs: loadPrefs(), audio: audio.mixer.prefs },
   {
     onGraphics: saveGraphics,
     onPref: savePref,
+    onAudio: (name, value) => audio.mixer.set(name, value),
     onResume: () => menu.refocus(),
     autoOpen: () => false,
   },
@@ -38,9 +42,20 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pause.open && !pause.playing) pause.hide(false)
 })
 
-// Fetch the engine once the menu is up, so Play rarely waits on it. Lazy so the menu paints
-// before three.js and the physics WASM download; a failure here retries on Play.
-addEventListener('load', () => setTimeout(() => import('./game').catch(() => {}), 800))
+// Once the menu is up, fetch the engine, start the physics WASM, and generate the world in a
+// worker, so Play rarely waits on any of them. Lazy so the menu paints first; a failure here
+// retries on Play.
+addEventListener('load', () =>
+  setTimeout(() => {
+    // Repeat visits load the assets from Cache Storage (see src/sw); dev builds skip it.
+    if (import.meta.env.PROD) navigator.serviceWorker?.register('/sw.js').catch(() => {})
+    void planWorld().catch(() => {})
+    import('./game')
+      .then(() => import('./physics'))
+      .then((p) => p.initPhysics())
+      .catch(() => {})
+  }, 300),
+)
 
 async function play(): Promise<void> {
   playButton.disabled = true
@@ -51,7 +66,7 @@ async function play(): Promise<void> {
     menu.root.hidden = true
     const { startGame } = await import('./game')
     loading.finish('code')
-    await startGame(canvas, input, { pause, loading })
+    await startGame(canvas, input, { pause, loading, audio })
     input.reset()
     canvas.focus()
   } catch (err) {

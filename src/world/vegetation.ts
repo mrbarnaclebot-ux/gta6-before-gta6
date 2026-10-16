@@ -48,7 +48,12 @@ async function plantPalms(
   try {
     const [near, far] = await Promise.all([PALM, PALM_FAR].map(load))
     const parts = [modelParts(near.scene), modelParts(far.scene)]
-    const place = { scale: (s: Grounded) => s.s, ranges: PALM_RANGES, shadowLevels: 2 }
+    const place = {
+      scale: (s: Grounded) => s.s,
+      ranges: PALM_RANGES,
+      shadowLevels: 2,
+      farChunk: 800,
+    }
     return instanceByDistance(ctx, [...parts, impostor(gl, parts[1])], palms, place)
   } catch (err) {
     console.warn('Palm model failed to load, using procedural palms', err)
@@ -85,7 +90,7 @@ export async function plantVegetation(
   const updates = [palms, ...plantFerns(ctx, fernVariants(await load(FERN)), c.bushes)]
   for (const p of all) {
     const trunk = RAPIER.ColliderDesc.cylinder(2, 0.25)
-    ctx.physics.createCollider(trunk.setTranslation(p.x, p.y + 2, p.z))
+    ctx.colliders.add(trunk.setTranslation(p.x, p.y + 2, p.z))
   }
   return (eye, reach) => updates.forEach((u) => u(eye, reach))
 }

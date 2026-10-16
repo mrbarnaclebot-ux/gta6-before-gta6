@@ -6,27 +6,20 @@ import { RAPIER } from '../physics'
 import { underwaterLight } from '../sea/caustics'
 import { addMerged, rectBox, rectCollider, type WorldCtx } from '../world/blocks'
 import { buildDockLights } from './dock-lights'
+import { tex } from '../world/materials'
 
 const DECK_THICK = 0.3
 const PILE_R = 0.17
 const STRINGER = 0.25
 
-const loader = new THREE.TextureLoader()
-function deckTexture(name: string, srgb: boolean): THREE.Texture {
-  const t = loader.load(`/assets/textures/wood_planks_grey/${name}.jpg`)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  // Five 20 cm planks per tile, running across the pier (along z on its meter UVs).
-  t.repeat.set(1, 1)
-  t.anisotropy = 8
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace
-  return t
-}
+// Five 20 cm planks per tile, running across the pier (along z on its meter UVs).
+const deckTexture = (name: string) => tex(`/assets/textures/wood_planks_grey/${name}.ktx2`, 1)
 
 function deckMaterial(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({
-    map: deckTexture('diff', true),
-    normalMap: deckTexture('nor_gl', false),
-    roughnessMap: deckTexture('rough', false),
+    map: deckTexture('diff'),
+    normalMap: deckTexture('nor_gl'),
+    roughnessMap: deckTexture('rough'),
     // The scan is dark, wet-looking timber; lifted toward sun-bleached grey.
     color: new THREE.Color(1.55, 1.5, 1.42),
   })

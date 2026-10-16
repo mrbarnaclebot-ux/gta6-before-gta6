@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { AimPose } from './aim-pose'
+import { toes } from './bone-map'
 import { GUN_HAND, type Figure } from './figure'
 import type { AnimState } from './movement'
 
@@ -29,6 +30,8 @@ export class Avatar {
   readonly pistol: AimPose
   /** Raise the gun this frame, at this elevation in radians. Set by the shooter. */
   readonly aim = { on: false, elevation: 0 }
+  /** The two foot bones (the toes' parents), for footsteps; empty on a rig without them. */
+  readonly feet: THREE.Object3D[]
   private readonly mixer: THREE.AnimationMixer
   private readonly actions = new Map<AnimState, THREE.AnimationAction>()
   private state: AnimState | null = null
@@ -37,6 +40,7 @@ export class Avatar {
     this.root = clone(figure.root)
     this.pistol = new AimPose(this.root, figure)
     this.mixer = new THREE.AnimationMixer(this.root)
+    this.feet = findFeet(this.root)
     for (const [state, name] of Object.entries(CLIPS) as [AnimState, string][]) {
       const clip = figure.clip(name)
       if (!clip) continue
@@ -69,4 +73,14 @@ export class Avatar {
     this.mixer.update(dt)
     this.pistol.apply(dt, this.aim.on, this.aim.elevation)
   }
+}
+
+function findFeet(root: THREE.Object3D): THREE.Object3D[] {
+  root.updateMatrixWorld(true)
+  const bones: THREE.Object3D[] = []
+  root.traverse((o) => void ((o as THREE.Bone).isBone && bones.push(o)))
+  const feet = bones.length ? toes(bones).map((t) => t.parent) : []
+  return feet.length === 2 && feet.every((f) => (f as THREE.Bone | null)?.isBone)
+    ? (feet as THREE.Object3D[])
+    : []
 }

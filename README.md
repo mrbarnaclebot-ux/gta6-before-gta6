@@ -1,4 +1,4 @@
-# Vice Demo (gta6-before-gta6)
+# GTA 6 BEFORE GTA 6 (gta6-before-gta6)
 
 A browser open-world demo set in a sunny Miami-like coastal city. Three.js, Rapier physics, plain DOM HUD.
 
@@ -10,9 +10,10 @@ A browser open-world demo set in a sunny Miami-like coastal city. Three.js, Rapi
 - `pnpm test` - Vitest unit tests for pure logic
 - `pnpm test:e2e` - Playwright end-to-end suite in headless Chromium with SwiftShader (starts its own dev server); `--grep @smoke` runs the CI subset
 - `pnpm lint` / `pnpm format` - ESLint plus Prettier
-- `node scripts/perf.mjs <url> <dir> [high|low] [scale]` - load time and fps probe on the GPU
+- `node scripts/perf.mjs <url> <dir> [quality] [scale]` - cold and warm load, transfer, memory, and frame-time probe on the GPU (see `scripts/README.md`)
+- `node scripts/compress-assets.mjs` - rebuilds the KTX2 textures, Meshopt models, and sky-half HDRIs in `public/assets` from `assets-src` (needs `basisu`, `ffmpeg`, `cwebp`)
 
-Live build: https://web-production-af31.up.railway.app (Railway, redeploys on push to `phase-07-ship`).
+Live build: https://web-production-af31.up.railway.app (Railway via Railpack, which serves `dist` with Caddy using `Caddyfile.template`: cache headers and precompressed files).
 
 ## CI
 
@@ -22,17 +23,58 @@ GitHub's runners have no GPU, so WebGL runs in SwiftShader at well under 1 fps. 
 
 ## Performance
 
-Measured with `node scripts/perf.mjs` on an M4 MacBook (Metal, headless Chromium, 1920x1080 at device scale 2, which renders at 1x). Averages of interleaved before/after runs; the Mac had other apps running, so single runs vary by 10 to 20 fps.
+Measured with `node scripts/perf.mjs <url> <dir> <quality> 2` on an M4 MacBook (Metal, headless Chromium, 1920x1080 at device scale 2, which renders at 1x), against the production build served by Caddy with the deploy config (`Caddyfile.template`; the "before" build with Railpack's default one). Before is the Phase 10e build, after is Phase 11. Before and after ran back to back; the Mac had other apps open, so single numbers move by 5 to 10 fps. Frame times come from requestAnimationFrame; "draw calls" count every pass (view, sea mirror, shadows, post).
 
-| Scene | Draw calls before | Draw calls after | High fps before | High fps after | Low fps before | Low fps after |
-|---|---|---|---|---|---|---|
-| Spawn (beach range) | 425 | 236 | 38.8 | 41.3 | 60.0 | 59.5 |
-| Downtown | 384 | 227 | 41.1 | 42.6 | 59.3 | 59.9 |
-| Beach, facing the city | 767 | 372 | 32.4 | 35.9 | 52.8 | 53.6 |
-| Canal | 441 | 254 | 37.3 | 39.5 | 56.8 | 59.3 |
-| Downtown at night | 438 | 260 | 36.9 | 41.3 | 57.5 | 59.6 |
+Loading (Medium, median of three interleaved runs; "warm" is a second visit in the same browser profile):
 
-Those runs overlapped a busy desktop Chrome. In the quietest back-to-back pair, High went from 50 / 46 / 36 / 44 / 52 fps to 55 / 60 / 47 / 51 / 57 in the same five scenes. The 60 fps target on High is met downtown but not yet at the beach. The game is GPU-bound, not draw-call bound (the main thread is about 65% idle). Those numbers predate the fix that actually turns N8AO's transparency mode off (the first attempt left it on); that fix alone adds about +4 fps at the beach in paired uncapped runs. Also helping: a 2048 shadow map (+2), and halving draw calls (instanced wheels, per-tree palm detail, nearby-only ferns, one streetlight batch, parked cars hidden past 150 m). The remaining big costs are N8AO (about 10 fps) and SMAA (about 6). Details: `.planning/phases/07-SUMMARY.md`.
+| | Before | After |
+|---|---|---|
+| Play to first frame, cold | 3.39 s | 2.20 s |
+| Play to everything around the spawn streamed, cold | 3.46 s | 2.30 s |
+| Play to first frame, warm | 3.21 s | 2.40 s |
+| Transferred, cold (to fully streamed) | 55.2 MB | 22.6 MB |
+| Transferred, warm | 46.6 MB | 0 MB |
+| JS heap after the scenes | 294 MB | 308 MB |
+
+Medium:
+
+| Scene | fps before | fps after | p99 ms before | p99 ms after | frames > 50 ms before | after | draw calls before | after |
+|---|---|---|---|---|---|---|---|---|
+| spawn | 52.2 | 60 | 66.6 | 16.8 | 3 | 0 | 549 | 430 |
+| downtown | 60 | 60 | 16.8 | 16.8 | 0 | 0 | 457 | 360 |
+| beach | 51.6 | 50.2 | 33.4 | 33.4 | 0 | 0 | 907 | 675 |
+| shore | 60 | 60 | 16.8 | 16.8 | 0 | 0 | 227 | 255 |
+| canal | 60 | 60 | 16.8 | 16.8 | 0 | 0 | 422 | 367 |
+| marina | 33.6 | 59.6 | 50.1 | 16.8 | 2 | 0 | 837 | 701 |
+| hillside | 51 | 56.8 | 50 | 33.4 | 0 | 0 | 714 | 658 |
+| flyover | 60 | 57 | 16.8 | 33.4 | 0 | 0 | 637 | 571 |
+| residential | 59.6 | 60 | 16.8 | 16.8 | 0 | 0 | 555 | 425 |
+| forest | 49.8 | 52.4 | 33.4 | 33.4 | 0 | 2 | 523 | 382 |
+| forest-hill | 60 | 60 | 16.8 | 16.8 | 0 | 0 | 424 | 369 |
+| underwater | 60 | 60 | 16.8 | 16.8 | 0 | 0 | 104 | 133 |
+| downtown-night | 60 | 59.8 | 16.8 | 16.8 | 0 | 0 | 495 | 486 |
+| drive: the highway loop at 40 m/s, 86 s | 59.3 | 58.8 | 33.3 | 33.3 | 0 | 3 | | |
+
+High:
+
+| Scene | fps before | fps after | p99 ms before | p99 ms after | frames > 50 ms before | after | draw calls before | after |
+|---|---|---|---|---|---|---|---|---|
+| spawn | 14.2 | 37.5 | 116.8 | 33.4 | 46 | 0 | 497 | 504 |
+| downtown | 19.4 | 41.5 | 116.7 | 33.4 | 38 | 0 | 457 | 419 |
+| beach | 21.1 | 32.1 | 116.7 | 49.9 | 37 | 0 | 1166 | 770 |
+| shore | 23.4 | 52 | 116.6 | 33.4 | 27 | 0 | 278 | 273 |
+| canal | 24.1 | 39.7 | 116.7 | 33.4 | 20 | 0 | 431 | 357 |
+| marina | 21.5 | 42.1 | 116.5 | 33.4 | 30 | 0 | 1185 | 792 |
+| hillside | 27 | 36.7 | 83.4 | 33.4 | 21 | 0 | 851 | 845 |
+| flyover | 28.9 | 41.5 | 83.3 | 33.4 | 12 | 0 | 666 | 536 |
+| residential | 21.6 | 33 | 116.6 | 50 | 26 | 0 | 533 | 412 |
+| forest | 25.2 | 30.2 | 50.1 | 50.1 | 7 | 4 | 429 | 390 |
+| forest-hill | 25.4 | 44.5 | 83.4 | 33.4 | 32 | 0 | 460 | 364 |
+| underwater | 43.8 | 57.4 | 50 | 33.4 | 0 | 0 | 105 | 127 |
+| downtown-night | 25.6 | 48.9 | 100 | 33.4 | 21 | 0 | 555 | 501 |
+| drive: the highway loop at 40 m/s, 86 s | 29.9 | 47 | 100 | 33.4 | 226 | 1 | | |
+
+Ultra on the hillside: 17.6 to 23 fps (uncapped 22.8 to 32). The biggest single win was in Rapier, not the renderer: its `step()` re-mapped every one of about 40k colliders through JavaScript each physics step. Details, and what was tried and dropped: `.planning/phases/011-SUMMARY.md`.
 
 ## Controls
 

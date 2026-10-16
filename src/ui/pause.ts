@@ -1,7 +1,8 @@
+import type { AudioPrefs } from '../audio/prefs'
 import { PRESETS, presetOf, type Graphics, type Preset } from '../render/graphics'
 import type { Prefs } from '../settings'
 import { settingsRows, type Value } from './settings-panel'
-import { CONTROL_ROWS, DISPLAY_ROWS, GRAPHICS_ROWS, PRESET_ROW } from './settings-rows'
+import { AUDIO_ROWS, CONTROL_ROWS, DISPLAY_ROWS, GRAPHICS_ROWS, PRESET_ROW } from './settings-rows'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
@@ -12,15 +13,16 @@ const DEBOUNCE_MS = 100
 export interface PauseHooks {
   onGraphics: (g: Graphics) => void
   onPref: <K extends keyof Prefs>(name: K, value: Prefs[K]) => void
+  onAudio: <K extends keyof AudioPrefs>(name: K, value: AudioPrefs[K]) => void
   /** `fromClick`: the Resume click is a user gesture, so the game can re-lock the mouse. */
   onResume: (fromClick: boolean) => void
   /** Whether losing the mouse should open the menu: not before the game, not over the map. */
   autoOpen: () => boolean
 }
 
-export type Tab = 'graphics' | 'display' | 'controls'
+export type Tab = 'graphics' | 'display' | 'audio' | 'controls'
 
-/** Esc menu: resume, and the Graphics, Display, and Controls settings tabs. Also Settings on the title screen. */
+/** Esc menu: resume, and the Graphics, Display, Audio, and Controls settings tabs. Also Settings on the title screen. */
 export class PauseMenu {
   open = false
   /** In game it reads Paused and Resume; on the title screen, Settings and Back. */
@@ -34,7 +36,7 @@ export class PauseMenu {
   graphics: Graphics
 
   constructor(
-    o: { graphics: Graphics; prefs: Prefs },
+    o: { graphics: Graphics; prefs: Prefs; audio: AudioPrefs },
     public hooks: PauseHooks,
   ) {
     this.graphics = o.graphics
@@ -60,12 +62,22 @@ export class PauseMenu {
     const display = settingsRows($('tab-display'), DISPLAY_ROWS, onPref)
     const controls = settingsRows($('control-rows'), CONTROL_ROWS, onPref)
     showPrefs(prefs as unknown as Record<string, Value>)
+    this.audioRows({ ...o.audio })
     this.wireTabs()
     this.resume.addEventListener('click', () => this.hide(true))
     // Losing the mouse (Esc in a locked browser, or switching windows) pauses the game.
     document.addEventListener('pointerlockchange', () => {
       if (!document.pointerLockElement && !this.open && this.hooks.autoOpen()) this.show()
     })
+  }
+
+  private audioRows(audio: AudioPrefs): void {
+    const show = settingsRows($('tab-audio'), AUDIO_ROWS, (key, v) => {
+      Object.assign(audio, { [key]: v })
+      show(audio as unknown as Record<string, Value>)
+      this.hooks.onAudio(key as keyof AudioPrefs, v as never)
+    })
+    show(audio as unknown as Record<string, Value>)
   }
 
   /** Shows these settings, and the preset they match (or Custom). */
@@ -112,6 +124,8 @@ export class PauseMenu {
       }
     })
     this.tabs.forEach((tab, i) => {
+      // Set here from aria-controls so index.html names each tab and panel pair once.
+      $(tab.getAttribute('aria-controls')!).setAttribute('aria-labelledby', tab.id)
       tab.addEventListener('click', () => select(tab))
       tab.addEventListener('keydown', (e) => {
         const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0

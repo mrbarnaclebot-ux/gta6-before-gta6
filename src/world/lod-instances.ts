@@ -17,6 +17,11 @@ type Placement = {
   shadowLevels?: number
   /** Chunk side in meters: bigger chunks mean fewer draw calls for far, sparse things. */
   chunk?: number
+  /**
+   * Chunk side for the last level alone (far impostors): their meshes are cheap to draw but
+   * were one draw call per 250 m chunk and variant, in the view and again in the sea mirror.
+   */
+  farChunk?: number
 }
 
 interface Chunk {
@@ -103,6 +108,24 @@ function sort(c: Chunk, eye: THREE.Vector3, edges2: number[], cap2: number) {
   c.levels.forEach((list, k) => fill(list, counts[k]))
 }
 
+/** The near levels on the usual chunks, the last level on big ones; both sort every spot alike. */
+function splitFar(ctx: WorldCtx, levels: Part[][], spots: Grounded[], place: Placement) {
+  const empty = levels.slice(0, -1).map(() => [])
+  const near = instanceByDistance(ctx, [...levels.slice(0, -1), []], spots, {
+    ...place,
+    farChunk: undefined,
+  })
+  const far = instanceByDistance(ctx, [...empty, levels[levels.length - 1]], spots, {
+    ...place,
+    farChunk: undefined,
+    chunk: place.farChunk,
+  })
+  return (eye: THREE.Vector3, reach?: number, cap?: number) => {
+    near(eye, reach, cap)
+    far(eye, reach, cap)
+  }
+}
+
 /** Where a chunk's spots lie: their center and the radius that holds them all. */
 function bounds(spots: Grounded[]) {
   const x = spots.reduce((a, s) => a + s.x, 0) / spots.length
@@ -123,6 +146,7 @@ export function instanceByDistance(
   spots: Grounded[],
   place: Placement,
 ): (eye: THREE.Vector3, reach?: number, cap?: number) => void {
+  if (place.farChunk && levels.length > 1) return splitFar(ctx, levels, spots, place)
   const casting = place.shadowLevels ?? levels.length
   const chunks: Chunk[] = [...groupByChunk(spots, place.chunk).values()].map((group) => {
     const c = {

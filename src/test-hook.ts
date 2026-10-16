@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
 import { surfaceAt } from './city/terrain'
+import { offset } from './land/polyline'
 import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { RESPAWN_AFTER, type Life } from './life/life'
@@ -13,8 +14,10 @@ import { PRESETS, type Graphics, type Preset } from './render/graphics'
 import type { Driving } from './vehicle/driving'
 import type { City } from './world/city'
 import type { Ui } from './ui/hud-sync'
+import type { StaticColliders } from './world/static-colliders'
 
 interface HookDeps {
+  colliders: StaticColliders
   /** A spot on the marina's T-head beside a boat with open water ahead. */
   dock: { x: number; y: number; z: number }
   physics: PhysicsWorld
@@ -31,16 +34,25 @@ interface HookDeps {
   graphics: () => Graphics
   paused: () => boolean
   ui: Pick<Ui, 'worldMap' | 'nav'>
+  /** The audio context's state, the volume settings, and what is playing. */
+  audio: () => object
   extra: () => {
     fps: number
     frames: number
     quality: Preset | 'custom'
     drawCalls: number
     triangles: number
+    geometries: number
+    textures: number
+    cpu: { ms: number; frames: number }
+    colliders: number
+    tiles: number
+    queued: number
+    streamed: boolean
   }
 }
 
-const xyz = (p: THREE.Vector3) => ({ x: p.x, y: p.y, z: p.z })
+const xyz = (p: { x: number; y: number; z: number }) => ({ x: p.x, y: p.y, z: p.z })
 const EULER = new THREE.Euler()
 
 /** The driven vehicle's bow-up pitch and left-down roll, in degrees. */
@@ -183,6 +195,11 @@ export function exposeTestHook(deps: HookDeps): void {
     ...actorHelpers(deps),
     ...lifeHelpers(deps),
     groundGaps: groundGaps(deps),
+    /** Streamed static colliders (trunks, posts, buildings) alive within r meters of (x, z). */
+    collidersNear: (x: number, z: number, r: number) => deps.colliders.countNear(x, z, r),
+    /** Solid ground height found by a short ray down from (x, y, z), or null. */
+    probe: (x: number, y: number, z: number) => groundProbe(deps.physics)(x, y, z),
+    audio: () => structuredClone(deps.audio()),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }
@@ -249,6 +266,11 @@ function worldHelpers(deps: HookDeps) {
     aimAt: (x: number, y: number, z: number) => follow.aimAt(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
+    /** Points of a named road (`highway`, `forest trail`...), `side` meters right of its centerline. */
+    lane: (name: string, side = 0) => {
+      const road = city.layout.paths.find((p) => p.name === name)
+      return road ? offset(road.pts, side).map(xyz) : null
+    },
     /** The waypoint and the GPS route to it (road points ending at the waypoint), or null. */
     waypoint: () => {
       const { target, path } = deps.ui.nav
