@@ -16,10 +16,12 @@ import { GrassTiles } from './grass-tiles'
  */
 
 /** Meters at reach 1 (the render distance's plant reach scales it). */
-const RANGE = 17
+const RANGE = 10
 const REFILL = 2
 const BUDGET = 1.5
-const BLADES = 170
+// Blades per patch. Thin far triangles cost the GPU far more than their pixels: the lawn
+// stays near, and the terrain's grass color carries the green on past it.
+const BLADES = 150
 /** Floats per baked patch: its instance matrix and its tint. */
 const BAKED = 19
 // Base, tip, and a dry straw tip, linear: the base sits in the blades' own shade.
