@@ -130,10 +130,16 @@ export class CarModels {
   }
 }
 
-function findMesh(root: THREE.Object3D): THREE.Mesh {
+/**
+ * The body's mesh, its node transform baked into the geometry: Meshopt quantization moves
+ * part of the scale onto the node (0.5 on our cars), and `dress` uses the geometry alone.
+ */
+export function findMesh(root: THREE.Object3D): THREE.Mesh {
   let mesh: THREE.Mesh | undefined
   root.traverse((o) => (mesh ??= (o as THREE.Mesh).isMesh ? (o as THREE.Mesh) : undefined))
   if (!mesh) throw new Error('No mesh in car body')
+  root.updateMatrixWorld(true)
+  mesh.geometry.applyMatrix4(mesh.matrixWorld)
   return mesh
 }
 
