@@ -1,6 +1,6 @@
 # Phase 10c summary: ocean, shore foam, and sea life
 
-Status: built and verified on branch `phase-10c-ocean` (from `phase-10b-vegetation`). Not pushed. The Code Reviewer, Designer critique, and audit passes have not run yet.
+Status: built and verified on branch `phase-10c-ocean` (from `phase-10b-vegetation`). Not pushed. Code Reviewer and Designer passes ran; their blockers are fixed (see Review fixes).
 
 ## What was built
 
@@ -32,6 +32,7 @@ All new code lives in `src/sea/` (see its README). `world/water.ts` and `world/u
 
 - **Foam texture:** a procedural tileable lace (cell-border strands plus small bubbles), 256 px, generated at load. No CC0 foam texture was in the asset set; this one costs no download.
 - **Breakers:** the surf crest turns white where the water is under about 2.6 m deep. It leaves a short trail that breaks up into lace as it falls behind the crest.
+- **Sets:** each crest breaks only in stretches along the shore, with green water between, from two low-frequency along-shore sines frayed by the foam texture. The crest's index shifts the pattern, so each crest keeps its gaps as it rolls in and the next one breaks in different places.
 - **Lapping edge:** the thinner the water, the more of the lace shows. Solid at the waterline, holes a few centimeters deeper, gone by 7 cm. It follows the moving edge of the swash.
 - **Walls and rocks:** where deep water meets land within about 1.6 m (the canal seawalls, and the new surf rocks), the swell foams white.
 - **Whitecaps:** sparse foam on the highest offshore crests, only in water over 4 m deep.
@@ -60,17 +61,17 @@ All new code lives in `src/sea/` (see its README). `world/water.ts` and `world/u
 
 ### Sea life (`sea/reef-plan.ts`, `sea/boids.ts`, `sea/fish*.ts`, `sea/seabed-models.ts`, `sea/rays.ts`, `sea/sea-life.ts`)
 
-- **Seeded plan:** a reef patch every 150 m along the coast, 3.8 to 5.2 m deep (14 reefs). Each has:
+- **Seeded plan:** a reef patch every 150 m along the coast, 3.8 to 5.2 m deep (15 reefs). Each has:
   - about 48 corals in four procedural kinds, each tinted from a seven-color palette:
     - brain dome
     - staghorn
     - sea fan
     - tube sponges
   - about 26 kelp clumps (three twisting ribbons each)
-  - 12 mossy rocks (the Poly Haven rock_moss_set_01 already in the assets)
+  - 12 mossy rocks (the Poly Haven rock_moss_set_01 already in the assets). They collide (Rapier balls sunk into the sand), so a diver lands on them. Corals and plants do not collide.
   - a seagrass meadow of about 380 clumps inshore, 0.9 to 4.5 m deep
   
-  Plant heights are capped so tips stay under the wave troughs. Kelp and grass sway in the vertex shader.
+  Plant heights are capped so tips stay under the wave troughs. Kelp and grass sway in the vertex shader, and dither away within about 1.6 m of the camera, so the camera passing through a clump never fills the frame with a blade.
 - **Surf rocks:** about half the stretches get a cluster of four rocks just off the waterline, tops above water. They collide (Rapier cylinders) and are stamped into the sea field, so the surf foams around them.
 - **Fish:** two schools per reef, 28 schools and about 750 fish in one instanced mesh:
   - silver baitfish, 40 per school
@@ -79,7 +80,7 @@ All new code lives in `src/sea/` (see its README). `world/water.ts` and `world/u
   The fish is procedural: a flattened lathe body with forked tail and dorsal fins, a dark back and silver belly, shiny PBR. The tail beats in the vertex shader, each fish out of step.
 - **Boids:** cohesion, alignment, and separation, plus:
   - a pull back to the reef
-  - the seabed and the surface as soft walls, and never below the seabed
+  - the seabed and the surface as soft walls, and never below the seabed. The surface wall sits 0.6 of the largest wave below still water, so a school never breaks a trough.
   - a panic: within 5 m of the swimmer the school flees and scatters (cohesion drops), then regroups as the panic fades over about 3 s
   
   Only schools within 120 m of the camera are simulated. The others are hidden (zero-scale matrices).
@@ -110,8 +111,8 @@ Unchanged. Swimming feels the swell: the swimmer rises and falls with it.
   - `src/sea/boids.test.ts`:
     - a school stays together, aligned, near home, and off the seabed
     - it scatters from a swimmer, then regroups
-- **`pnpm test:e2e`:** 8 passed in 6.3 min.
-  - The swim test now also teleports to a reef. It checks that the water height moves with the waves, that a fish school is swimming, and that every fish is above the seabed.
+- **`pnpm test:e2e`:** 8 passed in 6.2 min (after the review fixes).
+  - The swim test now also teleports to a reef. It checks that the water height moves by more than 1 cm with the waves, that a fish school is swimming, and that each school's lead fish is above the local seabed (`__game.ground`).
   - The floating check allows 1.2 m of slack for the swell.
 
 ### Performance (`scripts/perf.mjs`, 1920x1080 at DSF2, Apple M4, Chrome on Metal)
@@ -169,4 +170,12 @@ Dev build, Medium, headless Chrome on the Metal GPU, 1920x1080.
 - **Wet sand at the waterline:** the waterline itself and wet-sand foam remnants (bubbles left on the sand as the swash recedes) are not drawn; only the darkening is.
 - **Mirror memory:** the `Water` mirror target still leaks a few MB per reflection-quality change (existing ponytail note).
 - **Paid tools:** no AssetHub, Higgsfield, or fal credits were spent. No new downloaded assets: foam, fish, rays, corals, kelp, and seagrass are all procedural; the rocks reuse the Poly Haven rock set already credited.
-- **Process:** the Code Reviewer, Designer critique, and audit passes are still to run.
+- **Process:** the audit pass is still to run.
+
+## Review fixes
+
+- **Reef boulders collide (blocker).** Every reef rock now gets a Rapier ball, `0.45 s` radius at `0.3 s` above its base, like the surf rocks' cylinders. Probe: 42 dives onto a 6 x 7 grid over reef 0; two landed on boulders 1.08 m and 0.65 m above the sand, one slid 0.31 m off a boulder's flank, the rest reached the sand. `underwater-standing-on-boulder.jpg`, `mobile-underwater-reef.jpg` (the reviewer's repro spot: the swimmer stays in front of the boulder).
+- **Breakers in sets (Designer).** See Sets above. `day-shore-breaker-sets.jpg`.
+- **Camera in kelp (Designer).** Near-camera dither fade on `swayMaterial`: a screen-space hash discards fragments when view depth is under 0.6 to 1.6 m. `underwater-camera-in-kelp.jpg` has the camera inside a kelp clump with no blade in frame.
+- **Cheap notes taken:** the e2e water-motion and fish checks are stronger; the fish surface wall is lowered; the caustics comment no longer claims the seawalls; `instanceParts` takes any `Object3D` parent, which drops the `as unknown as THREE.Scene` cast; the reef count is 15.
+- **Not taken:** the field bake's per-texel rock search, packing awake fish into `mesh.count`, and the per-query wave allocations. The heap is flat and Medium holds 60, so they wait for a measured need. The pre-existing sunset direction and TERMS link color are outside 10c.
