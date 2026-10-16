@@ -60,7 +60,7 @@ The scanned trees are millions of triangles each. Each was cut down with gltf-tr
 - models/vegetation/island_tree_01.glb - "Island Tree 01", https://polyhaven.com/a/island_tree_01 - Rob Tuytel, Rico Cilliers - CC0
 - models/vegetation/island_tree_02.glb - "Island Tree 02", https://polyhaven.com/a/island_tree_02 - Rob Tuytel, Rico Cilliers - CC0
 - models/vegetation/tree_small_02.glb - "Tree Small 02", https://polyhaven.com/a/tree_small_02 - Rico Cilliers - CC0
-- models/vegetation/bush_a.glb .. bush_d.glb - "Searsia Lucida" (variants a to d), https://polyhaven.com/a/searsia_lucida - James Ray Cock, Jenelle van Heerden - CC0. Baked the same way at a 1024 px atlas.
+- models/vegetation/bushes.glb (the four bush_a .. bush_d sources in assets-src, one node each) - "Searsia Lucida" (variants a to d), https://polyhaven.com/a/searsia_lucida - James Ray Cock, Jenelle van Heerden - CC0. Baked the same way at a 1024 px atlas.
 - models/vegetation/rocks_moss_01.glb, rocks_moss_02.glb - "Rock Moss Set 01" and "02", https://polyhaven.com/a/rock_moss_set_01, https://polyhaven.com/a/rock_moss_set_02 - Kless Gyzen - CC0. Simplified to about 6% (300 to 450 triangles a rock), 512 px WebP.
 - textures/grass_clumps.webp (1024x512) - four grass clumps cut from the color and alpha maps of "Grass Medium 01", https://polyhaven.com/a/grass_medium_01 - Rob Tuytel, Rico Cilliers - CC0
 - Authors as listed on each Poly Haven page at download (2026-10-16); all Poly Haven assets are CC0.
