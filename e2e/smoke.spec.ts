@@ -84,7 +84,8 @@ test('swims in the ocean and dives under', async ({ page }) => {
   test.setTimeout(180_000 * SLOW)
   const errors = await play(page, '/')
 
-  await visit(page, 'ocean', -1.2, 0.15)
+  // Crests reach about 0.6 m above still water and troughs as far below.
+  await visit(page, 'ocean', -1.2, 0.15, 1.2)
   const floating = await game(page)
   expect(floating.mode).toBe('swimming')
   await page.screenshot({ path: 'test-results/swim.png' })
@@ -100,6 +101,27 @@ test('swims in the ocean and dives under', async ({ page }) => {
   expect(dived.position.y).toBeLessThan(floating.position.y - 0.5)
   expect(dived.underwater).toBe(true)
   await page.screenshot({ path: 'test-results/underwater.png' })
+
+  // On a reef: the waves move the surface and a school of fish swims, above the seabed.
+  const reef = await page.evaluate(() => {
+    const g = (window as unknown as { __game: Game }).__game
+    const r = g.sea().reefs[0]
+    g.teleport(r.x - 4, r.y + 1, r.z)
+    return { ...r, h: g.waterAt(r.x + 20, r.z) }
+  })
+  await settle(page, 20)
+  const after = await page.evaluate(
+    (r) => {
+      const g = (window as unknown as { __game: Game }).__game
+      return { h: g.waterAt(r.x + 20, r.z), sea: g.sea() }
+    },
+    { x: reef.x, z: reef.z },
+  )
+  expect(reef.h).not.toBeNull()
+  expect(after.h).not.toBe(reef.h)
+  expect(after.sea.schools).toBeGreaterThan(0)
+  for (const f of after.sea.fish) expect(f.y).toBeGreaterThan(reef.y - 1)
+  await page.screenshot({ path: 'test-results/reef.png' })
   expect(errors).toEqual([])
 })
 

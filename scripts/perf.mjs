@@ -68,6 +68,8 @@ if (wanted('spawn')) res.push(await sample('spawn'))
 for (const [name, yaw, at] of [
   ['downtown', 0],
   ['beach', Math.PI / 2],
+  // From the beach out over the surf and foam.
+  ['shore', -Math.PI / 2, 'beach'],
   ['canal', 0],
   ['hillside', -Math.PI / 2],
   ['flyover', Math.PI],
@@ -88,6 +90,20 @@ for (const [name, yaw, at] of [
     [name, yaw, at],
   )
   res.push(await sample(name))
+}
+if (wanted('underwater')) {
+  // On the reef nearest the beach, held down with the dive key while sampling.
+  await g(() => {
+    const G = window.__game
+    const b = G.landmarks().beach
+    const r = G.sea().reefs.reduce((a, c) => (Math.abs(c.z - b.z) < Math.abs(a.z - b.z) ? c : a))
+    G.teleport(r.x - 6, r.y + 1.5, r.z)
+    G.setCameraYaw(-Math.PI / 2)
+    G.setCameraPitch(0.05)
+  })
+  await page.keyboard.down('KeyC')
+  res.push(await sample('underwater'))
+  await page.keyboard.up('KeyC')
 }
 if (wanted('downtown-night')) {
   await g(() => {
