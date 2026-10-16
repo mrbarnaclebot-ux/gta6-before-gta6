@@ -22,5 +22,10 @@ export async function createPhysics(): Promise<PhysicsWorld> {
   await RAPIER.init()
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 })
   world.timestep = FIXED_STEP
+  // ponytail: Rapier 0.21's step() re-maps every body and collider through a JS callback each
+  // time (for soft bodies, which this game has none of): with tens of thousands of static
+  // colliders that was most of the frame. Creating and removing still keep the JS maps right.
+  // Drop this line if soft bodies are ever used, or once Rapier makes the scan incremental.
+  world.mapNewSoftBodies = () => {}
   return world
 }
