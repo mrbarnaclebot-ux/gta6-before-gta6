@@ -19,10 +19,10 @@ const browser = await chromium.launch({
     ...(process.env.UNCAPPED ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : []),
   ],
 })
-const ctx = await browser.newContext({
-  viewport: { width: 1920, height: 1080 },
-  deviceScaleFactor: dsf,
-})
+const view = { viewport: { width: 1920, height: 1080 }, deviceScaleFactor: dsf }
+// The service worker's own fetches never reach the page's network log, so the first visit
+// (cold bytes, timings, every scene) runs with it blocked; the warm visit gets its own profile.
+const ctx = await browser.newContext({ ...view, serviceWorkers: 'block' })
 const full = `${URL}?quality=${quality}&debug${process.env.EXTRA || ''}`
 let page = await ctx.newPage()
 const errors = []
@@ -126,9 +126,16 @@ let warm = null
 if (!process.env.NOWARM) {
   // A second visit in the same browser profile: HTTP cache and any service worker are warm.
   await page.close()
-  page = await ctx.newPage()
+  const ctx2 = await browser.newContext({
+    ...view,
+    serviceWorkers: process.env.BLOCKSW ? 'block' : 'allow',
+  })
+  const first = await ctx2.newPage()
+  await timedLoad(ctx2, first, full)
+  await first.close()
+  page = await ctx2.newPage()
   watch(page)
-  warm = await timedLoad(ctx, page, full)
+  warm = await timedLoad(ctx2, page, full)
 }
 const out = { quality, dsf, gpu, cold, warm, coldMemory, afterMemory, samples: res }
 console.log(JSON.stringify({ ...out, drive: driveStats, errors }, null, 1))

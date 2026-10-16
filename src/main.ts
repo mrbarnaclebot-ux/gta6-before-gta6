@@ -47,6 +47,8 @@ document.addEventListener('keydown', (e) => {
 // retries on Play.
 addEventListener('load', () =>
   setTimeout(() => {
+    // Repeat visits load the assets from Cache Storage (see src/sw); dev builds skip it.
+    if (import.meta.env.PROD) navigator.serviceWorker?.register('/sw.js').catch(() => {})
     void planWorld().catch(() => {})
     import('./game')
       .then(() => import('./physics'))
