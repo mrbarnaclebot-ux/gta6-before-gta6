@@ -4,7 +4,7 @@ import { SEA_LEVEL } from '../city/layout'
 /*
  * Light under water: anything below the surface loses red first with depth (absorption)
  * and its sunlit side carries animated caustics, the bright net that waves focus onto
- * the seabed. Patched into lit materials: the ground, the seawalls, sea life, the player.
+ * the seabed. Patched into lit materials: the ground, rocks, sea life, the player.
  */
 
 /** Shared by every patched material: the sea clock and how strong the sun's caustics are now. */

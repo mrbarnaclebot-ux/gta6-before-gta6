@@ -14,7 +14,7 @@ import { bakeSeaField, seaAt, type SeaField } from './field'
 import { planReefs, type ReefPlan } from './reef-plan'
 import { seaUniforms, type SeaUniforms } from './sea-glsl'
 import { buildSeaLife } from './sea-life'
-import { waveHeightAt } from './waves'
+import { MAX_WAVE, waveHeightAt } from './waves'
 
 type Load = (url: string) => Promise<GLTF>
 
@@ -73,7 +73,9 @@ export async function buildSea(ctx: WorldCtx, c: Land, light: Ambient, load: Loa
     water: surfaceAt,
   })
   const floor = (x: number, z: number) => heightAt(c, x, z)
-  const life = await buildSeaLife(ctx, plan.reefs, load, { floor, surface: SEA_LEVEL })
+  // Below the deep-water troughs, so a fleeing school never breaks the surface.
+  const surface = SEA_LEVEL - MAX_WAVE * 0.6
+  const life = await buildSeaLife(ctx, plan.reefs, load, { floor, surface })
   return {
     surfaceAt,
     underwater,
