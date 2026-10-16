@@ -41,14 +41,19 @@ function startHour(): number {
   return t >= 0 && t < 24 && location.search.includes('time=') ? t : START_HOUR
 }
 
-/** Renderer, physics, sky, city, and the loaded models. */
-async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
-  installHeightFog()
+function newView() {
   const scene = new THREE.Scene()
   // runLoop updates the scene's matrices once a frame before drawing.
   scene.matrixWorldAutoUpdate = false
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 3000)
   camera.layers.enable(DETAIL_LAYER)
+  return { scene, camera }
+}
+
+/** Renderer, physics, sky, city, and the loaded models. */
+async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
+  installHeightFog()
+  const { scene, camera } = newView()
   const renderer = new Renderer(canvas, scene, camera)
   const sky = new Sky(scene)
   const shadows = new Shadows(scene, camera, sky.sun)
@@ -225,20 +230,36 @@ export async function startGame(
   // Every material in the scene, hidden levels of detail too, compiles behind the loading
   // screen (in parallel where the browser can), not mid-drive when it first comes into view.
   await w.renderer.gl.compileAsync(w.scene, w.camera)
-  let frames = 0
-  let carsIn = false
+  const run = { frames: 0, carsIn: false }
   runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
     sound.update(dt)
-    if (frames++ > 0) return
+    if (run.frames++ > 0) return
     // The first frame (and its shader compiles) is drawn: lift the loading screen.
     loading.ready()
     boot.audio.enterGame()
     ui.tip('map', 'Press M for the map. Click on it to set a waypoint.')
     ui.tip('car', 'Walk up to a parked car and press F to get in.')
     // The car bodies are the heaviest download; fetch them once the city is on screen.
-    void w.upgradeCars().then(() => (carsIn = true))
+    // A failed fetch leaves the box bodies in, so streaming still counts as done.
+    void w
+      .upgradeCars()
+      .catch((e: unknown) => console.warn('car models failed to load', e))
+      .finally(() => (run.carsIn = true))
   })
+  exposeGame(w, input, ui, look, sound, run)
+}
+
+/** The test hook: the world, plus frame, draw, and streaming counters. */
+function exposeGame(
+  w: World,
+  input: Input,
+  ui: Ui,
+  look: Look,
+  sound: ReturnType<typeof gameSound>,
+  run: { frames: number; carsIn: boolean },
+) {
+  const gl = w.renderer.gl
   exposeTestHook({
     ...w,
     dock: w.harbor.dock,
@@ -250,16 +271,16 @@ export async function startGame(
     audio: sound.state,
     extra: () => ({
       fps: Math.round(ui.hud.fps),
-      frames,
+      frames: run.frames,
       quality: presetOf(look.graphics),
-      drawCalls: w.renderer.gl.info.render.calls,
-      triangles: w.renderer.gl.info.render.triangles,
-      geometries: w.renderer.gl.info.memory.geometries,
-      textures: w.renderer.gl.info.memory.textures,
+      drawCalls: gl.info.render.calls,
+      triangles: gl.info.render.triangles,
+      geometries: gl.info.memory.geometries,
+      textures: gl.info.memory.textures,
       cpu: { ...CPU_WORK },
       ...w.colliders.stats,
       /** Everything around the player is in: car bodies fetched, collider tiles built. */
-      streamed: carsIn && !w.colliders.busy,
+      streamed: run.carsIn && !w.colliders.busy,
     }),
   })
 }
