@@ -6,6 +6,7 @@ import { addMerged, metricBox, tinted, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
 import { facadeMaterial, tileSize } from './facades'
 import { pbr } from './materials'
+import { roofClutter } from './rooftops'
 
 // Miami: mostly white and cream, with art-deco pastels; glass tints stay subtle.
 const WALLS: Record<Style, number[]> = {
@@ -72,6 +73,13 @@ function crownParts(b: Building, p: Parts, w: number, d: number, top: number, co
   solid(p, b, t, d, top, top + 1.1, -(w - t) / 2, 0)
 }
 
+/** Rooftop clutter on a w x d deck at `top` around a centered core of share `core`. */
+function clutter(b: Building, p: Parts, top: number, w: number, d: number, core: number) {
+  const out = roofClutter(b, top, w, d, core)
+  p.trim.push(...out.trim)
+  p.solids.push(...out.solids)
+}
+
 function decoParts(b: Building, p: Parts, wall: number, accent: number) {
   const fh = FLOOR_H.deco
   const h = b.floors * fh
@@ -83,6 +91,7 @@ function decoParts(b: Building, p: Parts, wall: number, accent: number) {
     p.trim.push(tinted(box(b, b.w + 0.9, 0.12, b.d + 0.9, 0, i * fh + fh * 0.76, 0), accent))
   }
   crownParts(b, p, b.w, b.d, h, wall)
+  clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, 0)
   if (b.seed % 3 === 0) {
     const side = b.seed % 2 ? 1 : -1
     // Straddles the side wall so above the roof it grows out of the parapet, not beside it.
@@ -104,6 +113,7 @@ function residentialParts(b: Building, p: Parts, wall: number) {
   crownParts(b, p, b.w, b.d, h, wall)
   p.trim.push(tinted(box(b, b.w * 0.35, 3.2, b.d * 0.35, 0, h, 0), wall))
   solid(p, b, b.w * 0.35, b.d * 0.35, h, h + 3.2)
+  clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, 0.35)
 }
 
 function glassParts(b: Building, p: Parts, wall: number) {
@@ -125,6 +135,7 @@ function glassParts(b: Building, p: Parts, wall: number) {
   solid(p, b, w + 0.4, d + 0.4, h, h + 1.6)
   p.trim.push(tinted(box(b, w * 0.4, 4, d * 0.4, 0, h + 1.6, 0), 0xdedfdd))
   solid(p, b, w * 0.4, d * 0.4, h, h + 5.6)
+  clutter(b, p, h + 1.6, w + 0.4, d + 0.4, 0.4)
   if (b.seed % 3 === 0) p.trim.push(tinted(box(b, 0.6, 14, 0.6, 0, h + 5.6, 0), 0xdedfdd))
 }
 
