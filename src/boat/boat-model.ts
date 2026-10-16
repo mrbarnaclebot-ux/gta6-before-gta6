@@ -25,6 +25,12 @@ export const HULL_BOUNDS = new THREE.Box3(
   new THREE.Vector3(1.25, 0.85, 3.45),
 )
 
+/** The windshield and console above the hull box, measured off the model. */
+export const COCKPIT_BOUNDS = new THREE.Box3(
+  new THREE.Vector3(-1.1, 0.85, -2),
+  new THREE.Vector3(1.1, 1.5, 1.2),
+)
+
 /**
  * Hands out boats at once with a plain stand-in hull, then swaps in the generated model
  * once it loads, so a slow or missing glb never blocks play (the same pattern as cars).

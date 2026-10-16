@@ -4,7 +4,7 @@ import type { Surface } from '../combat/effects'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { Controls, Vehicle } from '../vehicle/vehicle'
 import type { BoatVisual } from './boat-model'
-import { HULL_BOUNDS } from './boat-model'
+import { COCKPIT_BOUNDS, HULL_BOUNDS } from './boat-model'
 import { mooring, type Mooring } from './mooring'
 import { BoatForces } from './forces'
 import { MASS } from './hull'
@@ -48,6 +48,8 @@ export class Boat implements Vehicle {
       .setAngularDamping(0.8)
     this.body = physics.createRigidBody(desc)
     this.collider = physics.createCollider(hullShape(), this.body)
+    // The windshield rises above the hull box: a sensor, so only the camera probe sees it.
+    physics.createCollider(boxDesc(COCKPIT_BOUNDS).setSensor(true).setDensity(0), this.body)
     this.forces = new BoatForces(this.body, water)
     this.moored = { ...spot }
     this.snapshot()
@@ -117,16 +119,24 @@ export class Boat implements Vehicle {
 
 /** The hull as a box from the keel to the gunwale, its weight low and a little aft. */
 function hullShape() {
-  const b = HULL_BOUNDS
-  const half = b.getSize(new THREE.Vector3()).multiplyScalar(0.5)
-  const center = b.getCenter(new THREE.Vector3())
+  const half = HULL_BOUNDS.getSize(new THREE.Vector3()).multiplyScalar(0.5)
   const inertia = {
     x: (MASS / 3) * (half.y ** 2 + half.z ** 2),
     y: (MASS / 3) * (half.x ** 2 + half.z ** 2),
     z: (MASS / 3) * (half.x ** 2 + half.y ** 2),
   }
-  return RAPIER.ColliderDesc.cuboid(half.x * 0.92, half.y, half.z)
-    .setTranslation(center.x, center.y, center.z)
+  return boxDesc(HULL_BOUNDS, 0.92)
     .setMassProperties(MASS, { x: 0, y: -0.1, z: -0.3 }, inertia, { x: 0, y: 0, z: 0, w: 1 })
     .setFriction(0.3)
+}
+
+/** A box collider over `b`, its width scaled by `narrow`. */
+function boxDesc(b: THREE.Box3, narrow = 1) {
+  const half = b.getSize(new THREE.Vector3()).multiplyScalar(0.5)
+  const center = b.getCenter(new THREE.Vector3())
+  return RAPIER.ColliderDesc.cuboid(half.x * narrow, half.y, half.z).setTranslation(
+    center.x,
+    center.y,
+    center.z,
+  )
 }

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { RAPIER, type PhysicsWorld } from '../physics'
+import { RAPIER, SOLID, type PhysicsWorld } from '../physics'
 import { FLOAT_DEPTH } from '../player/swim'
 
 const NO_ROTATION = { x: 0, y: 0, z: 0, w: 1 }
@@ -42,7 +42,7 @@ export function findExit(
       if (dryOnly && y > 0) continue
       p.set(x, y, z).applyQuaternion(v.quaternion).add(v.position)
       const from = { x: p.x, y: p.y + 2, z: p.z }
-      const hit = physics.castRay(new RAPIER.Ray(from, DOWN), 4, true)
+      const hit = physics.castRay(new RAPIER.Ray(from, DOWN), 4, true, SOLID)
       // No ground within reach (deep water, a ledge): keep the door height and let the player fall or swim.
       const ground = hit ? from.y - hit.timeOfImpact + 0.02 : p.y + 0.3
       const surface = water(p.x, p.z)
@@ -51,7 +51,7 @@ export function findExit(
       // Over deep water, come out treading at the surface instead of on the seabed.
       const feet = wet ? Math.max(ground, surface - FLOAT_DEPTH) : ground
       const center = { x: p.x, y: feet + lift, z: p.z }
-      if (!physics.intersectionWithShape(center, NO_ROTATION, shape)) return p.setY(feet)
+      if (!physics.intersectionWithShape(center, NO_ROTATION, shape, SOLID)) return p.setY(feet)
     }
   }
   return p.copy(v.position).setY(v.position.y + 2)

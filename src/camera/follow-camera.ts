@@ -53,7 +53,7 @@ export class FollowCamera {
   private aimBlend = 0
   private readyBlend = 0
   private readonly focus = new THREE.Vector3()
-  /** The collider the wall probe looks through: the player's capsule or the driven car. */
+  /** The collider (and its body) the wall probe looks through: the player's capsule or the driven car. */
   ignore: Collider
   private distance = RIGS.foot.distance
   private idle = 0
@@ -148,6 +148,8 @@ export class FollowCamera {
       undefined,
       CAMERA_PROBE_GROUPS,
       this.ignore,
+      // The whole vehicle: a boat's windshield is a second collider on the same body.
+      this.ignore.parent() ?? undefined,
     )
     return hit ? Math.max(MIN_DISTANCE, hit.time_of_impact) : max
   }

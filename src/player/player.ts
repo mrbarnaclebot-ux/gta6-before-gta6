@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { cameraRelative } from '../camera/orbit-math'
 import { moveAxes } from '../input/bindings'
 import type { Input } from '../input/input'
-import { RAPIER, type PhysicsWorld } from '../physics'
+import { RAPIER, SOLID, type PhysicsWorld } from '../physics'
 import type { Avatar } from './avatar'
 import { findLedge } from './ledge'
 import {
@@ -175,7 +175,7 @@ export class Player {
   private move(dt: number): void {
     const m = this.motion
     const want = { x: m.vx * dt, y: m.vy * dt, z: m.vz * dt }
-    this.controller.computeColliderMovement(this.collider, want)
+    this.controller.computeColliderMovement(this.collider, want, SOLID)
     const moved = this.controller.computedMovement()
     // Bumped a ceiling: stop rising instead of sticking to it.
     if (m.vy > 0 && moved.y < want.y * 0.5) m.vy = 0

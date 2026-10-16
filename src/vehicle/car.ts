@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
-import { RAPIER, type PhysicsWorld } from '../physics'
+import { RAPIER, SOLID, type PhysicsWorld } from '../physics'
 import type { CarVisual } from './car-model'
 import { BRAKE, drag, floods, HANDBRAKE, pedals, steerToward } from './drive'
 import type { Controls, Vehicle } from './vehicle'
@@ -92,7 +92,7 @@ export class Car implements Vehicle {
     this.speed = this.vehicle.currentVehicleSpeed()
     if (controls) this.drive(dt, controls)
     else this.park()
-    this.vehicle.updateVehicle(dt)
+    this.vehicle.updateVehicle(dt, SOLID)
     this.snapshot()
   }
 

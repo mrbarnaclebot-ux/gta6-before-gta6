@@ -12,6 +12,11 @@ export const FIXED_STEP = 1 / 60
  */
 export const ACTOR_GROUPS = 0x0002ffff
 export const CAMERA_PROBE_GROUPS = 0x0001fffd
+/**
+ * Sensors are camera-only shapes (a boat's windshield, which the hull box leaves out):
+ * every gameplay query passes this so people, wheels and bullets ignore them.
+ */
+export const SOLID = RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
 
 export async function createPhysics(): Promise<PhysicsWorld> {
   await RAPIER.init()
