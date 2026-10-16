@@ -30,7 +30,9 @@ export function planSea(data: SeaData): SeaPlan {
 export async function buildSea(ctx: WorldCtx, c: Land, light: Ambient, load: Load, plan: SeaPlan) {
   const water = buildWater(ctx, c, light, plan.uniforms)
   const time = plan.uniforms.seaTime
-  const at = (x: number, z: number) => seaAt(plan.field, x, z)
+  // One sample object reused: the wave query reads it before asking for the next.
+  const sample = { scale: 1, shore: 0 }
+  const at = (x: number, z: number) => seaAt(plan.field, x, z, sample)
   /** Water surface height at (x, z), waves included, or null on land. */
   const surfaceAt = (x: number, z: number) => {
     const top = SEA_LEVEL + waveHeightAt(x, z, time.value, at)

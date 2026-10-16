@@ -116,8 +116,15 @@ export function sampleField(f: SeaField, a: Float32Array, x: number, z: number):
 }
 
 /** Wave scale and shore distance at (x, z); past the field it is open sea. */
-export function seaAt(f: SeaField, x: number, z: number): SeaSample {
+export function seaAt(
+  f: SeaField,
+  x: number,
+  z: number,
+  out: SeaSample = { scale: 1, shore: 0 },
+): SeaSample {
   const scale = sampleField(f, f.scale, x, z)
   if (scale === null) return OPEN_SEA
-  return { scale, shore: sampleField(f, f.shore, x, z) ?? OPEN_SEA.shore }
+  out.scale = scale
+  out.shore = sampleField(f, f.shore, x, z) ?? OPEN_SEA.shore
+  return out
 }

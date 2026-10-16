@@ -80,8 +80,14 @@ export function surfHeight(x: number, z: number, t: number, s: SeaSample): numbe
   return SURF.amp * build * s.scale * (2 * c * c * c - 0.625)
 }
 
-/** Where the surface point that started at (x, z) has moved: [dx, dy, dz]. */
-export function displace(x: number, z: number, t: number, s: SeaSample): [number, number, number] {
+/** Where the surface point that started at (x, z) has moved: [dx, dy, dz], written into `out`. */
+export function displace(
+  x: number,
+  z: number,
+  t: number,
+  s: SeaSample,
+  out: [number, number, number] = [0, 0, 0],
+): [number, number, number] {
   let dx = 0
   let dy = surfHeight(x, z, t, s)
   let dz = 0
@@ -94,8 +100,14 @@ export function displace(x: number, z: number, t: number, s: SeaSample): [number
     dz += q * w.dir[1]
     dy += a * Math.sin(theta)
   }
-  return [dx, dy, dz]
+  out[0] = dx
+  out[1] = dy
+  out[2] = dz
+  return out
 }
+
+// Scratch for waveHeightAt: swimming, boats, and spray ask it many times a frame.
+const D: [number, number, number] = [0, 0, 0]
 
 /**
  * Height of the sea surface above its mean at (x, z) and time t. Gerstner waves also push
@@ -111,11 +123,11 @@ export function waveHeightAt(
   let px = x
   let pz = z
   for (let i = 0; i < 5; i++) {
-    const [dx, , dz] = displace(px, pz, t, at(px, pz))
-    px = x - dx
-    pz = z - dz
+    displace(px, pz, t, at(px, pz), D)
+    px = x - D[0]
+    pz = z - D[2]
   }
-  return displace(px, pz, t, at(px, pz))[1]
+  return displace(px, pz, t, at(px, pz), D)[1]
 }
 
 /** The highest any crest can reach above the mean, at full scale. */
