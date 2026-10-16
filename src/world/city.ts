@@ -15,6 +15,7 @@ import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
 import { buildForest } from '../scenery/forest'
 import { plantGrass } from '../scenery/grass'
+import { plantLawn } from '../scenery/lawn'
 import type { Flora } from '../land/flora'
 import { planWorld, type WorldPlan } from '../land/world-plan'
 import type { WorldCtx } from './blocks'
@@ -117,6 +118,7 @@ async function buildPlants(
     await buildForest(ctx, gl, load, layout, flora),
     plantDuneGrass(ctx, layout),
     plantGrass(ctx, layout, flora.clear),
+    plantLawn(ctx, layout, flora.clear),
   ]
   return (eye: THREE.Vector3, reach: number) => updates.forEach((u) => u(eye, reach))
 }
