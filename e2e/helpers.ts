@@ -23,6 +23,10 @@ export type GameState = {
   hours: number
   night: number
   quality: string
+  device: 'keys' | 'pad' | 'touch'
+  cameraYaw: number
+  shots: number
+  grounded: boolean
 }
 export type Game = {
   state: () => GameState
@@ -43,6 +47,7 @@ export type Game = {
   waterAt: (x: number, z: number) => number | null
   ground: (x: number, z: number) => number
   sea: () => { reefs: Point[]; schools: number; fish: Point[] }
+  graphics: () => Record<string, unknown>
   groundGaps: () => { kind: string; x: number; y: number; z: number; gap: number | null }[]
 }
 

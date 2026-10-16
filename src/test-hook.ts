@@ -96,6 +96,7 @@ function snapshot(deps: HookDeps) {
     paused: deps.paused(),
     mapOpen: deps.ui.worldMap.open,
     sensitivity: follow.sensitivity,
+    cameraYaw: follow.yaw,
     underwater: city.underwater,
     ammo: pistol.mag,
     reserve: pistol.reserve,
@@ -103,6 +104,10 @@ function snapshot(deps: HookDeps) {
     aiming: combat.shooter.aiming,
     shots: combat.shooter.shots,
     pointerLocked: input.locked,
+    /** Which device's labels show: 'keys', 'pad', or 'touch'. */
+    device: input.device,
+    /** What the driving controls read right now, from keys, pad, and touch together. */
+    controls: input.drive(),
     camera: follow.camera.position.toArray(),
     ...extra(),
   }
