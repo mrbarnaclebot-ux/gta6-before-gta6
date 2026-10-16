@@ -24,6 +24,7 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - fonts/anton-latin-400.woff2 - Anton by Vernon Adams, https://fonts.google.com/specimen/Anton (latin subset woff2 from Fontsource, https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.5) - OFL 1.1
 
 ## HDRI (Poly Haven, CC0)
+Only the sky half of each ships (the game paints the ground half); scripts/compress-assets.mjs crops them from the full files in assets-src/hdri.
 - hdri/day_kloofendal_2k.hdr (2k) - https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky - Greg Zaal, sky edits Jarod Guest - CC0
 - hdri/night_dikhololo_1k.hdr (1k) - https://polyhaven.com/a/dikhololo_night - Greg Zaal - CC0
 

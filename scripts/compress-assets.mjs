@@ -1,9 +1,10 @@
 // Rebuilds the GPU-compressed assets in public/assets from the sources in assets-src:
-//   node scripts/compress-assets.mjs [textures] [models]
+//   node scripts/compress-assets.mjs [textures] [models] [hdri]
 // Textures: each PBR set becomes three KTX2 files (Basis ETC1S, mipmapped); the terrain's four
 // layers become two KTX2 array textures (color with roughness in alpha, and normals).
 // Models: every glb gets Meshopt geometry compression (quantized, reordered); JPEG textures
 // become WebP, and plant textures are capped at 1024 px (cards seen from metres away).
+// HDRIs: only the sky half ships (src/render/sky.ts paints the ground half itself).
 // Needs basisu (brew install basis_universal), ffmpeg, and cwebp/dwebp (brew install webp).
 import { NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS, EXTTextureWebP } from '@gltf-transform/extensions'
@@ -122,7 +123,44 @@ async function models() {
   }
 }
 
+/** Byte length of one new-style RLE RGBE scanline starting at `at`. */
+function scanline(buf, at, width) {
+  let p = at + 4
+  for (let c = 0; c < 4; c++) {
+    for (let n = 0; n < width;) {
+      const count = buf[p++]
+      if (count > 128) {
+        n += count - 128
+        p++
+      } else {
+        n += count
+        p += count
+      }
+    }
+  }
+  return p - at
+}
+
+/** Keeps the top half of a Radiance .hdr: the sky above the horizon. */
+function skyHalf(name) {
+  const buf = readFileSync(join(SRC, 'hdri', name))
+  const text = buf.toString('latin1')
+  const res = /-Y (\d+) \+X (\d+)\n/.exec(text)
+  const [height, width] = [+res[1], +res[2]]
+  let p = res.index + res[0].length
+  const start = p
+  for (let y = 0; y < height / 2; y++) p += scanline(buf, p, width)
+  const head = text.slice(0, res.index) + `-Y ${height / 2} +X ${width}\n`
+  const out = Buffer.concat([Buffer.from(head, 'latin1'), buf.subarray(start, p)])
+  writeFileSync(join(OUT, 'hdri', name), out)
+  console.log(name, buf.length, '->', out.length)
+}
+
 const want = process.argv.slice(2)
+if (!want.length || want.includes('hdri')) {
+  mkdirSync(join(OUT, 'hdri'), { recursive: true })
+  for (const f of readdirSync(join(SRC, 'hdri'))) skyHalf(f)
+}
 if (!want.length || want.includes('textures')) {
   for (const set of SETS) {
     map(set, 'diff', 'color')

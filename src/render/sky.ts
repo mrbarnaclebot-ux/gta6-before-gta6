@@ -81,7 +81,7 @@ export class Sky {
    */
   async load(gl: THREE.WebGLRenderer): Promise<void> {
     this.gl = gl
-    const day = await new HDRLoader().loadAsync(DAY_URL)
+    const day = withGround(await new HDRLoader().loadAsync(DAY_URL))
     const dayPixels = pixels(day)
     const [sx, , sz] = sunDirection(dayPixels.data, dayPixels.width, dayPixels.height)
     this.hdriSunAzimuth = Math.atan2(sz, sx)
@@ -105,7 +105,8 @@ export class Sky {
     if (this.nightAsked || !this.gl) return
     this.nightAsked = true
     const gl = this.gl
-    void new HDRLoader().loadAsync(NIGHT_URL).then((night) => {
+    void new HDRLoader().loadAsync(NIGHT_URL).then((sky) => {
+      const night = withGround(sky)
       // Same size as the day sky, so both prefiltered maps share one shader variant and
       // the switch at dusk does not recompile every material.
       grade(night, NIGHT_GRADE)
@@ -195,6 +196,18 @@ export class Sky {
       ABSORB.setRGB(Math.exp(-d * 0.12), Math.exp(-d * 0.045), Math.exp(-d * 0.03)),
     )
   }
+}
+
+/**
+ * The HDRIs ship as their sky half only (scripts/compress-assets.mjs): the ground half is
+ * painted over anyway (paintLowerHalf). This doubles the height back, ground left empty.
+ */
+function withGround(t: THREE.Texture): THREE.Texture {
+  const { data, width, height } = t.image as { data: Uint16Array; width: number; height: number }
+  const out = new Uint16Array(data.length * 2)
+  out.set(data)
+  t.image = { data: out, width, height: height * 2 }
+  return t
 }
 
 /** Multiply every pixel by an RGB grade. */
