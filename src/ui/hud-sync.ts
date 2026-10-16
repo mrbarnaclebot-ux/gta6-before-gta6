@@ -133,7 +133,7 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
   hud.setUnderwater(w.city.underwater)
   const car = w.driving.car
   const warning = car?.stalled ? 'Engine flooded' : car?.dead ? 'Engine destroyed' : null
-  hud.setSpeed(car ? Math.abs(car.speed) * 3.6 : null, warning)
+  hud.setSpeed(car ? Math.abs(car.speed) : null, warning, car?.kind === 'boat' ? 'kn' : 'km/h')
   const { pistol, raised, sinceHit } = w.combat.shooter
   const onFoot = w.driving.mode === 'walking' && !w.life.dead
   hud.setWeapon(
@@ -147,7 +147,7 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
         }
       : null,
   )
-  hud.setPrompt(w.driving.nearest() && !w.life.dead ? 'Get in' : null)
+  hud.setPrompt(prompt(w))
   hud.setLookHint(ui.needsRelock() && !ui.pause.open && !ui.worldMap.open)
   const { wanted } = w.life
   hud.setWanted(stars(wanted), cooling(wanted))
@@ -158,12 +158,22 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
   hud.frame()
 }
 
+/** What F does here: get into something of one's own, or take a car from its driver. */
+function prompt(w: World): string | null {
+  if (w.life.dead) return null
+  const near = w.driving.nearest()
+  if (near) return near.kind === 'boat' ? 'Board' : 'Get in'
+  return w.life.carjack.target() ? 'Take car' : null
+}
+
 /** First-time hints, top left. */
 function helpTips(ui: Ui, w: World): void {
   const p = w.driving.position
   if (ui.nav.update(p)) ui.hud.toast('You have arrived.')
   const mode = w.driving.mode
-  if (mode === 'driving') ui.tip('drive', 'Space is the handbrake. Press F to get out.')
+  const boat = w.driving.car?.kind === 'boat'
+  if (boat) ui.tip('boat', 'W throttle, S reverse, A and D steer. Press F to step off.')
+  else if (mode === 'driving') ui.tip('drive', 'Space is the handbrake. Press F to get out.')
   if (mode === 'swimming') ui.tip('swim', 'Ctrl or C dives. Space comes back up.')
   if (stars(w.life.wanted) > 0)
     ui.tip('wanted', 'Police are searching the red area. Get out of it to lose them.')

@@ -6,6 +6,7 @@ import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import { PAINT_COUNT, type CarFactory } from '../vehicle/car-model'
 import { laneGraph, type LaneEdge } from '../land/lane-graph'
 import type { Land } from '../land/plan'
+import { canJack, driverWaits } from './carjack-rules'
 import { highwayStart } from './highway-traffic'
 import { gridStart, randomHeading } from './lanes'
 import { TrafficCar } from './traffic-car'
@@ -66,13 +67,15 @@ export class Traffic {
   private readonly highway: LaneEdge[]
   private readonly r = rng(4242)
   private readonly others: Obstacle[] = []
+  /** Cars made so far, so a replacement gets a different paint from the one it replaces. */
+  private made = 0
 
   constructor(
-    scene: THREE.Scene,
-    physics: PhysicsWorld,
+    private readonly scene: THREE.Scene,
+    private readonly physics: PhysicsWorld,
     layout: Land,
-    make: CarFactory,
-    onShot: () => void,
+    private readonly make: CarFactory,
+    private readonly onShot: () => void,
   ) {
     this.grid = layout
     const hw = layout.paths.find((p) => p.kind === 'highway')!
@@ -80,46 +83,80 @@ export class Traffic {
       hw,
       layout.paths.filter((p) => p.kind === 'ramp'),
     )
-    this.cars = Array.from({ length: COUNT }, (_, i) => {
-      const kind = i % POLICE_EVERY === 0 ? 'police' : 'sports'
-      const car = new TrafficCar(physics, make(i % PAINT_COUNT, kind))
-      car.onShot = onShot
-      car.ground = groundProbe(physics)
-      car.visual.root.visible = false
-      scene.add(car.visual.root)
-      return car
-    })
+    this.cars = Array.from({ length: COUNT }, (_, i) =>
+      this.create(i % POLICE_EVERY === 0 ? 'police' : 'sports'),
+    )
     this.stuck = this.cars.map(() => 0)
     this.ignoring = this.cars.map(() => 0)
   }
 
+  private create(kind: 'police' | 'sports'): TrafficCar {
+    const car = new TrafficCar(this.physics, this.make(this.made++ % PAINT_COUNT, kind))
+    car.onShot = this.onShot
+    car.ground = groundProbe(this.physics)
+    car.visual.root.visible = false
+    this.scene.add(car.visual.root)
+    return car
+  }
+
+  /** The car whose driver the player at `p` could pull out right now, if any. */
+  jackable(p: THREE.Vector3): TrafficCar | null {
+    let best: TrafficCar | null = null
+    let bestD = Infinity
+    for (const c of this.cars) {
+      const d = c.position.distanceTo(p)
+      if (c.visual.root.visible && canJack(c.speed, d, c.dead) && d < bestD) [best, bestD] = [c, d]
+    }
+    return best
+  }
+
+  /**
+   * Hands a stolen car over: its AI body leaves the physics world and a fresh car of the
+   * same kind takes its place in the pool (it appears out of sight, like any other).
+   */
+  release(car: TrafficCar): TrafficCar {
+    const i = this.cars.indexOf(car)
+    this.physics.removeRigidBody(car.body)
+    const fresh = this.create(car.visual.police ? 'police' : 'sports')
+    this.cars[i] = fresh
+    this.stuck[i] = this.ignoring[i] = 0
+    return fresh
+  }
+
   /**
    * `view` is the camera's forward direction: new cars appear behind it when possible.
-   * `others` are the player, cars that are not traffic, and people.
+   * `others` are the player, cars that are not traffic, and people. `walker`: the player
+   * on foot, whom a slow driver waits for (null while driving).
    */
   update(
     dt: number,
     focus: THREE.Vector3,
     view: THREE.Vector3,
     others: Obstacle[],
-    lights: { night: number; siren: boolean },
+    lights: { night: number; siren: boolean; walker: THREE.Vector3 | null },
   ) {
     this.cars.forEach((car, i) => {
       const hidden = !car.visual.root.visible
       if (hidden || car.position.distanceTo(focus) > DESPAWN) this.spawn(car, focus, view, hidden)
       if (!car.visual.root.visible) return
       const cars = this.ignoring[i] > 0 ? 0 : this.limit(car, this.carObstacles(car))
-      const limit = Math.min(cars, this.limit(car, others))
+      const w = lights.walker
+      const waits = car.held || (w !== null && driverWaits(car.speed, car.position.distanceTo(w)))
+      const limit = waits ? 0 : Math.min(cars, this.limit(car, others))
       this.unstick(i, car, cars, limit, dt)
       car.update(dt, limit, lights.night, lights.siren)
       castShadows(car.visual.root, car.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
     })
   }
 
-  /** Cars still running within `radius` of a point: witnesses. */
-  near(at: THREE.Vector3, radius: number): number {
+  /** Cars still running within `radius` of a point (only police with `police`): witnesses. */
+  near(at: THREE.Vector3, radius: number, police = false): number {
     return this.cars.filter(
-      (c) => c.visual.root.visible && !c.dead && c.position.distanceTo(at) < radius,
+      (c) =>
+        c.visual.root.visible &&
+        !c.dead &&
+        (!police || c.visual.police) &&
+        c.position.distanceTo(at) < radius,
     ).length
   }
 

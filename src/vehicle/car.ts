@@ -4,6 +4,9 @@ import type { Surface } from '../combat/effects'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from './car-model'
 import { BRAKE, drag, floods, HANDBRAKE, pedals, steerToward } from './drive'
+import type { Controls, Vehicle } from './vehicle'
+
+export type { Controls } from './vehicle'
 
 const MASS = 1250
 const REST = 0.3
@@ -17,16 +20,11 @@ const FLOOR = 0.3
 // About ten close pistol shots.
 const CAR_HP = 240
 
-export interface Controls {
-  throttle: number
-  steer: number
-  handbrake: boolean
-}
-
 type WaterQuery = (x: number, z: number) => number | null
 
 /** A Rapier raycast-vehicle: a dynamic box chassis on four spring rays; the model follows it. */
-export class Car {
+export class Car implements Vehicle {
+  readonly kind = 'car'
   readonly body: InstanceType<typeof RAPIER.RigidBody>
   readonly collider: InstanceType<typeof RAPIER.Collider>
   /** Forward speed in m/s; negative while reversing. */

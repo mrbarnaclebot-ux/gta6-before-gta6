@@ -43,6 +43,8 @@ export class Pedestrian {
   /** Set by the crowd: called with 'assault' or 'murder' when a bullet lands. */
   onShot: (killed: boolean) => void = () => {}
   private loop: Rect = { x0: 0, z0: 0, x1: 1, z1: 1 }
+  /** Off the sidewalk loop (a driver pulled from a car): runs straight this way instead. */
+  private loose: { x: number; z: number } | null = null
   private s = 0
   private dir: 1 | -1 = 1
   private heading = 0
@@ -80,7 +82,7 @@ export class Pedestrian {
 
   /** Start walking `s` meters around `loop` (at curb height `y`), either way round. */
   place(loop: Rect, s: number, dir: 1 | -1, y: number): void {
-    Object.assign(this, { loop, s, dir, state: 'walk', timer: 0 })
+    Object.assign(this, { loop, s, dir, state: 'walk', timer: 0, loose: null })
     this.health.hp = HP
     this.position.y = y
     this.collider.setEnabled(true)
@@ -93,7 +95,7 @@ export class Pedestrian {
 
   /** A shot was fired near `from`: run the way round the block that leads away from it. */
   scare(from: THREE.Vector3): void {
-    if (!this.alive) return
+    if (!this.alive || this.loose) return
     const ahead = loopPoint(this.loop, this.s + 6 * this.dir)
     const behind = loopPoint(this.loop, this.s - 6 * this.dir)
     const away = (p: { x: number; z: number }) => Math.hypot(p.x - from.x, p.z - from.z)
@@ -110,6 +112,28 @@ export class Pedestrian {
     if (killed) this.die()
     else this.play('hit', 0.08)
     return 'flesh'
+  }
+
+  /**
+   * Hauled out of a car at `at`, facing `yaw`: staggers in place. `run` then sends them
+   * off. The caller moves them while they are being pulled.
+   */
+  haul(at: THREE.Vector3, yaw: number): void {
+    Object.assign(this, { state: 'idle', timer: 0, heading: yaw, loose: { x: 0, z: 0 } })
+    this.health.hp = HP
+    this.position.copy(at)
+    this.body.setTranslation(at, true)
+    this.collider.setEnabled(true)
+    this.root.visible = true
+    this.play('hit', 0.05)
+  }
+
+  /** Flee in a straight line along (x, z), off the loop. */
+  run(x: number, z: number): void {
+    const l = Math.hypot(x, z) || 1
+    this.loose = { x: x / l, z: z / l }
+    this.state = 'flee'
+    this.timer = 0
   }
 
   die(): void {
@@ -134,6 +158,10 @@ export class Pedestrian {
 
   /** Walkers sometimes stop to chat; fleeing calms down after a while. */
   private think(): void {
+    // ponytail: a loose runner has no sidewalk to go back to, so once calm they vanish and the
+    // crowd recycles them (about 45 m off). Walking back to the nearest loop would be nicer.
+    if (this.loose && this.state === 'flee' && this.timer > FLEE_TIME) return this.vanish()
+    if (this.loose && this.state !== 'flee') return
     if (this.state === 'flee' && this.timer > FLEE_TIME) {
       this.state = 'walk'
       this.timer = 0
@@ -158,7 +186,18 @@ export class Pedestrian {
     this.play(clip, FADE)
   }
 
+  private vanish(): void {
+    Object.assign(this, { state: 'dead', timer: Infinity, loose: null })
+    this.collider.setEnabled(false)
+    this.root.visible = false
+  }
+
   private move(step: number): void {
+    if (this.loose) {
+      this.position.x += this.loose.x * step
+      this.position.z += this.loose.z * step
+      return
+    }
     this.s += step * this.dir
     const p = loopPoint(this.loop, this.s)
     this.position.x = p.x
@@ -167,6 +206,7 @@ export class Pedestrian {
 
   /** Yaw facing along the loop in the walking direction. */
   private target(): number {
+    if (this.loose) return Math.atan2(this.loose.x, this.loose.z) || this.heading
     const p = loopPoint(this.loop, this.s)
     return Math.atan2(p.dx * this.dir, p.dz * this.dir)
   }

@@ -15,6 +15,8 @@ import type { City } from './world/city'
 import type { Ui } from './ui/hud-sync'
 
 interface HookDeps {
+  /** A spot on the marina's T-head beside a boat with open water ahead. */
+  dock: { x: number; y: number; z: number }
   physics: PhysicsWorld
   player: Player
   driving: Driving
@@ -39,6 +41,18 @@ interface HookDeps {
 }
 
 const xyz = (p: THREE.Vector3) => ({ x: p.x, y: p.y, z: p.z })
+const EULER = new THREE.Euler()
+
+/** The driven vehicle's bow-up pitch and left-down roll, in degrees. */
+function attitude(q: THREE.Quaternion | undefined) {
+  if (!q) return { pitch: 0, roll: 0 }
+  EULER.setFromQuaternion(q, 'YXZ')
+  return { pitch: (-EULER.x * 180) / Math.PI, roll: (-EULER.z * 180) / Math.PI }
+}
+
+function attitudeYaw(q: THREE.Quaternion): number {
+  return EULER.setFromQuaternion(q, 'YXZ').y
+}
 
 /** A fresh copy of the game state each call, so callers cannot mutate the game. */
 function snapshot(deps: HookDeps) {
@@ -47,8 +61,13 @@ function snapshot(deps: HookDeps) {
   return {
     position: xyz(driving.position),
     mode: driving.mode,
+    /** What is being driven: 'car', 'boat', or null on foot. */
+    vehicle: driving.car?.kind ?? null,
     /** Forward speed of the driven car in m/s, 0 on foot. */
     speed: driving.car?.speed ?? 0,
+    ...attitude(driving.car?.quaternion),
+    /** The carjacking under way: 'walk' to the door, 'pull' the driver out, or null. */
+    carjack: life.carjack.phase,
     stalled: driving.car?.stalled ?? false,
     grounded: player.grounded,
     health: player.vitals.health,
@@ -88,7 +107,7 @@ function actorHelpers({ life }: HookDeps) {
           health: p.health.hp,
           state: p.state,
         })),
-    /** Visible traffic cars: a stable id, position, speed in m/s, health, and whether it is police. */
+    /** Visible traffic cars: a pool slot id, position, heading, speed in m/s, health, and whether it is police. */
     traffic: () =>
       life.traffic.cars.flatMap((c, id) =>
         c.visual.root.visible
@@ -96,6 +115,7 @@ function actorHelpers({ life }: HookDeps) {
               {
                 id,
                 ...xyz(c.position),
+                heading: c.heading,
                 speed: c.speed,
                 health: c.health.hp,
                 police: c.visual.police,
@@ -117,7 +137,7 @@ function groundGaps({ physics, driving, life }: HookDeps) {
     return { kind, x: p.x, y: p.y, z: p.z, gap: g === null ? null : p.y - g }
   }
   return () => [
-    ...driving.cars.map((c) => gap('parked', c.position)),
+    ...driving.cars.filter((c) => c.kind === 'car').map((c) => gap('parked', c.position)),
     ...life.traffic.cars.filter((c) => c.visual.root.visible).map((c) => gap('traffic', c.feet)),
     ...life.crowd.people.filter((p) => p.root.visible).map((p) => gap('person', p.position)),
   ]
@@ -194,10 +214,20 @@ function worldHelpers(deps: HookDeps) {
      */
     landmarks: () => {
       const door = driving.door(driving.cars[0])
-      return { ...structuredClone(city.landmarks), car: xyz(door), range: xyz(city.spawn) }
+      return {
+        ...structuredClone(city.landmarks),
+        car: xyz(door),
+        range: xyz(city.spawn),
+        marina: { ...deps.dock },
+      }
     },
-    /** Every parked or driven car's position. */
-    cars: () => driving.cars.map(({ position }) => xyz(position)),
+    /** Every parked or driven car's position (boats too: see `boats`). */
+    cars: () => driving.cars.filter((c) => c.kind === 'car').map(({ position }) => xyz(position)),
+    /** Every boat: position and heading. */
+    boats: () =>
+      driving.cars
+        .filter((c) => c.kind === 'boat')
+        .map((b) => ({ ...xyz(b.position), heading: attitudeYaw(b.quaternion) })),
     teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
     /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
     ground: (x: number, z: number) => surfaceAt(city.layout, x, z),
