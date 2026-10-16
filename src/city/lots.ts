@@ -26,13 +26,14 @@ export const buildingHeight = (b: Building) => b.floors * FLOOR_H[b.style]
 type Mix = [number, Style, number, number][]
 
 const PROFILE: Record<District, { lot: number; empty: number; setback: number; mix: Mix }> = {
+  // Central: dense and tall, mostly glass towers.
   downtown: {
-    lot: 36,
-    empty: 0.1,
-    setback: 4,
+    lot: 30,
+    empty: 0.04,
+    setback: 3,
     mix: [
-      [0.7, 'glass', 18, 55],
-      [0.3, 'residential', 14, 40],
+      [0.78, 'glass', 22, 72],
+      [0.22, 'residential', 16, 44],
     ],
   },
   midtown: {

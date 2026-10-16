@@ -41,8 +41,9 @@ test('main menu: arrow keys, settings, credits', { tag: '@smoke' }, async ({ pag
 })
 
 test('loads, plays, walks, maps, and stands on the city', async ({ page }) => {
-  // The default Medium preset in SwiftShader with people and traffic runs near 1 fps.
-  test.setTimeout(180_000 * SLOW)
+  // The default Medium preset in SwiftShader with people and traffic runs near 1 fps, and
+  // the rooftop view now takes in the whole 2 km world (terrain, hills, highway).
+  test.setTimeout(300_000 * SLOW)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.goto('/')
@@ -83,7 +84,8 @@ test('swims in the ocean and dives under', async ({ page }) => {
   test.setTimeout(180_000 * SLOW)
   const errors = await play(page, '/')
 
-  await visit(page, 'ocean', -1.2, 0.15)
+  // Crests reach about 0.6 m above still water and troughs as far below.
+  await visit(page, 'ocean', -1.2, 0.15, 1.2)
   const floating = await game(page)
   expect(floating.mode).toBe('swimming')
   await page.screenshot({ path: 'test-results/swim.png' })
@@ -99,6 +101,29 @@ test('swims in the ocean and dives under', async ({ page }) => {
   expect(dived.position.y).toBeLessThan(floating.position.y - 0.5)
   expect(dived.underwater).toBe(true)
   await page.screenshot({ path: 'test-results/underwater.png' })
+
+  // On a reef: the waves move the surface and a school of fish swims, above the seabed.
+  const reef = await page.evaluate(() => {
+    const g = (window as unknown as { __game: Game }).__game
+    const r = g.sea().reefs[0]
+    g.teleport(r.x - 4, r.y + 1, r.z)
+    return { ...r, h: g.waterAt(r.x + 20, r.z) }
+  })
+  await settle(page, 20)
+  const after = await page.evaluate(
+    (r) => {
+      const g = (window as unknown as { __game: Game }).__game
+      const sea = g.sea()
+      const fish = sea.fish.map((f) => ({ ...f, floor: g.ground(f.x, f.z) }))
+      return { h: g.waterAt(r.x + 20, r.z), schools: sea.schools, fish }
+    },
+    { x: reef.x, z: reef.z },
+  )
+  expect(reef.h).not.toBeNull()
+  expect(Math.abs(after.h! - reef.h!)).toBeGreaterThan(0.01)
+  expect(after.schools).toBeGreaterThan(0)
+  for (const f of after.fish) expect(f.y).toBeGreaterThan(f.floor)
+  await page.screenshot({ path: 'test-results/reef.png' })
   expect(errors).toEqual([])
 })
 

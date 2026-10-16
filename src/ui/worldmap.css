@@ -116,6 +116,16 @@
   background: #8fd8ff;
 }
 
+.lg-highway {
+  height: 6px !important;
+  margin: 4px 0;
+  background: #f0b440;
+}
+
+.lg-house {
+  background: #d9d2c4;
+}
+
 .lg-park {
   background: #4c7a45;
 }

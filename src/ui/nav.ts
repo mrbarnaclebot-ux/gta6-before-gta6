@@ -1,4 +1,6 @@
-import { route, type P } from '../city/route'
+import type { P2 as P } from '../land/polyline'
+import type { RoadGraph } from '../land/road-graph'
+import { route } from '../land/route-search'
 
 // Re-plan after the player has moved this far, in meters: often enough to follow turns.
 const REROUTE = 10
@@ -12,7 +14,7 @@ export class Nav {
   path: P[] = []
   private from: P | null = null
 
-  constructor(private readonly grid: { xRoads: number[]; zRoads: number[] }) {}
+  constructor(private readonly roads: RoadGraph) {}
 
   set(target: P | null): void {
     this.target = target && { x: target.x, z: target.z }
@@ -30,7 +32,7 @@ export class Nav {
     }
     if (this.from && Math.hypot(p.x - this.from.x, p.z - this.from.z) < REROUTE) return false
     this.from = { x: p.x, z: p.z }
-    this.path = [...route(this.grid, p, t), t]
+    this.path = [...route(this.roads, p, t), t]
     return false
   }
 }

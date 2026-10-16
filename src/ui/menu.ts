@@ -27,7 +27,11 @@ export class MainMenu {
     open('menu-controls', 'controls')
     $('menu-credits').addEventListener('click', () => this.showCredits(true))
     $('credits-close').addEventListener('click', () => this.showCredits(false))
-    for (const item of this.items) item.addEventListener('mouseenter', () => item.focus())
+    // Only a real pointer move takes focus: mouseenter also fires when the list appears under a
+    // still cursor, which stole focus from the keyboard (and flaked the menu e2e test).
+    for (const item of this.items) {
+      item.addEventListener('pointermove', () => document.activeElement !== item && item.focus())
+    }
     document.addEventListener('keydown', (e) => {
       const at = document.activeElement
       if (!this.root.hidden && (at === document.body || this.root.contains(at))) this.onKey(e)

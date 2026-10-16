@@ -1,5 +1,5 @@
-import type { CityLayout } from '../city/layout'
-import type { P } from '../city/route'
+import type { Land } from '../land/plan'
+import type { P2 as P } from '../land/polyline'
 import { carIcon, hospitalIcon, playerArrow, routeLine, waypointIcon } from './map-icons'
 import { districtLabels, MAP_COLORS, type Base } from './map-paint'
 import type { Nav } from './nav'
@@ -36,7 +36,7 @@ export class WorldMap {
 
   constructor(
     private readonly base: Base,
-    layout: CityLayout,
+    layout: Land,
     private readonly hospitals: P[],
     private readonly nav: Nav,
   ) {
@@ -80,17 +80,27 @@ export class WorldMap {
     g.translate(width / 2, height / 2)
     g.scale(v.scale, v.scale)
     g.translate(-v.x, -v.z)
+    this.beyond()
     g.drawImage(this.base.canvas, this.base.x0, this.base.z0)
     g.restore()
     this.marks()
   }
 
+  /** Past the grid the world is ridge to the west and sea to the east, as it is in game. */
+  private beyond(): void {
+    const { x0, z0, coast, canvas } = this.base
+    const far = 4000
+    this.g.fillStyle = MAP_COLORS.ridge
+    this.g.fillRect(x0 - far, z0 - far, coast - x0 + far, canvas.height + 2 * far)
+  }
+
   private marks(): void {
     const g = this.g
     const at = (q: P) => this.toScreen(q)
-    this.districts()
     const me = this.player
     if (this.nav.path.length) routeLine(g, [at(me), ...this.nav.path.map(at)], 4)
+    // Names go over the route line so it never cuts through them; icons go over both.
+    this.districts()
     for (const c of me.cars) {
       const p = at(c)
       carIcon(g, p.x, p.y, Math.PI - c.heading)
@@ -119,8 +129,7 @@ export class WorldMap {
     g.strokeStyle = 'rgba(10, 8, 20, 0.6)'
     g.fillStyle = 'rgba(255, 255, 255, 0.85)'
     for (const d of this.labels) {
-      // One block north of the middle, clear of the district's hospital.
-      const p = this.toScreen({ x: d.x, z: d.z - 100 })
+      const p = this.toScreen(d)
       g.strokeText(d.name.toUpperCase(), p.x, p.y)
       g.fillText(d.name.toUpperCase(), p.x, p.y)
     }

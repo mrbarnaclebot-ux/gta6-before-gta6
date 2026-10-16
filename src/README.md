@@ -7,4 +7,4 @@
 - `look.ts` applies graphics settings and feeds shadows, sun glare, focus, and motion blur each frame
 - `test-hook.ts` `window.__game` for Playwright and debugging
 - `style.css` shared design tokens, the display font, and key caps (screen styles live in `ui`)
-- Subfolders: `input`, `player`, `vehicle`, `combat`, `camera`, `render` (renderer, post chain, shadows, sky, graphics presets), `life` (people, traffic, wanted level, death), `city` (pure seeded map plan), `world` (meshes and colliders for it), `ui` (menu, loading screen, HUD, maps, pause and settings menu)
+- Subfolders: `input`, `player`, `vehicle`, `combat`, `camera`, `render` (renderer, post chain, shadows, sky, graphics presets), `life` (people, traffic, wanted level, death), `city` (pure seeded city plan), `land` (pure plan of the 2 km world around it), `world` (meshes and colliders for the city), `sea` (waves, foam, underwater light, sea life), `scenery` (meshes and colliders for the land), `ui` (menu, loading screen, HUD, maps, pause and settings menu)

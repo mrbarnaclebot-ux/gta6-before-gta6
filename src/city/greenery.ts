@@ -1,13 +1,24 @@
 import { inset, type Block, type Rect } from './layout'
 import { range, type Rand } from './rng'
 
-/** A placed prop: position, size (height in meters, or scale), and yaw. */
+/**
+ * A placed prop: position, size (height in meters, or scale), and yaw. Once set on the
+ * ground (land/footing.ts) it also has its base height, and maybe a tilt and a tint.
+ */
 export interface Spot {
   x: number
   z: number
   s: number
   r: number
+  y?: number
+  /** Unit up vector, for things that lie with the ground. */
+  up?: [number, number, number]
+  /** Color multiplier as 0xRRGGBB. */
+  tint?: number
 }
+
+/** A spot already set on the ground: only these get drawn. */
+export type Grounded = Spot & { y: number }
 
 interface Plan {
   blocks: Block[]
@@ -88,7 +99,9 @@ export function greenery({ blocks, walks, land }: Plan, r: Rand) {
     palms: [
       ...blocks.flatMap((b) => blockPalms(b, r)),
       ...beachPalms(land, r),
-      ...walks.slice(0, 1).flatMap((w) => alongEdge(w, 'x0', 22, 3).map((p) => palm(r, p))),
+      ...walks
+        .filter((w) => w.x0 === land.x0)
+        .flatMap((w) => alongEdge(w, 'x0', 22, 3).map((p) => palm(r, p))),
     ],
     bushes: [
       ...blocks.filter((b) => b.park).flatMap((b) => scatter(r, inset(b.lot, 2), 24, 0.8, 1.6)),

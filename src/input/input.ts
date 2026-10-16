@@ -42,6 +42,11 @@ export class Input {
     return document.pointerLockElement === this.target
   }
 
+  /** This browser grants pointer lock but it is lost: Esc gives no user gesture, so a click must re-capture it. */
+  get needsRelock(): boolean {
+    return this.everLocked && !this.locked
+  }
+
   /** True once per key press, then cleared. */
   consume(action: Action): boolean {
     return this.pressed.delete(action)

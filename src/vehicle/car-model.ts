@@ -98,6 +98,7 @@ export class CarModels {
       m.visual.root.remove(m.body)
       m.visual.root.add(body)
       m.body = body
+      delete m.visual.root.userData.castShadow
     }
   }
 

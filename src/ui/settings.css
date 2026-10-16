@@ -157,3 +157,21 @@
     width: min(220px, 60vw);
   }
 }
+
+/* Phones: the control drops under its label, and segmented groups wrap within the width. */
+@media (max-width: 600px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .row-control {
+    justify-self: start;
+    max-width: 100%;
+  }
+  .seg-opt span {
+    min-width: 52px;
+    padding: 7px 9px;
+  }
+  .range input {
+    width: min(220px, 60vw);
+  }
+}

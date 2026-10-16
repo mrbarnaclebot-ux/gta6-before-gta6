@@ -47,10 +47,11 @@ export class Car {
   constructor(
     physics: PhysicsWorld,
     readonly visual: CarVisual,
-    spot: { x: number; y: number; z: number; yaw: number },
+    spot: { x: number; y: number; z: number; yaw: number; pitch?: number; roll?: number },
     private readonly water: WaterQuery,
   ) {
-    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spot.yaw)
+    const tilt = new THREE.Euler(-(spot.pitch ?? 0), spot.yaw, spot.roll ?? 0, 'YXZ')
+    const q = new THREE.Quaternion().setFromEuler(tilt)
     const desc = RAPIER.RigidBodyDesc.dynamic()
       .setTranslation(spot.x, spot.y, spot.z)
       .setRotation(q)

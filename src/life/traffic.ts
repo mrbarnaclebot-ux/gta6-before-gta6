@@ -1,9 +1,13 @@
 import * as THREE from 'three'
 import type { CityLayout } from '../city/layout'
 import { rng } from '../city/rng'
-import type { PhysicsWorld } from '../physics'
+import { RAPIER, type PhysicsWorld } from '../physics'
+import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import { PAINT_COUNT, type CarFactory } from '../vehicle/car-model'
-import { lanePoint, randomHeading } from './lanes'
+import { laneGraph, type LaneEdge } from '../land/lane-graph'
+import type { Land } from '../land/plan'
+import { highwayStart } from './highway-traffic'
+import { gridStart, randomHeading } from './lanes'
 import { TrafficCar } from './traffic-car'
 
 // ponytail: ten cars kept within 220 m of the player, no traffic lights; intersections
@@ -24,8 +28,33 @@ const IGNORE_FOR = 2
 /** Something a driver must not hit: its ground position and rough radius. */
 export interface Obstacle {
   x: number
+  y: number
   z: number
   r: number
+}
+
+// Things farther apart than this in height are on different levels: a bridge and the road under it.
+const LEVEL = 3
+
+const DOWN = { x: 0, y: -1, z: 0 }
+const NUDGE = 0.0013
+// Only fixed colliders are ground: not cars, people, or the traffic itself.
+const SOLID_ONLY =
+  RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC |
+  RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC |
+  RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
+
+/** The road surface under a wheel: a ray down from 1.5 m above the lane, at most 4 m long. */
+export function groundProbe(physics: PhysicsWorld) {
+  const ray = new RAPIER.Ray({ x: 0, y: 0, z: 0 }, DOWN)
+  return (x: number, y: number, z: number): number | null => {
+    // Rapier's heightfield misses rays that run exactly down a grid line (lanes sit on whole meters).
+    ray.origin.x = x + NUDGE
+    ray.origin.y = y + 1.5
+    ray.origin.z = z + NUDGE
+    const hit = physics.castRay(ray, 4, true, SOLID_ONLY)
+    return hit ? y + 1.5 - hit.timeOfImpact : null
+  }
 }
 
 /** The AI cars driving the lanes around the player. */
@@ -34,21 +63,28 @@ export class Traffic {
   private readonly stuck: number[]
   private readonly ignoring: number[]
   private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads'>
+  private readonly highway: LaneEdge[]
   private readonly r = rng(4242)
   private readonly others: Obstacle[] = []
 
   constructor(
     scene: THREE.Scene,
     physics: PhysicsWorld,
-    layout: CityLayout,
+    layout: Land,
     make: CarFactory,
     onShot: () => void,
   ) {
     this.grid = layout
+    const hw = layout.paths.find((p) => p.kind === 'highway')!
+    this.highway = laneGraph(
+      hw,
+      layout.paths.filter((p) => p.kind === 'ramp'),
+    )
     this.cars = Array.from({ length: COUNT }, (_, i) => {
       const kind = i % POLICE_EVERY === 0 ? 'police' : 'sports'
-      const car = new TrafficCar(physics, make(i % PAINT_COUNT, kind), layout, this.r)
+      const car = new TrafficCar(physics, make(i % PAINT_COUNT, kind))
       car.onShot = onShot
+      car.ground = groundProbe(physics)
       car.visual.root.visible = false
       scene.add(car.visual.root)
       return car
@@ -76,6 +112,7 @@ export class Traffic {
       const limit = Math.min(cars, this.limit(car, others))
       this.unstick(i, car, cars, limit, dt)
       car.update(dt, limit, lights.night, lights.siren)
+      castShadows(car.visual.root, car.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
     })
   }
 
@@ -92,8 +129,9 @@ export class Traffic {
     let n = 0
     for (const c of this.cars) {
       if (c === self || !c.visual.root.visible) continue
-      const o = (list[n++] ??= { x: 0, z: 0, r: HALF_WIDTH })
+      const o = (list[n++] ??= { x: 0, y: 0, z: 0, r: HALF_WIDTH })
       o.x = c.position.x
+      o.y = c.position.y
       o.z = c.position.z
     }
     list.length = n
@@ -106,6 +144,7 @@ export class Traffic {
     const fz = Math.cos(car.heading)
     let limit = Infinity
     for (const o of list) {
+      if (Math.abs(o.y - car.position.y) > LEVEL) continue
       const dx = o.x - car.position.x
       const dz = o.z - car.position.z
       const ahead = dx * fx + dz * fz
@@ -128,8 +167,11 @@ export class Traffic {
 
   private spawn(car: TrafficCar, focus: THREE.Vector3, view: THREE.Vector3, first: boolean): void {
     for (let tries = 0; tries < 24; tries++) {
-      const h = randomHeading(this.grid, this.r)
-      const p = lanePoint(h, h.u)
+      // Every other try is on the highway: near it, those are the ones that land in range.
+      const p =
+        tries % 2
+          ? highwayStart(this.highway, this.r)
+          : gridStart(this.grid, randomHeading(this.grid, this.r), this.r)
       const dx = p.x - focus.x
       const dz = p.z - focus.z
       const d = Math.hypot(dx, dz)
@@ -139,7 +181,7 @@ export class Traffic {
         this.cars.some((c) => c !== car && Math.hypot(c.position.x - p.x, c.position.z - p.z) < 20)
       )
         continue
-      car.place(h)
+      car.place(p)
       car.visual.root.visible = true
       return
     }

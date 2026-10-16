@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vice Demo</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link
       rel="preload"
       href="/assets/fonts/anton-latin-400.woff2"
@@ -113,6 +114,7 @@
     <div id="toasts" class="toasts" aria-live="polite"></div>
     <div id="underwater" class="underwater" hidden></div>
     <p id="prompt" class="prompt" hidden><kbd>F</kbd><span></span></p>
+    <p id="look-hint" class="prompt look-hint" hidden>Click to look around</p>
     <div id="speedo" class="speedo" hidden>
       <svg class="speed-dial" viewBox="0 0 120 120" aria-hidden="true">
         <defs>
@@ -170,7 +172,7 @@
     >
       <canvas id="worldmap-canvas" class="worldmap-canvas"></canvas>
       <header class="worldmap-head">
-        <h2 id="worldmap-title">City map</h2>
+        <h2 id="worldmap-title">Map</h2>
         <p class="worldmap-hint">
           Drag to pan &middot; Wheel to zoom &middot; Click to set a waypoint &middot;
           <kbd>M</kbd> or <kbd>Esc</kbd> to close
@@ -181,6 +183,8 @@
         <li><i class="lg-way"></i>Waypoint</li>
         <li><i class="lg-hosp"></i>Hospital</li>
         <li><i class="lg-car"></i>Parked car</li>
+        <li><i class="lg-highway"></i>Highway</li>
+        <li><i class="lg-house"></i>Home</li>
         <li><i class="lg-park"></i>Park</li>
         <li><i class="lg-beach"></i>Beach</li>
         <li><i class="lg-water"></i>Water</li>

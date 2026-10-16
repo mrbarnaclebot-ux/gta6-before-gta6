@@ -175,6 +175,13 @@
   font-size: 13px;
 }
 
+/* After Esc the browser will not re-capture the mouse until a click. */
+.look-hint {
+  bottom: auto;
+  top: 56%;
+  padding: 7px 16px;
+}
+
 /* Help toasts, top left: each fades in, holds, and fades out over six seconds. */
 .toasts {
   position: fixed;

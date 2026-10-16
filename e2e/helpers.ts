@@ -37,6 +37,10 @@ export type Game = {
   skipDeath: () => void
   setTime: (hours: number) => void
   waypoint: () => (Point & { route: { x: number; z: number }[] }) | null
+  waterAt: (x: number, z: number) => number | null
+  ground: (x: number, z: number) => number
+  sea: () => { reefs: Point[]; schools: number; fish: Point[] }
+  groundGaps: () => { kind: string; x: number; y: number; z: number; gap: number | null }[]
 }
 
 /** SwiftShader on a 2-core CI runner is a few times slower than on a dev machine. */
@@ -71,8 +75,11 @@ export async function play(page: Page, url: string) {
   return errors
 }
 
-/** Teleports to a named landmark, aims the camera, and checks the player stands on solid ground there. */
-export async function visit(page: Page, name: string, yaw: number, pitch: number) {
+/**
+ * Teleports to a named landmark, aims the camera, and checks the player is within `slack`
+ * meters of it: on solid ground, or afloat (the swell lifts and drops a swimmer, so pass more).
+ */
+export async function visit(page: Page, name: string, yaw: number, pitch: number, slack = 0.5) {
   const spot = await page.evaluate(
     ([n, yw, p]) => {
       const g = (window as unknown as { __game: Game }).__game
@@ -89,5 +96,5 @@ export async function visit(page: Page, name: string, yaw: number, pitch: number
   console.log(
     `${name}: y ${s.position.y.toFixed(2)} (ground ${spot.y.toFixed(2)}), ${s.drawCalls} draw calls`,
   )
-  expect(Math.abs(s.position.y - spot.y)).toBeLessThan(0.5)
+  expect(Math.abs(s.position.y - spot.y)).toBeLessThan(slack)
 }

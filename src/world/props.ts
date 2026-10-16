@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import { CURB_H, type CityLayout } from '../city/layout'
+import { CURB_H } from '../city/layout'
+import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from './blocks'
 import { instanceParts, type Part } from './instancing'
@@ -33,18 +34,17 @@ function streetlight(lens: THREE.MeshStandardMaterial): Part[] {
 }
 
 /** Streetlights along every curb, each with a thin pole collider. Returns the lens, which glows at night. */
-export function placeProps(ctx: WorldCtx, c: CityLayout): THREE.MeshStandardMaterial {
+export function placeProps(ctx: WorldCtx, c: Pick<Land, 'lights'>): THREE.MeshStandardMaterial {
   const lens = new THREE.MeshStandardMaterial({
     color: 0xf4f1e8,
     emissive: 0x2a2620,
     roughness: 0.2,
   })
   // One batch for the whole city: drawing all 800 (about 120k triangles) beats 25 chunk draw calls per pass.
-  const place = { scale: () => 1, ground: () => CURB_H }
-  instanceParts(ctx, streetlight(lens), c.lights, place, Infinity)
+  instanceParts(ctx, streetlight(lens), c.lights, { scale: () => 1 }, Infinity)
   for (const s of c.lights) {
     const pole = RAPIER.ColliderDesc.cylinder(POLE_H / 2, 0.15)
-    ctx.physics.createCollider(pole.setTranslation(s.x, CURB_H + POLE_H / 2, s.z))
+    ctx.physics.createCollider(pole.setTranslation(s.x, s.y + POLE_H / 2, s.z))
   }
   return lens
 }

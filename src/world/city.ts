@@ -1,10 +1,22 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { generateCity, SEA_LEVEL, type CityLayout } from '../city/layout'
+import { SEA_LEVEL } from '../city/layout'
+import { outerLandmarks } from '../land/landmarks'
+import { generateLand, type Land } from '../land/plan'
 import { buildingHeight } from '../city/lots'
-import { surfaceAt, waterSurfaceAt } from '../city/terrain'
+import { surfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
 import type { Ambient } from '../render/sky'
+import { buildBeach } from '../scenery/beach'
+import { plantDuneGrass } from '../scenery/dune-grass'
+import { buildHouses } from '../scenery/houses'
+import { buildRoads } from '../scenery/roads'
+import { buildTerrain } from '../scenery/terrain'
+import { buildVillas } from '../scenery/villas'
+import { buildForest } from '../scenery/forest'
+import { plantGrass } from '../scenery/grass'
+import { canopyGrid } from '../land/canopy'
+import { generateFlora, type Flora } from '../land/flora'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -15,19 +27,19 @@ import { buildMarkings } from './markings'
 import { buildNeon } from './neon'
 import { placeProps } from './props'
 import { buildStreetGlow } from './street-glow'
-import { buildSand } from './sand'
 import { plantVegetation } from './vegetation'
-import { buildUnderwater } from './underwater'
-import { buildWater } from './water'
+import type { V3 } from '../sea/boids'
+import { buildSea, planSea, type SeaPlan } from '../sea/sea'
 
-// ponytail: fixed seed and 1 km size; expose them in settings when the map grows to 2 km.
+// The city core is 1 km square; the land plan grows the world around it to about 2 x 2 km.
 export const CITY_SEED = 7
 export const CITY_SIZE = 1000
 
 type Point = { x: number; y: number; z: number }
+type Load = (url: string) => Promise<GLTF>
 
 export interface City {
-  layout: CityLayout
+  layout: Land
   spawn: THREE.Vector3
   /** Named feet positions for tests and debugging: the beach, a canal bank, a rooftop, downtown. */
   landmarks: Record<string, Point>
@@ -35,12 +47,17 @@ export interface City {
   water: (x: number, z: number) => number | null
   /** True while the camera is below the water surface. */
   readonly underwater: boolean
-  update(dt: number, camera: THREE.Camera): void
+  /** How far the camera is below the surface, 0 above it. */
+  readonly underwaterDepth: number
+  /** The sea: wave height and its sea life, for tests and debugging. */
+  sea: Awaited<ReturnType<typeof buildSea>>
+  /** `swimmer`: where the player is while in the water (fish flee it), else null. */
+  update(dt: number, camera: THREE.Camera, swimmer?: V3 | null): void
   /** Render distance: `plants` scales palm detail and fern ranges; `reflection` is the sea mirror size. */
   setDetail(plants: number, reflection: number): void
 }
 
-function landmarks(c: CityLayout): Record<string, Point> {
+function landmarks(c: Land): Record<string, Point> {
   const at = (x: number, z: number, lift = 0) => ({ x, y: surfaceAt(c, x, z) + lift, z })
   const mid = c.zRoads[Math.floor(c.zRoads.length / 2)]
   const tall = c.blocks
@@ -48,6 +65,7 @@ function landmarks(c: CityLayout): Record<string, Point> {
     .flatMap((b) => b.buildings)
     .reduce((a, b) => (buildingHeight(b) > buildingHeight(a) ? b : a))
   return {
+    ...outerLandmarks(c),
     beach: at(c.land.x1 + 30, mid + 20),
     canal: at(c.canal.x0 - 1.5, mid + 30),
     downtown: at(c.xRoads[1] + 3, mid + 40),
@@ -63,7 +81,7 @@ function landmarks(c: CityLayout): Record<string, Point> {
 }
 
 /** Everything that lights up after dark: windows, neon, street lamps, hospital signs. */
-function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStandardMaterial[]) {
+function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMaterial[]) {
   const neon = buildNeon(ctx, c)
   const glow = buildStreetGlow(ctx, c, placeProps(ctx, c))
   const signs = buildHospitalSigns(ctx, hospitals(c))
@@ -75,42 +93,79 @@ function buildNightLights(ctx: WorldCtx, c: CityLayout, windows: THREE.MeshStand
   }
 }
 
+/** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the sea plan. */
+async function buildScenery(ctx: WorldCtx, layout: Land, flora: Flora): Promise<SeaPlan> {
+  // The sea field comes first: the terrain shader draws the swash and caustics from it.
+  const sea = planSea(layout)
+  const trees = [...flora.conifers, ...flora.broadleaf, ...flora.garden]
+  await buildTerrain(ctx, layout, canopyGrid(layout.ground, trees), sea.uniforms)
+  buildRoads(ctx, layout)
+  buildHouses(ctx, layout)
+  buildVillas(ctx, layout)
+  buildBeach(ctx, layout)
+  return sea
+}
+
+/** Every plant: palms, ferns, the forest, bushes, rocks, dune grass, and grass. Returns their per-frame update. */
+async function buildPlants(
+  ctx: WorldCtx,
+  layout: Land,
+  flora: Flora,
+  load: Load,
+  gl: THREE.WebGLRenderer,
+) {
+  const updates = [
+    await plantVegetation(ctx, layout, flora.palms, load, gl),
+    await buildForest(ctx, gl, load, layout, flora),
+    plantDuneGrass(ctx, layout),
+    plantGrass(ctx, layout, flora.clear),
+  ]
+  return (eye: THREE.Vector3, reach: number) => updates.forEach((u) => u(eye, reach))
+}
+
+/** The player's start: the plan's spawn spot, set on the ground. */
+function spawnPoint(c: Land): THREE.Vector3 {
+  const { x, z } = c.spawn
+  return new THREE.Vector3(x, surfaceAt(c, x, z) + 0.05, z)
+}
+
 /** Generates the seeded city and builds every visual and collider for it. */
 export async function buildCity(
   ctx: WorldCtx,
-  load: (url: string) => Promise<GLTF>,
+  load: Load,
   light: Ambient,
+  gl: THREE.WebGLRenderer,
 ): Promise<City> {
-  const layout = generateCity(CITY_SEED, CITY_SIZE)
+  const layout = generateLand(CITY_SEED, CITY_SIZE)
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  buildSand(ctx, layout)
-  const water = buildWater(ctx, layout, light)
-  const palms = await plantVegetation(ctx, layout, load)
-  const waterAt = (x: number, z: number) => waterSurfaceAt(layout, x, z)
-  const wet = (x: number, z: number) => waterAt(x, z) !== null
-  const underwater = buildUnderwater(ctx.scene, water.surface, water.normals, wet)
-  const { x, z } = layout.spawn
+  const flora = generateFlora(layout)
+  const seaPlan = await buildScenery(ctx, layout, flora)
+  const sea = await buildSea(ctx, layout, light, load, seaPlan)
+  const plants = await buildPlants(ctx, layout, flora, load, gl)
   let reach = 1
   return {
     layout,
-    spawn: new THREE.Vector3(x, surfaceAt(layout, x, z) + 0.05, z),
+    spawn: spawnPoint(layout),
     landmarks: landmarks(layout),
-    water: waterAt,
+    water: sea.surfaceAt,
+    sea,
     get underwater() {
-      return underwater.active
+      return sea.underwater.active
     },
-    update(dt, camera) {
+    get underwaterDepth() {
+      return sea.underwater.depth
+    },
+    update(dt, camera, swimmer = null) {
       night(light.night, camera.position)
-      palms(camera.position, reach)
-      water.update(dt)
-      underwater.update(camera, dt, light.day)
+      plants(camera.position, reach)
+      sea.update(dt, camera, swimmer)
     },
     setDetail(plants, reflection) {
       reach = plants
-      water.setReflection(reflection)
+      sea.setReflection(reflection)
     },
   }
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import type { CityLayout } from '../city/layout'
+import type { Land } from '../land/plan'
 import { surfaceAt } from '../city/terrain'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
@@ -101,7 +101,7 @@ export class Dummy {
 export function placeDummies(
   source: Figure,
   physics: PhysicsWorld,
-  layout: CityLayout,
+  layout: Land,
   spawn: THREE.Vector3,
 ): Dummy[] {
   const mats = dummyMaterials()

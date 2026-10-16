@@ -1,9 +1,12 @@
 import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
+import { surfaceAt } from './city/terrain'
 import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { RESPAWN_AFTER, type Life } from './life/life'
 import { cooling, stars } from './life/wanted'
+import { groundProbe } from './life/traffic'
+import type { PhysicsWorld } from './physics'
 import type { Player } from './player/player'
 import type { Sky } from './render/sky'
 import { PRESETS, type Graphics, type Preset } from './render/graphics'
@@ -12,6 +15,7 @@ import type { City } from './world/city'
 import type { Ui } from './ui/hud-sync'
 
 interface HookDeps {
+  physics: PhysicsWorld
   player: Player
   driving: Driving
   follow: FollowCamera
@@ -71,9 +75,8 @@ function snapshot(deps: HookDeps) {
   }
 }
 
-/** Helpers for people, traffic, death, and the clock. */
-function lifeHelpers(deps: HookDeps) {
-  const { life, player, clock, sky } = deps
+/** Visible people and traffic, for checks on what the player can see. */
+function actorHelpers({ life }: HookDeps) {
   return {
     /** Visible people: chest point (feet + 1.2 m), health, and state. */
     peds: () =>
@@ -100,6 +103,30 @@ function lifeHelpers(deps: HookDeps) {
             ]
           : [],
       ),
+  }
+}
+
+/**
+ * How far each parked car, traffic car, and visible person stands above (+) or sunk into (-)
+ * the solid ground found by a ray straight down: null where no ground was found.
+ */
+function groundGaps({ physics, driving, life }: HookDeps) {
+  const probe = groundProbe(physics)
+  const gap = (kind: string, p: THREE.Vector3) => {
+    const g = probe(p.x, p.y, p.z)
+    return { kind, x: p.x, y: p.y, z: p.z, gap: g === null ? null : p.y - g }
+  }
+  return () => [
+    ...driving.cars.map((c) => gap('parked', c.position)),
+    ...life.traffic.cars.filter((c) => c.visual.root.visible).map((c) => gap('traffic', c.feet)),
+    ...life.crowd.people.filter((p) => p.root.visible).map((p) => gap('person', p.position)),
+  ]
+}
+
+/** Helpers for death and the clock. */
+function lifeHelpers(deps: HookDeps) {
+  const { life, player, clock, sky } = deps
+  return {
     hospitals: () => life.hospitals.map((h) => ({ ...h })),
     /** Take damage, as from a fall. Enough of it kills. */
     hurt: (amount: number) => {
@@ -122,7 +149,7 @@ function lifeHelpers(deps: HookDeps) {
  * tests need because headless browsers cannot pointer-lock or play by hand.
  */
 export function exposeTestHook(deps: HookDeps): void {
-  const { driving, follow, city, combat, setGraphics, graphics } = deps
+  const { setGraphics, graphics } = deps
   const api = {
     state: () => snapshot(deps),
     /** Switch to a quality preset, as the settings menu does. */
@@ -131,6 +158,36 @@ export function exposeTestHook(deps: HookDeps): void {
     graphics: () => ({ ...graphics() }),
     /** Change some graphics settings, keeping the rest. */
     setGraphics: (patch: Partial<Graphics>) => setGraphics({ ...graphics(), ...patch }),
+    ...worldHelpers(deps),
+    ...seaHelpers(deps),
+    ...actorHelpers(deps),
+    ...lifeHelpers(deps),
+    groundGaps: groundGaps(deps),
+  }
+  Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
+}
+
+/** The water surface and the sea life. */
+function seaHelpers({ city }: HookDeps) {
+  return {
+    /** Water surface height at (x, z) right now, waves included, or null on land. */
+    waterAt: (x: number, z: number) => city.water(x, z),
+    /** Reef centers on the seabed, and how many fish schools are swimming near the camera. */
+    sea: () => ({
+      reefs: city.sea.life.reefs.map((r) => ({ ...r })),
+      schools: city.sea.life.fish.swimmers.filter((s) => s.awake).length,
+      /** The lead fish of each swimming school. */
+      fish: city.sea.life.fish.swimmers
+        .filter((s) => s.awake)
+        .map(({ school: { pos } }) => ({ x: pos[0], y: pos[1], z: pos[2] })),
+    }),
+  }
+}
+
+/** Places, the camera, targets, and the GPS route. */
+function worldHelpers(deps: HookDeps) {
+  const { driving, follow, city, combat } = deps
+  return {
     /**
      * City landmarks plus `car` (the driver's door of the parked car nearest the spawn)
      * and `range` (the spawn, which faces the target dummies on the beach).
@@ -142,6 +199,8 @@ export function exposeTestHook(deps: HookDeps): void {
     /** Every parked or driven car's position. */
     cars: () => driving.cars.map(({ position }) => xyz(position)),
     teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
+    /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
+    ground: (x: number, z: number) => surfaceAt(city.layout, x, z),
     /** Target dummies: chest point (feet + 1.2 m) and health. */
     dummies: () =>
       combat.dummies.map(({ feet: f, health }) => ({
@@ -159,7 +218,5 @@ export function exposeTestHook(deps: HookDeps): void {
       const { target, path } = deps.ui.nav
       return target && { ...target, route: path.map((p) => ({ ...p })) }
     },
-    ...lifeHelpers(deps),
   }
-  Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }

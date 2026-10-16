@@ -1,5 +1,5 @@
 import { buildingsFor, type Building } from './lots'
-import { greenery, type Spot } from './greenery'
+import { greenery, type Grounded, type Spot } from './greenery'
 import { pick, rng } from './rng'
 
 /*
@@ -64,7 +64,7 @@ export interface CityLayout {
   spawn: { x: number; z: number }
 }
 
-export type { Building, Spot }
+export type { Building, Grounded, Spot }
 
 export const inset = (r: Rect, by: number): Rect => ({
   x0: r.x0 + by,
@@ -113,29 +113,73 @@ function gridBlocks(xRoads: number[], zRoads: number[], canal: Rect, size: numbe
   return blocks
 }
 
-function roadsFor(xRoads: number[], zRoads: number[]): Road[] {
+/** Roads that leave the city: x-roads at these z continue west, and the beach road north and south. */
+export interface Exits {
+  west: number[]
+  beach: boolean
+}
+
+function roadsFor(xRoads: number[], zRoads: number[], land: Rect, exits: Exits): Road[] {
   const xs = [xRoads[0] - ROAD_HALF, xRoads[xRoads.length - 1] + ROAD_HALF]
   const zs = [zRoads[0] - ROAD_HALF, zRoads[zRoads.length - 1] + ROAD_HALF]
+  const beach = xRoads[xRoads.length - 1]
   return [
-    ...xRoads.map((at): Road => ({ axis: 'z', at, from: zs[0], to: zs[1] })),
-    ...zRoads.map((at): Road => ({ axis: 'x', at, from: xs[0], to: xs[1] })),
+    ...xRoads.map((at): Road => {
+      const out = exits.beach && at === beach
+      return { axis: 'z', at, from: out ? land.z0 : zs[0], to: out ? land.z1 : zs[1] }
+    }),
+    ...zRoads.map((at): Road => ({
+      axis: 'x',
+      at,
+      from: exits.west.includes(at) ? land.x0 : xs[0],
+      to: xs[1],
+    })),
   ]
 }
 
-function walksFor(land: Rect, xRoads: number[], zRoads: number[]): Rect[] {
+/** Cuts gaps of a road's width out of a strip running along `axis`, at each of `cuts`. */
+function split(r: Rect, axis: 'x' | 'z', cuts: number[]): Rect[] {
+  const [lo, hi] = axis === 'x' ? (['x0', 'x1'] as const) : (['z0', 'z1'] as const)
+  const out: Rect[] = []
+  let from = r[lo]
+  for (const c of [...cuts].sort((a, b) => a - b)) {
+    out.push({ ...r, [lo]: from, [hi]: c - ROAD_HALF })
+    from = c + ROAD_HALF
+  }
+  out.push({ ...r, [lo]: from, [hi]: r[hi] })
+  return out
+}
+
+function walksFor(land: Rect, xRoads: number[], zRoads: number[], exits: Exits): Rect[] {
   const west = xRoads[0] - ROAD_HALF
   const east = xRoads[xRoads.length - 1] + ROAD_HALF
   const north = zRoads[0] - ROAD_HALF
   const south = zRoads[zRoads.length - 1] + ROAD_HALF
+  const beach = exits.beach ? [xRoads[xRoads.length - 1]] : []
   return [
-    { ...land, x1: west },
+    ...split({ ...land, x1: west }, 'z', exits.west),
     { ...land, x0: east },
-    { x0: west, x1: east, z0: land.z0, z1: north },
-    { x0: west, x1: east, z0: south, z1: land.z1 },
+    ...split({ x0: west, x1: east, z0: land.z0, z1: north }, 'x', beach),
+    ...split({ x0: west, x1: east, z0: south, z1: land.z1 }, 'x', beach),
   ]
 }
 
-export function generateCity(seed = 7, size = 1000): CityLayout {
+/** The canal runs north-south down the middle of the second block column. */
+function canalRect(zRoads: number[]): Rect {
+  const cx = PITCH / 2
+  return {
+    x0: cx - CANAL_HALF,
+    x1: cx + CANAL_HALF,
+    z0: zRoads[0] + ROAD_HALF,
+    z1: zRoads[zRoads.length - 1] - ROAD_HALF,
+  }
+}
+
+export function generateCity(
+  seed = 7,
+  size = 1000,
+  exits: Exits = { west: [], beach: false },
+): CityLayout {
   const r = rng(seed)
   const half = size / 2
   const beachRoad = half - 150
@@ -147,13 +191,7 @@ export function generateCity(seed = 7, size = 1000): CityLayout {
     z0: zRoads[0] - ROAD_HALF - EDGE_WALK,
     z1: zRoads[zRoads.length - 1] + ROAD_HALF + EDGE_WALK,
   }
-  const cx = PITCH / 2
-  const canal = {
-    x0: cx - CANAL_HALF,
-    x1: cx + CANAL_HALF,
-    z0: zRoads[0] + ROAD_HALF,
-    z1: zRoads[zRoads.length - 1] - ROAD_HALF,
-  }
+  const canal = canalRect(zRoads)
   const plain = gridBlocks(xRoads, zRoads, canal, size)
   const parkable = plain.filter((b) => !b.canalSide && b.district !== 'beachfront')
   // Duplicate picks collapse, so this makes at most round(size / 350) parks.
@@ -163,8 +201,9 @@ export function generateCity(seed = 7, size = 1000): CityLayout {
     const lots = park ? { buildings: [], gardens: [] } : buildingsFor(b.lot, b.district, r)
     return { ...b, park, ...lots }
   })
-  const walks = walksFor(land, xRoads, zRoads)
-  const layout = { seed, size, xRoads, zRoads, roads: roadsFor(xRoads, zRoads), blocks, walks }
+  const walks = walksFor(land, xRoads, zRoads, exits)
+  const roads = roadsFor(xRoads, zRoads, land, exits)
+  const layout = { seed, size, xRoads, zRoads, roads, blocks, walks }
   return {
     ...layout,
     land,

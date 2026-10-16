@@ -1,18 +1,18 @@
 import * as THREE from 'three'
 import { easeAngle } from '../camera/orbit-math'
-import type { CityLayout } from '../city/layout'
-import type { Rand } from '../city/rng'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import type { CarVisual } from '../vehicle/car-model'
 import { CAR_SPECS } from '../vehicle/car-specs'
-import { CRUISE, lanePoint, nextLeg, yawOf, type Heading, type Waypoint } from './lanes'
+import { corners, restOnCorners } from '../land/footing'
+import { CAR_HALF } from '../city/parking'
+import { CRUISE, type Driver, type Start, type Waypoint } from './lanes'
 
 const HP = 160
 const ACCEL = 3
 const BRAKE = 7
-const UP = new THREE.Vector3(0, 1, 0)
+const EULER = new THREE.Euler()
 // Light bar flashes per second, alternating red and blue.
 const FLASH_RATE = 3
 
@@ -33,14 +33,26 @@ export class TrafficCar {
   /** Set by the traffic manager: called on the first bullet since this car was placed. */
   onShot: () => void = () => {}
   private path: Waypoint[] = []
-  private route: Heading = { axis: 'z', at: 0, dir: 1, u: 0 }
+  private driver: Driver = { next: () => [] }
   private clock = 0
+  /** Nose-up angle on bridges and ramps, eased. */
+  private pitch = 0
+  /** The grade of the current path step, which `pitch` eases toward. */
+  private slope = 0
+  /** Right-side-down tilt from the road under the wheels, eased like the pitch. */
+  private roll = 0
+  /** Where the body stands: the lane position lifted or lowered onto the ground under the wheels. */
+  readonly feet = new THREE.Vector3()
+  /**
+   * Height of the solid ground under (x, z), looking down from just above `y`, or null.
+   * Set by the traffic manager; lanes give heights, but the road (a deck, a crowned
+   * street, a ramp's edge) is what the wheels stand on.
+   */
+  ground: (x: number, y: number, z: number) => number | null = () => null
 
   constructor(
     physics: PhysicsWorld,
     readonly visual: CarVisual,
-    private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads'>,
-    private readonly r: Rand,
   ) {
     const size = visual.bounds.getSize(new THREE.Vector3())
     const center = visual.bounds.getCenter(new THREE.Vector3())
@@ -58,18 +70,19 @@ export class TrafficCar {
   }
 
   /** Start fresh at a lane position. */
-  place(h: Heading): void {
-    this.route = h
+  place(s: Start): void {
+    this.driver = s.driver
     this.path = []
     this.health.hp = HP
     this.collider.setEnabled(true)
-    const p = lanePoint(h, h.u)
-    this.position.set(p.x, 0, p.z)
-    this.heading = yawOf(h)
+    this.position.set(s.x, s.y, s.z)
+    this.heading = s.yaw
+    this.pitch = this.slope = this.roll = 0
     this.speed = CRUISE * 0.7
     this.refill()
+    this.settle(1)
     this.pose()
-    this.body.setTranslation(this.position, true)
+    this.body.setTranslation(this.feet, true)
     this.body.setRotation(this.quaternion, true)
   }
 
@@ -85,7 +98,7 @@ export class TrafficCar {
   hood(out: THREE.Vector3): THREE.Vector3 {
     const b = this.visual.bounds
     out.set(0, b.max.y * 0.75, b.max.z * 0.65)
-    return out.applyQuaternion(this.quaternion).add(this.position)
+    return out.applyQuaternion(this.quaternion).add(this.feet)
   }
 
   /**
@@ -100,16 +113,18 @@ export class TrafficCar {
     this.braking = this.speed < before - 1e-3 || (this.speed < 0.1 && !this.dead)
     const yaw = this.drive(this.speed * dt)
     if (this.path.length) this.heading = easeAngle(this.heading, yaw, 1 - Math.exp(-6 * dt))
+    this.settle(1 - Math.exp(-13 * dt))
     this.refill()
     this.pose()
-    this.body.setNextKinematicTranslation(this.position)
+    this.body.setNextKinematicTranslation(this.feet)
     this.body.setNextKinematicRotation(this.quaternion)
     this.lights(dt, night, siren)
   }
 
   /** Slow down in time for the next turn: v^2 = v_turn^2 + 2 a d. */
   private curveLimit(): number {
-    let limit = CRUISE
+    if (!this.path.length) return CRUISE
+    let limit = Infinity
     let d = 0
     let from: { x: number; z: number } = this.position
     for (const p of this.path) {
@@ -128,29 +143,48 @@ export class TrafficCar {
       const dx = p.x - this.position.x
       const dz = p.z - this.position.z
       const d = Math.hypot(dx, dz)
+      const dy = (p.y ?? 0) - this.position.y
       if (d > step) {
         this.position.x += (dx / d) * step
         this.position.z += (dz / d) * step
+        this.position.y += (dy / d) * step
+        this.slope = Math.atan2(dy, d)
         return Math.atan2(dx, dz)
       }
-      this.position.set(p.x, 0, p.z)
+      this.position.set(p.x, p.y ?? 0, p.z)
       step -= d
       this.path.shift()
     }
     return this.heading
   }
 
+  /** Rests the body on the ground found under its four corners, easing its tilt. */
+  private settle(k: number): void {
+    const { x, y, z } = this.position
+    const feet = corners(x, z, this.heading, CAR_HALF.l, CAR_HALF.w)
+    let found = false
+    const h = feet.map((c) => {
+      const g = this.ground(c.x, y, c.z)
+      if (g !== null) found = true
+      return g ?? y
+    })
+    const rest = restOnCorners(h, CAR_HALF.l, CAR_HALF.w)
+    this.feet.set(x, found ? rest.y : y, z)
+    this.pitch += ((found ? rest.pitch : this.slope) - this.pitch) * k
+    this.roll += ((found ? rest.roll : 0) - this.roll) * k
+  }
+
   private refill(): void {
     while (this.path.length < 10) {
-      const leg = nextLeg(this.grid, this.route, this.r)
-      this.path.push(...leg.points)
-      this.route = leg.next
+      const leg = this.driver.next()
+      if (!leg.length) return
+      this.path.push(...leg)
     }
   }
 
   private pose(): void {
-    this.quaternion.setFromAxisAngle(UP, this.heading)
-    this.visual.root.position.copy(this.position)
+    this.quaternion.setFromEuler(EULER.set(-this.pitch, this.heading, this.roll, 'YXZ'))
+    this.visual.root.position.copy(this.feet)
     this.visual.root.quaternion.copy(this.quaternion)
   }
 

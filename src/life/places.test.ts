@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { generateCity } from '../city/layout'
+import { generateLand } from '../land/plan'
 import { surfaceAt } from '../city/terrain'
 import { hospitals, loopPoint, nearest, perimeter, walkLoops } from './places'
 
-const city = generateCity(7, 1000)
+const city = generateLand(7, 1000)
 
 describe('walk loops and hospitals', () => {
   it('walks every loop on raised sidewalk, never on the road or a lawn', () => {

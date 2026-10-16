@@ -87,7 +87,9 @@ export class Renderer {
     if (c.dof) {
       const f = c.dof.focus
       f.distance = this.camera.position.distanceTo(v.focus)
-      f.range = THREE.MathUtils.lerp(DOF_CALM.range, DOF_AIM.range, v.aim)
+      // From a hilltop the vista is the subject: push the calm range out with height.
+      const lift = 1 + Math.max(0, this.camera.position.y - 20) / 15
+      f.range = THREE.MathUtils.lerp(DOF_CALM.range * lift, DOF_AIM.range, v.aim)
       f.strength = THREE.MathUtils.lerp(DOF_CALM.strength, DOF_AIM.strength, v.aim)
     }
     if (c.blur) c.blur.intensity = Math.max(BLUR_FOOT, Math.min(1, v.speed / BLUR_TOP_SPEED))
