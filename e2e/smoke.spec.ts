@@ -81,7 +81,8 @@ test('loads, plays, walks, maps, and stands on the city', async ({ page }) => {
 })
 
 test('swims in the ocean and dives under', async ({ page }) => {
-  test.setTimeout(180_000 * SLOW)
+  // About 2 minutes alone; beside the touch and gamepad specs on the same CPU it ran past 3.
+  test.setTimeout(300_000 * SLOW)
   const errors = await play(page, '/')
 
   // Crests reach about 0.6 m above still water and troughs as far below.

@@ -139,12 +139,17 @@ export const CONTROL_ROWS: PrefRow[] = [
   {
     kind: 'range',
     key: 'sensitivity',
-    label: 'Mouse sensitivity',
-    hint: 'Look speed. Aiming is a little slower on purpose.',
+    label: 'Look sensitivity',
+    hint: 'Mouse, right stick, and touch look speed. Aiming is a little slower on purpose.',
     ...RANGES.sensitivity,
     format: (v) => `${v.toFixed(1)}x`,
   },
-  { kind: 'toggle', key: 'invertY', label: 'Invert Y', hint: 'Mouse up looks down.' },
+  {
+    kind: 'toggle',
+    key: 'invertY',
+    label: 'Invert Y',
+    hint: 'Up looks down, for mouse, stick, and touch.',
+  },
 ]
 
 type AudioRow = Row & { key: keyof AudioPrefs }

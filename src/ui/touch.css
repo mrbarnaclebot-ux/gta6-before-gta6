@@ -1,0 +1,237 @@
+/* Touch controls (src/input/touch.ts), the HUD rearranged around them, and the portrait notice. */
+:root {
+  --safe-t: max(var(--edge), env(safe-area-inset-top));
+  --safe-r: max(var(--edge), env(safe-area-inset-right));
+  --safe-b: max(var(--edge), env(safe-area-inset-bottom));
+  --safe-l: max(var(--edge), env(safe-area-inset-left));
+}
+
+/* Phones: no pinch or double-tap zoom, no text selection or long-press callouts in game. */
+html,
+body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#view,
+.touch,
+.worldmap-canvas {
+  touch-action: none;
+}
+
+.touch {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+}
+
+.touch-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.touch-move {
+  left: 0;
+  width: 50%;
+}
+
+.touch-look {
+  right: 0;
+  width: 50%;
+}
+
+/* The thumbstick rests faintly bottom left and jumps to wherever the thumb lands. */
+.stick {
+  position: absolute;
+  left: calc(var(--safe-l) + 72px);
+  top: calc(100% - var(--safe-b) - 72px);
+  width: 128px;
+  height: 128px;
+  margin: -64px 0 0 -64px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: radial-gradient(circle, rgba(9, 10, 20, 0.15), rgba(9, 10, 20, 0.4));
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.stick.live {
+  opacity: 1;
+  transition: none;
+}
+
+.stick-knob {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff, #dfe2ea);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+.tb {
+  position: absolute;
+  right: calc(var(--safe-r) + var(--r, 0px));
+  bottom: calc(var(--safe-b) + var(--b, 0px));
+  width: var(--s, 56px);
+  height: var(--s, 56px);
+  display: none;
+  place-items: center;
+  padding: 0 4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: rgba(9, 10, 20, 0.6);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+.touch[data-mode='walking'] .tb[data-on~='walking'],
+.touch[data-mode='driving'] .tb[data-on~='driving'],
+.touch[data-mode='swimming'] .tb[data-on~='swimming'],
+.tb-top {
+  display: grid;
+}
+
+.tb[data-action='fire'] {
+  border-color: rgba(255, 79, 160, 0.75);
+  font-size: 16px;
+}
+
+.tb.down,
+.tb.on {
+  background: rgba(255, 79, 160, 0.72);
+  border-color: #fff;
+}
+
+/* Something to get into is in reach: the Use button lights up with what it does. */
+.tb.ready {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(255, 179, 71, 0.35);
+  font-size: 11px;
+}
+
+.tb-top {
+  top: var(--safe-t);
+  bottom: auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.tb-pause {
+  right: var(--safe-r);
+}
+
+.tb-map {
+  right: calc(var(--safe-r) + 56px);
+}
+
+.tb-top svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* The HUD moves out from under the thumbs: minimap top left, status top right. */
+[data-input='touch'] .corner {
+  top: var(--safe-t);
+  bottom: auto;
+  left: var(--safe-l);
+  padding: 6px;
+}
+
+[data-input='touch'] .minimap {
+  width: 150px;
+  height: 98px;
+}
+
+[data-input='touch'] .toasts {
+  left: calc(var(--safe-l) + 176px);
+  width: min(300px, calc(100% - var(--safe-l) - var(--safe-r) - 300px));
+}
+
+[data-input='touch'] .toast {
+  font-size: 13px;
+}
+
+[data-input='touch'] .hud {
+  right: calc(var(--safe-r) + 116px);
+}
+
+[data-input='touch'] .weapon,
+[data-input='touch'] .speedo {
+  top: calc(var(--safe-t) + 58px);
+  bottom: auto;
+  right: var(--safe-r);
+  transform: scale(0.78);
+  transform-origin: top right;
+}
+
+/* The Use button names the action itself, so the key prompt would only repeat it. */
+[data-input='touch'] .prompt:not(.look-hint) {
+  display: none;
+}
+
+.rotate {
+  display: none;
+}
+
+/* Portrait on a phone: ask for landscape, over everything. A tablet has room to play upright. */
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 700px) {
+  .rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 18px;
+    padding: 24px;
+    background: var(--night);
+    text-align: center;
+  }
+  .rotate svg {
+    width: 72px;
+    height: 72px;
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 2;
+    animation: rotate-hint 2.4s ease-in-out infinite;
+  }
+  .rotate p {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 26px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+@keyframes rotate-hint {
+  0%,
+  30% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rotate svg {
+    animation: none;
+  }
+}

@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import { cameraRelative } from '../camera/orbit-math'
-import { moveAxes } from '../input/bindings'
 import type { Input } from '../input/input'
 import { RAPIER, SOLID, type PhysicsWorld } from '../physics'
 import type { Avatar } from './avatar'
@@ -119,7 +118,7 @@ export class Player {
     const depth = this.feetDepth
     this.setMode(nextMode(this.mode, depth))
     if (this.dead) return this.lie(dt, depth)
-    const axes = moveAxes(input.held)
+    const axes = input.move()
     const wish = cameraRelative(cameraYaw, axes.x, axes.z)
     const swimming = this.mode === 'swimming'
     this.diveHeld = swimming && input.held.has('dive')

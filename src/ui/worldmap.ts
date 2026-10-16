@@ -32,6 +32,7 @@ export class WorldMap {
   private view = { x: 0, z: 0, scale: 1 }
   private player: MapPlayer = { x: 0, z: 0, heading: 0, cars: [] }
   private drag: { x: number; y: number; moved: number } | null = null
+  private readonly fingers = new Map<number, { x: number; y: number }>()
   private dirty = true
 
   constructor(
@@ -187,34 +188,59 @@ export class WorldMap {
     const c = this.canvas
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId)
-      this.drag = { x: e.clientX, y: e.clientY, moved: 0 }
+      this.fingers.set(e.pointerId, { x: e.offsetX, y: e.offsetY })
+      // A second finger turns the drag into a pinch; it never ends as a tap.
+      this.drag = { x: e.clientX, y: e.clientY, moved: this.fingers.size > 1 ? CLICK_SLOP : 0 }
     })
-    c.addEventListener('pointermove', (e) => {
-      const d = this.drag
-      if (!d) return
-      const dx = e.clientX - d.x
-      const dy = e.clientY - d.y
-      d.moved += Math.hypot(dx, dy)
-      Object.assign(d, { x: e.clientX, y: e.clientY })
-      this.view.x -= dx / this.view.scale
-      this.view.z -= dy / this.view.scale
-      this.clampView()
-    })
-    c.addEventListener('pointerup', (e) => {
-      if (this.drag && this.drag.moved < CLICK_SLOP) this.click(e.offsetX, e.offsetY)
+    c.addEventListener('pointermove', (e) => this.move(e))
+    const end = (e: PointerEvent) => {
+      const tap = this.fingers.size === 1 && this.drag && this.drag.moved < CLICK_SLOP
+      if (tap && e.type === 'pointerup') this.click(e.offsetX, e.offsetY)
+      this.fingers.delete(e.pointerId)
       this.drag = null
-    })
+    }
+    c.addEventListener('pointerup', end)
+    c.addEventListener('pointercancel', end)
     c.addEventListener('wheel', (e) => this.zoom(e), { passive: false })
     window.addEventListener('resize', () => this.open && this.resize())
   }
 
-  /** Zooms about the cursor: the spot under it stays put. */
+  private move(e: PointerEvent): void {
+    const prev = this.fingers.get(e.pointerId)
+    if (prev && this.fingers.size === 2) return this.pinch(e.pointerId, e.offsetX, e.offsetY)
+    if (prev) this.fingers.set(e.pointerId, { x: e.offsetX, y: e.offsetY })
+    const d = this.drag
+    if (!d) return
+    const dx = e.clientX - d.x
+    const dy = e.clientY - d.y
+    d.moved += Math.hypot(dx, dy)
+    Object.assign(d, { x: e.clientX, y: e.clientY })
+    this.view.x -= dx / this.view.scale
+    this.view.z -= dy / this.view.scale
+    this.clampView()
+  }
+
+  /** Two fingers: zoom by how far apart they move, about the point between them. */
+  private pinch(id: number, x: number, y: number): void {
+    const [a, b] = [...this.fingers.values()]
+    const before = Math.hypot(a.x - b.x, a.y - b.y)
+    this.fingers.set(id, { x, y })
+    const [p, q] = [...this.fingers.values()]
+    const after = Math.hypot(p.x - q.x, p.y - q.y)
+    if (before > 0) this.zoomAt((p.x + q.x) / 2, (p.y + q.y) / 2, after / before)
+  }
+
   private zoom(e: WheelEvent): void {
     e.preventDefault()
-    const before = this.toWorld(e.offsetX, e.offsetY)
-    this.view.scale *= Math.exp(-e.deltaY * 0.0015)
+    this.zoomAt(e.offsetX, e.offsetY, Math.exp(-e.deltaY * 0.0015))
+  }
+
+  /** Zooms about a screen point: the spot under it stays put. */
+  private zoomAt(x: number, y: number, factor: number): void {
+    const before = this.toWorld(x, y)
+    this.view.scale *= factor
     this.clampView()
-    const after = this.toWorld(e.offsetX, e.offsetY)
+    const after = this.toWorld(x, y)
     this.view.x += before.x - after.x
     this.view.z += before.z - after.z
     this.clampView()

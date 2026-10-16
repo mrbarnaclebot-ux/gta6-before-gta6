@@ -51,7 +51,7 @@ export class VehicleAudio {
     this.sinceJack += dt
     this.crashCool -= dt
     const held = this.input.held
-    const throttle = Number(held.has('forward')) - Number(held.has('back'))
+    const throttle = this.input.drive().throttle
     const running = car && !car.dead
     this.engine(dt, car?.kind === 'car' && running ? car : null, throttle)
     const boat = car?.kind === 'boat' && running ? boatMix(car.speed, throttle) : null

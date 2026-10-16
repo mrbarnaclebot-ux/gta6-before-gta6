@@ -104,7 +104,8 @@ async function boatRide(page: Page) {
 
 // One page for both: each load costs a minute of SwiftShader beside the other specs.
 test('steals a traffic car, then takes a boat out from the marina', async ({ page }) => {
-  test.setTimeout(420_000 * SLOW)
+  // Under 2 minutes alone; the full parallel run (15 specs) pushed it past 7.
+  test.setTimeout(600_000 * SLOW)
   const errors = await play(page, '/?quality=low')
   await carjack(page)
   await boatRide(page)

@@ -162,12 +162,7 @@ function reach(v: Vehicle, p: THREE.Vector3): number {
 }
 
 function readControls(input: Input): Controls {
-  const h = input.held
   // Space is the handbrake here; drop its press so leaving the car does not also jump.
   input.consume('jump')
-  return {
-    throttle: Number(h.has('forward')) - Number(h.has('back')),
-    steer: Number(h.has('left')) - Number(h.has('right')),
-    handbrake: h.has('jump'),
-  }
+  return input.drive()
 }

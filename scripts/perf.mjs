@@ -1,7 +1,7 @@
 // Load-time and frame-time probe: node scripts/perf.mjs <url> <screenshot-dir> [quality] [deviceScaleFactor]
 // macOS only: it forces Chrome onto the real GPU through ANGLE's Metal backend.
 // UNCAPPED=1 turns off vsync so A/B runs show headroom above 60 fps. ONLY=forest,beach,drive samples
-// just those. NOWARM=1 skips the second (warm cache) visit. EXTRA=&foo appends to the query string.
+// just those. VIEWPORT=844x390 sets the window (phone sizes get touch). NOWARM=1 skips the second (warm cache) visit. EXTRA=&foo appends to the query string.
 import { chromium } from '@playwright/test'
 import { drive, installRecorder, memory, startFrames, stopFrames, timedLoad } from './perf-lib.mjs'
 
@@ -19,7 +19,15 @@ const browser = await chromium.launch({
     ...(process.env.UNCAPPED ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : []),
   ],
 })
-const view = { viewport: { width: 1920, height: 1080 }, deviceScaleFactor: dsf }
+// VIEWPORT=844x390 measures a phone-sized window with touch and mobile emulation.
+const [vw, vh] = (process.env.VIEWPORT || '1920x1080').split('x').map(Number)
+const phone = !!process.env.VIEWPORT
+const view = {
+  viewport: { width: vw, height: vh },
+  deviceScaleFactor: dsf,
+  hasTouch: phone,
+  isMobile: phone,
+}
 // The service worker's own fetches never reach the page's network log, so the first visit
 // (cold bytes, timings, every scene) runs with it blocked; the warm visit gets its own profile.
 const ctx = await browser.newContext({ ...view, serviceWorkers: 'block' })

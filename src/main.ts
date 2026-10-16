@@ -8,8 +8,11 @@ import './ui/death.css'
 import './ui/worldmap.css'
 import './ui/pause.css'
 import './ui/settings.css'
+import './ui/touch.css'
 import { bootAudio } from './audio/boot'
+import { Gamepads } from './input/gamepad'
 import { Input } from './input/input'
+import { showControls } from './ui/controls-text'
 import { planWorld } from './land/world-plan'
 import { loadGraphics, saveGraphics } from './render/graphics'
 import { loadPrefs, savePref } from './settings'
@@ -21,6 +24,11 @@ const canvas = document.getElementById('view') as HTMLCanvasElement
 const status = document.getElementById('status') as HTMLElement
 const playButton = document.getElementById('play') as HTMLButtonElement
 const input = new Input(canvas)
+new Gamepads(input)
+showControls(input.device)
+input.onDevice(showControls)
+// iOS Safari ignores user-scalable=no; its own pinch gesture event can still be refused.
+document.addEventListener('gesturestart', (e) => e.preventDefault())
 const audio = bootAudio()
 
 // Built here so Settings works on the title screen; the game takes it over on start.
@@ -61,6 +69,7 @@ async function play(): Promise<void> {
   playButton.disabled = true
   status.textContent = ''
   input.lockPointer()
+  if (input.device === 'touch') fullscreen()
   try {
     await loading.show()
     menu.root.hidden = true
@@ -76,5 +85,16 @@ async function play(): Promise<void> {
     status.textContent = 'Could not start. Your browser may not support WebGL2.'
     playButton.disabled = false
     menu.refocus()
+  }
+}
+
+/** Touch devices: fullscreen and a landscape lock where the browser allows them; iPhone Safari has neither, and that is fine. */
+function fullscreen(): void {
+  try {
+    const done = document.documentElement.requestFullscreen?.({ navigationUI: 'hide' })
+    const lock = (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })?.lock
+    done?.then(() => lock?.call(screen.orientation, 'landscape')).catch(() => {})
+  } catch {
+    // Optional everywhere.
   }
 }

@@ -34,6 +34,13 @@
   display: none !important;
 }
 
+/* Text for one input device (keys, pad, touch) shows only while that device is in use. */
+:root:not([data-input='keys']) [data-for='keys'],
+:root:not([data-input='pad']) [data-for='pad'],
+:root:not([data-input='touch']) [data-for='touch'] {
+  display: none;
+}
+
 html,
 body {
   margin: 0;

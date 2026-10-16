@@ -1,5 +1,7 @@
 import { chase, type World } from '../game'
-import type { Input } from '../input/input'
+import type { Device, Input } from '../input/input'
+import { TouchControls } from '../input/touch'
+import { PROMPT_KEY, TIPS } from './controls-text'
 import { nearest } from '../life/places'
 import { cooling, searchRadius, stars } from '../life/wanted'
 import { MAX_BREATH, MAX_HEALTH } from '../player/swim'
@@ -23,8 +25,11 @@ export interface Ui {
   map: Minimap
   worldMap: WorldMap
   nav: Nav
-  /** Shows a help toast the first time `key` comes up. */
-  tip: (key: string, message: string) => void
+  touch: TouchControls
+  /** The device whose labels the prompts use. */
+  device: () => Device
+  /** Shows a help toast, worded for the device in hand, the first time `key` comes up. */
+  tip: (key: keyof typeof TIPS) => void
   /** Apply, show, and save graphics settings (also used by the test hook). */
   setGraphics: (g: Graphics) => void
   /** The mouse lost pointer lock and needs a click to take it back. */
@@ -87,12 +92,28 @@ export function createUi(w: World, input: Input, look: Look, pause: PauseMenu): 
     w.life.hospitals,
   )
   const seen = new Set<string>()
-  const tip = (key: string, message: string) => {
-    if (!seen.has(key)) hud.toast(message)
+  const tip = (key: keyof typeof TIPS) => {
+    if (!seen.has(key)) hud.toast(TIPS[key][input.device])
     seen.add(key)
   }
   const needsRelock = () => input.needsRelock
-  return { hud, pause, map, worldMap, nav, tip, setGraphics, needsRelock }
+  const touch = new TouchControls(input)
+  const device = () => input.device
+  const ui = { hud, pause, map, worldMap, nav, touch, device, tip, setGraphics, needsRelock }
+  document.getElementById('worldmap-close')!.addEventListener('click', () => closeMap(ui, input))
+  pauseInPortrait(pause)
+  return ui
+}
+
+/** Turning a phone upright mid-game hides the view behind the rotate notice, so pause. */
+function pauseInPortrait(pause: PauseMenu): void {
+  const q =
+    typeof matchMedia === 'function'
+      ? matchMedia('(orientation: portrait) and (pointer: coarse) and (max-width: 700px)')
+      : null
+  q?.addEventListener?.('change', (e) => {
+    if (e.matches && !pause.open) pause.show()
+  })
 }
 
 /** Esc and M: the pause menu and the map. Returns whether the world should hold still. */
@@ -149,7 +170,10 @@ export function updateHud(ui: Ui, w: World, dt: number): void {
         }
       : null,
   )
-  hud.setPrompt(prompt(w))
+  const action = prompt(w)
+  hud.setPrompt(action, PROMPT_KEY[ui.device()])
+  const menus = ui.pause.open || ui.worldMap.open || w.life.dead
+  ui.touch.update(!menus, w.driving.mode, action)
   hud.setLookHint(ui.needsRelock() && !ui.pause.open && !ui.worldMap.open)
   const { wanted } = w.life
   hud.setWanted(stars(wanted), cooling(wanted))
@@ -174,11 +198,10 @@ function helpTips(ui: Ui, w: World): void {
   if (ui.nav.update(p)) ui.hud.toast('You have arrived.')
   const mode = w.driving.mode
   const boat = w.driving.car?.kind === 'boat'
-  if (boat) ui.tip('boat', 'W throttle, S reverse, A and D steer. Press F to step off.')
-  else if (mode === 'driving') ui.tip('drive', 'Space is the handbrake. Press F to get out.')
-  if (mode === 'swimming') ui.tip('swim', 'Ctrl or C dives. Space comes back up.')
-  if (stars(w.life.wanted) > 0)
-    ui.tip('wanted', 'Police are searching the red area. Get out of it to lose them.')
+  if (boat) ui.tip('boat')
+  else if (mode === 'driving') ui.tip('drive')
+  if (mode === 'swimming') ui.tip('swim')
+  if (stars(w.life.wanted) > 0) ui.tip('wanted')
 }
 
 function drawMap(ui: Ui, w: World, dt: number): void {

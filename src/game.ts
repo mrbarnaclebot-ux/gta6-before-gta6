@@ -150,6 +150,7 @@ const VIEW = new THREE.Vector3()
 function simulate(w: World, input: Input, dt: number, acc: number): number {
   // Before the step: after a teleport the colliders around the new spot exist already.
   w.colliders.update([w.driving.position, w.camera.position])
+  input.context = w.driving.mode
   for (acc += dt; acc >= FIXED_STEP; acc -= FIXED_STEP) {
     w.driving.fixedUpdate(FIXED_STEP, input, w.follow.yaw)
     w.physics.step()
@@ -238,8 +239,8 @@ export async function startGame(
     // The first frame (and its shader compiles) is drawn: lift the loading screen.
     loading.ready()
     boot.audio.enterGame()
-    ui.tip('map', 'Press M for the map. Click on it to set a waypoint.')
-    ui.tip('car', 'Walk up to a parked car and press F to get in.')
+    ui.tip('map')
+    ui.tip('car')
     // The car bodies are the heaviest download; fetch them once the city is on screen.
     // A failed fetch leaves the box bodies in, so streaming still counts as done.
     void w

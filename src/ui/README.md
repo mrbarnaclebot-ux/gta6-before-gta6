@@ -13,4 +13,5 @@ Plain DOM menus and HUD over the canvas. Markup lives in `index.html`; these fil
 - `pause.ts` settings menu: Esc in game, Settings on the title screen; Graphics, Display, Audio, and Controls tabs
 - `settings-rows.ts` every settings row: label, cost hint, and control kind
 - `settings-panel.ts` renders rows as segmented choices, switches, and sliders, and reports changes
-- CSS: `menu.css`, `credits.css`, `loading.css`, `hud.css` (frame), `hud-panels.css` (weapon, speedometer, prompt, toasts, radio station), `death.css`, `worldmap.css`, `pause.css`, `settings.css`
+- `controls-text.ts` device-specific wording: the prompt key, first-time tips, and the Controls tab list for keyboard, gamepad, or touch
+- CSS: `menu.css`, `credits.css`, `loading.css`, `hud.css` (frame), `hud-panels.css` (weapon, speedometer, prompt, toasts, radio station), `death.css`, `worldmap.css`, `pause.css`, `settings.css`, `touch.css` (touch controls, the HUD moved around them, the portrait notice)
