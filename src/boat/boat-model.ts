@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { underwaterLightAll } from '../sea/caustics'
+import { navLights } from './nav-lights'
 
 const URL = '/assets/models/vehicle/boat.glb'
 /** The generated hull comes 1 unit long with its bow at +z; this is its real length in meters. */
@@ -42,7 +43,7 @@ export class BoatModels {
   make = (): BoatVisual => {
     const root = new THREE.Group()
     const stand = this.model ? this.model.clone() : standIn()
-    root.add(stand)
+    root.add(stand, navLights())
     this.made.push({ root, stand })
     return { root, bounds: HULL_BOUNDS, seat: new THREE.Vector3(-0.42, 0.05, -0.55) }
   }
