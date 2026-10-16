@@ -11,6 +11,7 @@ import { matteCard } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { impostor } from '../world/impostor'
 import { modelParts, type Part } from '../world/instancing'
+import { thinCards } from './thin-cards'
 import { instanceByDistance } from '../world/lod-instances'
 
 /*
@@ -60,13 +61,18 @@ function toneLeaves(scene: THREE.Object3D) {
   })
 }
 
-/** A tree file holds `bark`, `lite` (the same trunk, far simpler), and `foliage` (the cards). */
-function treeLevels(scene: THREE.Object3D): Part[][] {
+/**
+ * A tree file holds `bark`, `lite` (the same trunk, far simpler), and `foliage` (the cards).
+ * Near: bark and every card. Mid: the lite trunk and half the cards, grown to fill in. The
+ * impostor is baked from the lite trunk with every card.
+ */
+function treeLevels(scene: THREE.Object3D): { near: Part[]; mid: Part[]; bake: Part[] } {
   toneLeaves(scene)
   const height = new THREE.Box3().setFromObject(scene).max.y
-  const parts = (names: string[]) =>
-    names.flatMap((n) => modelParts(scene.getObjectByName(n)!, true, height))
-  return [parts(['bark', 'foliage']), parts(['lite', 'foliage'])]
+  const parts = (name: string) => modelParts(scene.getObjectByName(name)!, true, height)
+  const [bark, lite, cards] = [parts('bark'), parts('lite'), parts('foliage')]
+  const thin = cards.map((p) => ({ ...p, geometry: thinCards(p.geometry) }))
+  return { near: [...bark, ...cards], mid: [...lite, ...thin], bake: [...lite, ...cards] }
 }
 
 /**
@@ -81,10 +87,10 @@ async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: 
   for (const [kind, files] of Object.entries(TREES) as [keyof typeof TREES, string[]][]) {
     const models = await Promise.all(files.map((f) => load(DIR + f)))
     models.forEach((m, i) => {
-      const [near, mid] = treeLevels(m.scene)
+      const { near, mid, bake } = treeLevels(m.scene)
       const place = { scale: (s: Grounded) => s.s, ranges: [NEAR, MID], shadowLevels: 1 }
       const spots = share(flora[kind], models.length, i)
-      updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, mid))], spots, place))
+      updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, bake))], spots, place))
     })
   }
   return updates
