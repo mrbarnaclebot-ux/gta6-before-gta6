@@ -107,4 +107,8 @@ Unchanged. WASD move, Shift run, Space jump, F car or boat, right mouse aim, lef
 
 ## Test results
 
-See the final command output in the hand-off.
+- `pnpm install --frozen-lockfile`: up to date.
+- `pnpm build`: passes (the plan worker is 29 kB; the service worker is `dist/sw.js`).
+- `pnpm lint`: clean.
+- `pnpm test`: 44 files, 158 tests passed. New tests cover the ring and hysteresis math, the cache plan, the split by tile, and the Basis transcoder staying in step with three.
+- `pnpm test:e2e`: 11 passed (10.7 min). The new `streaming.spec.ts` drives across collider tiles and teleports 2 km into the forest, then checks the colliders and ground under the player. The drive test's timeout went from 180 to 300 s: it passes in about 1 minute alone, but in the full parallel run it took just over 3 minutes.
