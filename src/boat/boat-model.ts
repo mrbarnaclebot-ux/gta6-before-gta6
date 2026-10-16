@@ -51,6 +51,8 @@ export class BoatModels {
       m.root.remove(m.stand)
       m.stand = this.model.clone()
       m.root.add(m.stand)
+      // New meshes: let the shadow toggle (render/actor-shadows.ts) walk this root again.
+      delete m.root.userData.castShadow
     }
   }
 }

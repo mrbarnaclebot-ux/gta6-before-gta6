@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { Input } from '../input/input'
 import type { PhysicsWorld } from '../physics'
+import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import type { Player, WaterQuery } from '../player/player'
 import { Car } from './car'
 import type { CarVisual } from './car-model'
@@ -124,8 +125,11 @@ export class Driving {
     const here = this.position
     for (const c of this.cars) {
       c.update(alpha, c === this.car)
-      const range = c.kind === 'boat' ? this.drawRange * 2 : this.drawRange
-      c.visual.root.visible = c === this.car || c.position.distanceTo(here) < range
+      const d = c === this.car ? 0 : c.position.distanceTo(here)
+      const boat = c.kind === 'boat'
+      c.visual.root.visible = d < (boat ? this.drawRange * 2 : this.drawRange)
+      // A boat's shadow on the water is lost in the glitter past a few dozen meters.
+      if (boat) castShadows(c.visual.root, d < ACTOR_SHADOW_RANGE * 2)
     }
     if (!this.car) return this.player.update(dt, alpha)
     this.headlight.intensity = this.car.dead ? 0 : 60 + 340 * this.night
