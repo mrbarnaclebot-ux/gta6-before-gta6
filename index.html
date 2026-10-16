@@ -61,6 +61,20 @@
           <dd>Poly Haven: Greg Zaal, Rob Tuytel, and others (CC0)</dd>
           <dt>Water normals</dt>
           <dd>three.js authors (MIT)</dd>
+          <dt>Sound effects and music</dt>
+          <dd>
+            Epidemic Sound, owner subscription
+            <ul class="credit-tracks">
+              <li>Miami Heatwave - Ben Elson</li>
+              <li>WANTED - BLUE STEEL</li>
+              <li>Thinkin' About You - Sven Lindvall, Bri Sarikcioglu, Daniel Fridell</li>
+              <li>Unchain - Lupus Nocte, Zorro</li>
+              <li>$O COLD (Clean Version) - Baha Bank$</li>
+              <li>Suit and Loafers (Clean Version) - Nyck Caution</li>
+              <li>Latina - Alik, Manuelo Jersey</li>
+              <li>Bendito (Clean Version) - El Jiggy, Manuelo Jersey</li>
+            </ul>
+          </dd>
           <dt>Display type</dt>
           <dd>Anton by Vernon Adams (SIL Open Font License)</dd>
           <dt>Engine</dt>
@@ -112,6 +126,9 @@
       </div>
     </div>
     <div id="toasts" class="toasts" aria-live="polite"></div>
+    <p id="radio" class="radio-toast" aria-live="polite" hidden>
+      <span class="radio-name"></span><span class="radio-song"></span>
+    </p>
     <div id="underwater" class="underwater" hidden></div>
     <p id="prompt" class="prompt" hidden><kbd>F</kbd><span></span></p>
     <p id="look-hint" class="prompt look-hint" hidden>Click to look around</p>
@@ -208,6 +225,9 @@
             <button type="button" role="tab" id="tab-btn-display" aria-controls="tab-display">
               Display
             </button>
+            <button type="button" role="tab" id="tab-btn-audio" aria-controls="tab-audio">
+              Audio
+            </button>
             <button type="button" role="tab" id="tab-btn-controls" aria-controls="tab-controls">
               Controls
             </button>
@@ -225,6 +245,13 @@
           class="panel"
           role="tabpanel"
           aria-labelledby="tab-btn-display"
+          hidden
+        ></section>
+        <section
+          id="tab-audio"
+          class="panel"
+          role="tabpanel"
+          aria-labelledby="tab-btn-audio"
           hidden
         ></section>
         <section
@@ -255,6 +282,10 @@
             <dd>Reload</dd>
             <dt>Mouse</dt>
             <dd>Look</dd>
+            <dt><kbd>H</kbd></dt>
+            <dd>Horn</dd>
+            <dt><kbd>Q</kbd> <kbd>E</kbd></dt>
+            <dd>Radio station, in a car or boat</dd>
             <dt><kbd>M</kbd></dt>
             <dd>Map: click to set a waypoint</dd>
             <dt><kbd>Esc</kbd></dt>

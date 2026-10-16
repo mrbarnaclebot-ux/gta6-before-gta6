@@ -31,6 +31,8 @@ interface HookDeps {
   graphics: () => Graphics
   paused: () => boolean
   ui: Pick<Ui, 'worldMap' | 'nav'>
+  /** The audio context's state, the volume settings, and what is playing. */
+  audio: () => object
   extra: () => {
     fps: number
     frames: number
@@ -183,6 +185,7 @@ export function exposeTestHook(deps: HookDeps): void {
     ...actorHelpers(deps),
     ...lifeHelpers(deps),
     groundGaps: groundGaps(deps),
+    audio: () => structuredClone(deps.audio()),
   }
   Object.defineProperty(window, '__game', { value: Object.freeze(api), configurable: true })
 }

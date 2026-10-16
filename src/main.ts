@@ -8,6 +8,7 @@ import './ui/death.css'
 import './ui/worldmap.css'
 import './ui/pause.css'
 import './ui/settings.css'
+import { bootAudio } from './audio/boot'
 import { Input } from './input/input'
 import { loadGraphics, saveGraphics } from './render/graphics'
 import { loadPrefs, savePref } from './settings'
@@ -19,13 +20,15 @@ const canvas = document.getElementById('view') as HTMLCanvasElement
 const status = document.getElementById('status') as HTMLElement
 const playButton = document.getElementById('play') as HTMLButtonElement
 const input = new Input(canvas)
+const audio = bootAudio()
 
 // Built here so Settings works on the title screen; the game takes it over on start.
 const pause = new PauseMenu(
-  { graphics: loadGraphics(), prefs: loadPrefs() },
+  { graphics: loadGraphics(), prefs: loadPrefs(), audio: audio.mixer.prefs },
   {
     onGraphics: saveGraphics,
     onPref: savePref,
+    onAudio: (name, value) => audio.mixer.set(name, value),
     onResume: () => menu.refocus(),
     autoOpen: () => false,
   },
@@ -51,7 +54,7 @@ async function play(): Promise<void> {
     menu.root.hidden = true
     const { startGame } = await import('./game')
     loading.finish('code')
-    await startGame(canvas, input, { pause, loading })
+    await startGame(canvas, input, { pause, loading, audio })
     input.reset()
     canvas.focus()
   } catch (err) {

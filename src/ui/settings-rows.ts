@@ -1,4 +1,5 @@
 import { CHOICES, type Graphics } from '../render/graphics'
+import { VOLUME_RANGE, type AudioPrefs } from '../audio/prefs'
 import { RANGES, type Prefs, type Range } from '../settings'
 
 /** One settings row: a label, a one-line hint (mostly what it costs), and its control. */
@@ -144,4 +145,29 @@ export const CONTROL_ROWS: PrefRow[] = [
     format: (v) => `${v.toFixed(1)}x`,
   },
   { kind: 'toggle', key: 'invertY', label: 'Invert Y', hint: 'Mouse up looks down.' },
+]
+
+type AudioRow = Row & { key: keyof AudioPrefs }
+
+const volume = (key: keyof AudioPrefs, label: string, hint: string): AudioRow => ({
+  kind: 'range',
+  key,
+  label,
+  hint,
+  ...VOLUME_RANGE,
+  format: percent,
+})
+
+export const AUDIO_ROWS: AudioRow[] = [
+  volume('master', 'Master volume', 'Everything at once.'),
+  volume('music', 'Music', 'The menu theme, chase music, and the car radio.'),
+  volume('sfx', 'Effects', 'Footsteps, engines, gunfire, and crashes.'),
+  volume('ambience', 'Ambience', 'Traffic, surf, wind, and birds around you.'),
+  volume('ui', 'Interface', 'Menu clicks, the map, and alerts.'),
+  {
+    kind: 'toggle',
+    key: 'muted',
+    label: 'Mute',
+    hint: 'Silences the game. It also goes quiet while this tab is hidden.',
+  },
 ]

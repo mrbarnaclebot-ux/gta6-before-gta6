@@ -1,5 +1,7 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type { BootAudio } from './audio/boot'
+import { gameSound } from './audio/game-audio'
 import { FollowCamera } from './camera/follow-camera'
 import { Combat } from './combat/combat'
 import { newPistol } from './combat/weapon'
@@ -170,10 +172,11 @@ function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: numbe
   })
 }
 
-/** What the title screen hands over: its settings menu and the loading screen. */
+/** What the title screen hands over: its settings menu, the loading screen, and the mixer. */
 export interface Boot {
   pause: PauseMenu
   loading: Loading
+  audio: BootAudio
 }
 
 export async function startGame(
@@ -187,12 +190,15 @@ export async function startGame(
   const look = new Look(w, boot.pause.graphics)
   const ui = createUi(w, input, look, boot.pause)
   loading.finish('world')
+  const sound = gameSound(boot.audio, w, input, ui)
   let frames = 0
   runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
+    sound.update(dt)
     if (frames++ > 0) return
     // The first frame (and its shader compiles) is drawn: lift the loading screen.
     loading.ready()
+    boot.audio.enterGame()
     ui.tip('map', 'Press M for the map. Click on it to set a waypoint.')
     ui.tip('car', 'Walk up to a parked car and press F to get in.')
     // The car bodies are the heaviest download; fetch them once the city is on screen.
@@ -206,6 +212,7 @@ export async function startGame(
     graphics: () => look.graphics,
     paused: () => ui.pause.open,
     ui,
+    audio: sound.state,
     extra: () => ({
       fps: Math.round(ui.hud.fps),
       frames,

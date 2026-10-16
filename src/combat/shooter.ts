@@ -35,8 +35,17 @@ export class Shooter {
   /** The crosshair shows while the gun is raised: aiming, or just after a hip-fire shot. */
   raised = false
   shots = 0
-  /** The latest shot: from the shooter's feet to where it landed (or 60 m out on a miss). */
-  readonly lastShot = { from: new THREE.Vector3(), to: new THREE.Vector3() }
+  /** Clicks on an empty gun with nothing left to reload, for the dry-fire click. */
+  dryFires = 0
+  /**
+   * The latest shot: from the shooter's feet to where it landed (or 60 m out on a miss), and
+   * what it hit there (null on a miss).
+   */
+  readonly lastShot = {
+    from: new THREE.Vector3(),
+    to: new THREE.Vector3(),
+    surface: null as Surface | null,
+  }
   private sinceShot = Infinity
   /** A click is waiting for the body to turn and the gun to come up. */
   private queued = false
@@ -78,6 +87,8 @@ export class Shooter {
     // Clicks made while a shot waits for the gun are that same shot, not another one.
     if (this.queued) input.consume('fire')
     else if (!input.consume('fire')) return
+    const { mag, reserve } = this.pistol
+    if (mag === 0 && reserve === 0 && reloading === 0) return void this.dryFires++
     // Hold the shot until the gun points where the crosshair does.
     this.queued = !this.player.faces(FACING_TOLERANCE) || !avatar.pistol.raised
     if (this.queued || !fire(this.pistol)) return
@@ -105,12 +116,15 @@ export class Shooter {
     )
     this.lastShot.from.copy(this.player.position)
     this.lastShot.to.copy(eye).addScaledVector(dir, hit ? hit.timeOfImpact : 60)
+    this.lastShot.surface = null
     if (!hit) return
     const point = eye.clone().addScaledVector(dir, hit.timeOfImpact)
     const normal = new THREE.Vector3(hit.normal.x, hit.normal.y, hit.normal.z)
     const target = this.targets.get(hit.collider.handle)
     const distance = point.distanceTo(this.player.position)
-    this.effects.impact(point, normal, target ? target.hit(distance, point) : 'world')
+    const surface = target ? target.hit(distance, point) : 'world'
+    this.lastShot.surface = surface
+    this.effects.impact(point, normal, surface)
     if (target) this.sinceHit = 0
   }
 }

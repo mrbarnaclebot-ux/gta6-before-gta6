@@ -12,6 +12,9 @@ export type Action =
   | 'reload'
   | 'pause'
   | 'map'
+  | 'horn'
+  | 'radioNext'
+  | 'radioPrev'
 
 // KeyboardEvent.code, so WASD stays in place on AZERTY and other layouts.
 export const BINDINGS: Readonly<Record<string, Action>> = {
@@ -34,6 +37,9 @@ export const BINDINGS: Readonly<Record<string, Action>> = {
   KeyR: 'reload',
   Escape: 'pause',
   KeyM: 'map',
+  KeyH: 'horn',
+  KeyE: 'radioNext',
+  KeyQ: 'radioPrev',
 }
 
 /** MouseEvent.button: left fires, right aims. */
