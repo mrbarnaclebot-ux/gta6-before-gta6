@@ -124,6 +124,8 @@ export class PauseMenu {
       }
     })
     this.tabs.forEach((tab, i) => {
+      // Set here from aria-controls so index.html names each tab and panel pair once.
+      $(tab.getAttribute('aria-controls')!).setAttribute('aria-labelledby', tab.id)
       tab.addEventListener('click', () => select(tab))
       tab.addEventListener('keydown', (e) => {
         const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
