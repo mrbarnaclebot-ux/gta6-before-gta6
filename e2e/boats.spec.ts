@@ -29,9 +29,8 @@ async function stopACar(page: Page): Promise<number | null> {
   return null
 }
 
-test('pulls a driver out of a stopped traffic car and drives it away', async ({ page }) => {
-  test.setTimeout(300_000 * SLOW)
-  const errors = await play(page, '/?quality=low')
+/** Pulls a driver out of a stopped traffic car and drives it away, then gets out. */
+async function carjack(page: Page) {
   const id = await stopACar(page)
   expect(id, 'a traffic car stopped for the player').not.toBeNull()
   // Step up beside the driver's door (the car's +x side) and press F.
@@ -63,12 +62,13 @@ test('pulls a driver out of a stopped traffic car and drives it away', async ({ 
   await page.keyboard.up('w')
   const s = await game(page)
   expect(Math.hypot(s.position.x - start.x, s.position.z - start.z)).toBeGreaterThan(3)
-  expect(errors).toEqual([])
-})
+  await page.keyboard.press('f')
+  await settle(page, 3)
+  expect((await game(page)).mode).toBe('walking')
+}
 
-test('boards a speedboat at the marina, drives it out, and swims off it', async ({ page }) => {
-  test.setTimeout(300_000 * SLOW)
-  const errors = await play(page, '/?quality=low')
+/** Boards a speedboat at the marina, drives it out, and swims off it at sea. */
+async function boatRide(page: Page) {
   await page.evaluate(() => {
     const g = (window as unknown as { __game: Game }).__game
     const at = g.landmarks().marina
@@ -91,5 +91,13 @@ test('boards a speedboat at the marina, drives it out, and swims off it', async 
   await page.keyboard.press('f')
   await settle(page, 6)
   expect((await game(page)).mode).toBe('swimming')
+}
+
+// One page for both: each load costs a minute of SwiftShader beside the other specs.
+test('steals a traffic car, then takes a boat out from the marina', async ({ page }) => {
+  test.setTimeout(420_000 * SLOW)
+  const errors = await play(page, '/?quality=low')
+  await carjack(page)
+  await boatRide(page)
   expect(errors).toEqual([])
 })
