@@ -35,7 +35,8 @@ function onRoofs(land: Land): Billboard[] {
   for (const block of land.blocks) {
     if (block.district === 'downtown') continue
     for (const b of block.buildings) {
-      if (b.style === 'glass' || b.floors > 7 || b.seed % ROOF_SHARE !== 0) continue
+      // Deco roofs only: glass and residential roofs keep a stair core or plant room at the center.
+      if (b.style !== 'deco' || b.floors > 7 || b.seed % ROOF_SHARE !== 0) continue
       const { lot } = block
       const gaps = [lot.x1 - b.x - b.w / 2, b.x - b.w / 2 - lot.x0, lot.z1 - b.z - b.d / 2]
       gaps.push(b.z - b.d / 2 - lot.z0)

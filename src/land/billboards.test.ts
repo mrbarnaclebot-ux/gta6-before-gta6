@@ -12,6 +12,13 @@ describe('billboardsFor', () => {
     for (const b of boards) expect([8, 9]).toContain(b.layer)
   })
 
+  it('puts roof boards on deco roofs only, clear of the stair cores on the others', () => {
+    const all = land.blocks.flatMap((k) => k.buildings)
+    for (const b of boards.filter((q) => !q.pole)) {
+      expect(all.find((h) => h.x === b.x && h.z === b.z)?.style).toBe('deco')
+    }
+  })
+
   it('keeps poles off every road', () => {
     for (const b of boards.filter((q) => q.pole)) {
       for (const road of land.paths) {
