@@ -77,6 +77,8 @@ function snapshot(deps: HookDeps) {
     vehicle: driving.car?.kind ?? null,
     /** Forward speed of the driven car in m/s, 0 on foot. */
     speed: driving.car?.speed ?? 0,
+    /** The driven vehicle's yaw (0 faces +Z), 0 on foot. */
+    heading: driving.car ? attitudeYaw(driving.car.quaternion) : 0,
     ...attitude(driving.car?.quaternion),
     /** The carjacking under way: 'walk' to the door, 'pull' the driver out, or null. */
     carjack: life.carjack.phase,
@@ -251,7 +253,9 @@ function worldHelpers(deps: HookDeps) {
       }
     },
     ...vehicleHelpers(deps),
-    teleport: (x: number, y: number, z: number) => driving.teleport(new THREE.Vector3(x, y, z)),
+    /** `heading` (yaw 0 faces +Z) turns a driven car too. */
+    teleport: (x: number, y: number, z: number, heading?: number) =>
+      driving.teleport(new THREE.Vector3(x, y, z), heading),
     /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
     ground: (x: number, z: number) => surfaceAt(city.layout, x, z),
     /** Target dummies: chest point (feet + 1.2 m) and health. */
@@ -266,6 +270,14 @@ function worldHelpers(deps: HookDeps) {
     aimAt: (x: number, y: number, z: number) => follow.aimAt(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
+    /** Hold the camera at `eye` looking at `target` (the trailer script); `film(null)` hands it back. */
+    film: (shot: { eye: number[]; target: number[]; fov?: number } | null) => {
+      follow.shot = shot && {
+        eye: new THREE.Vector3().fromArray(shot.eye),
+        target: new THREE.Vector3().fromArray(shot.target),
+        fov: shot.fov ?? follow.baseFov,
+      }
+    },
     /** Points of a named road (`highway`, `forest trail`...), `side` meters right of its centerline. */
     lane: (name: string, side = 0) => {
       const road = city.layout.paths.find((p) => p.name === name)
