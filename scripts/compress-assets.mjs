@@ -226,7 +226,12 @@ if (!want.length || want.includes('textures')) {
   console.log('textures done')
 }
 if (!want.length || want.includes('atlases')) {
-  atlas('rooms', ROOMS.map((r) => `room_${r}`), '512:512', 'rooms')
+  atlas(
+    'rooms',
+    ROOMS.map((r) => `room_${r}`),
+    '512:512',
+    'rooms',
+  )
   atlas('signs', SIGNS, '1024:576', 'signs')
 }
 if (!want.length || want.includes('models')) await models()
