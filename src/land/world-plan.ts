@@ -1,5 +1,6 @@
 import type { Flora } from './flora'
 import type { Land } from './plan'
+import type { SeaData } from '../sea/sea-plan'
 
 // The city core is 1 km square; the land plan grows the world around it to about 2 x 2 km.
 export const WORLD_SEED = 7
@@ -8,18 +9,17 @@ export const WORLD_SIZE = 1000
 export interface WorldPlan {
   land: Land
   flora: Flora
+  sea: SeaData
+  /** Terrain splat inputs per grid vertex (splat.ts). */
+  splat: Float32Array
 }
 
 let pending: Promise<WorldPlan> | null = null
 
 /** Same plan on the main thread: for browsers where the worker fails. */
 async function planHere(): Promise<WorldPlan> {
-  const [{ generateLand }, { generateFlora }] = await Promise.all([
-    import('./plan'),
-    import('./flora'),
-  ])
-  const land = generateLand(WORLD_SEED, WORLD_SIZE)
-  return { land, flora: generateFlora(land) }
+  const { makePlan } = await import('./make-plan')
+  return makePlan(WORLD_SEED, WORLD_SIZE)
 }
 
 function planInWorker(): Promise<WorldPlan> {

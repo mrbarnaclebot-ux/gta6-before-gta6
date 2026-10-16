@@ -15,9 +15,8 @@ import { buildTerrain } from '../scenery/terrain'
 import { buildVillas } from '../scenery/villas'
 import { buildForest } from '../scenery/forest'
 import { plantGrass } from '../scenery/grass'
-import { canopyGrid } from '../land/canopy'
 import type { Flora } from '../land/flora'
-import { planWorld } from '../land/world-plan'
+import { planWorld, type WorldPlan } from '../land/world-plan'
 import type { WorldCtx } from './blocks'
 import { buildBuildings } from './buildings'
 import { buildCanal } from './canal'
@@ -91,11 +90,11 @@ function buildNightLights(ctx: WorldCtx, c: Land, windows: THREE.MeshStandardMat
 }
 
 /** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the sea plan. */
-async function buildScenery(ctx: WorldCtx, layout: Land, flora: Flora): Promise<SeaPlan> {
+async function buildScenery(ctx: WorldCtx, plan: WorldPlan): Promise<SeaPlan> {
+  const layout = plan.land
   // The sea field comes first: the terrain shader draws the swash and caustics from it.
-  const sea = planSea(layout)
-  const trees = [...flora.conifers, ...flora.broadleaf, ...flora.garden]
-  await buildTerrain(ctx, layout, canopyGrid(layout.ground, trees), sea.uniforms)
+  const sea = planSea(plan.sea)
+  await buildTerrain(ctx, layout, plan.splat, sea.uniforms)
   buildRoads(ctx, layout)
   buildHouses(ctx, layout)
   buildVillas(ctx, layout)
@@ -133,12 +132,13 @@ export async function buildCity(
   light: Ambient,
   gl: THREE.WebGLRenderer,
 ): Promise<City> {
-  const { land: layout, flora } = await planWorld()
+  const plan = await planWorld()
+  const { land: layout, flora } = plan
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   buildCanal(ctx, layout)
   const night = buildNightLights(ctx, layout, buildBuildings(ctx, layout))
-  const seaPlan = await buildScenery(ctx, layout, flora)
+  const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
   let reach = 1

@@ -1,9 +1,6 @@
 import * as THREE from 'three'
-import { forestAt } from '../land/districts'
 import { CELL, index, type HeightGrid } from '../land/grid'
-import { fbm, smoothstep } from '../land/noise'
 import { UNDER_CITY, type Land } from '../land/plan'
-import { coastX } from '../land/shape'
 
 /** Cells per tile side: 64 cells is 256 m. */
 const TILE = 64
@@ -18,30 +15,6 @@ const LEVELS = [
 const SKIRT = 6
 // Tiles with less height range than this cast no shadows.
 const RELIEF = 6
-
-/**
- * Splat inputs per grid vertex, worked out once for every level: sand near the coast,
- * dirt on trails and in the forest, shade under tree crowns, and large-scale variation.
- */
-function splatGrid(land: Land, canopy: Float32Array | null): Float32Array {
-  const g = land.ground
-  const out = new Float32Array(g.h.length * 4)
-  for (let i = 0; i <= g.nx; i++) {
-    for (let j = 0; j <= g.nz; j++) {
-      const x = g.x0 + i * CELL
-      const z = g.z0 + j * CELL
-      const k = index(g, i, j)
-      const vary = 0.5 + 0.5 * fbm(x / 110, z / 110, 41, 3)
-      const dirt = Math.max(land.dirt[k] / 255, forestAt(x, z) * (0.15 + 0.3 * vary))
-      const shade = canopy ? canopy[k] : 0
-      out.set(
-        [smoothstep(-14, -2, x - coastX(land.frame, z)), Math.min(1, dirt), shade, vary],
-        k * 4,
-      )
-    }
-  }
-  return out
-}
 
 /** Normal from the full-detail grid, so every level of a tile shades the same. */
 function normalAt(g: HeightGrid, i: number, j: number, out: THREE.Vector3): THREE.Vector3 {
@@ -175,10 +148,9 @@ export function buildTerrainMesh(
   scene: THREE.Scene,
   land: Land,
   material: THREE.Material,
-  canopy: Float32Array | null = null,
+  splat: Float32Array,
 ): void {
   const g = land.ground
-  const splat = splatGrid(land, canopy)
   for (let i0 = 0; i0 < g.nx; i0 += TILE) {
     for (let j0 = 0; j0 < g.nz; j0 += TILE) {
       const r = { i0, j0, i1: Math.min(g.nx, i0 + TILE), j1: Math.min(g.nz, j0 + TILE) }
