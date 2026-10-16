@@ -99,6 +99,20 @@ export const PRESET_NAMES = Object.keys(PRESETS) as Preset[]
 // Medium (with dynamic resolution) can. See .planning/phases/08-SUMMARY.md.
 export const DEFAULT_PRESET: Preset = 'medium'
 
+/**
+ * Phones and tablets start on Low with dynamic resolution (it shows as Custom): a phone GPU
+ * and iOS Safari's memory limit are well below a laptop's. The renderer never draws above
+ * one pixel per CSS pixel, which is the pixel-ratio cap (a 3x phone would cost 9x).
+ */
+export const TOUCH_DEFAULT: Graphics = { ...PRESETS.low, dynamicRes: true }
+
+const coarse = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+
+/** The settings a first visit starts with on this device. */
+export const firstGraphics = (): Graphics => ({
+  ...(coarse() ? TOUCH_DEFAULT : PRESETS[DEFAULT_PRESET]),
+})
+
 /** The preset these settings match exactly, or 'custom'. */
 export function presetOf(g: Graphics): Preset | 'custom' {
   const same = (p: Graphics) => (Object.keys(p) as (keyof Graphics)[]).every((k) => p[k] === g[k])
@@ -136,9 +150,9 @@ export function loadGraphics(search = location.search): Graphics {
   if (q && Object.hasOwn(PRESETS, q)) return { ...PRESETS[q as Preset] }
   try {
     const raw = localStorage.getItem(KEY)
-    return sanitize(raw ? JSON.parse(raw) : null, PRESETS[DEFAULT_PRESET])
+    return sanitize(raw ? JSON.parse(raw) : null, firstGraphics())
   } catch {
-    return { ...PRESETS[DEFAULT_PRESET] }
+    return firstGraphics()
   }
 }
 
