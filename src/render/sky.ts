@@ -26,6 +26,7 @@ const NIGHT_GRADE = [0.55, 0.5, 1.15]
 // Hours between which the night sky must be on hand: it loads a while before dusk.
 const NIGHT_FROM = 15
 const NIGHT_UNTIL = 8
+const NIGHT_RETRY_MS = 30_000
 const DAY_ENV = 0.9
 const NIGHT_ENV = 0.6
 
@@ -105,19 +106,26 @@ export class Sky {
     if (this.nightAsked || !this.gl) return
     this.nightAsked = true
     const gl = this.gl
-    void new HDRLoader().loadAsync(NIGHT_URL).then((sky) => {
-      const night = withGround(sky)
-      // Same size as the day sky, so both prefiltered maps share one shader variant and
-      // the switch at dusk does not recompile every material.
-      grade(night, NIGHT_GRADE)
-      upscale(night, this.dayWidth / (night.image as { width: number }).width)
-      paintLowerHalf(night, [0.02, 0.018, 0.03])
-      const pmrem = new THREE.PMREMGenerator(gl)
-      this.env.night = pmrem.fromEquirectangular(night).texture
-      pmrem.dispose()
-      this.dome.uniforms.nightMap.value = night
-      this.setTime(this.hours)
-    })
+    void new HDRLoader()
+      .loadAsync(NIGHT_URL)
+      .then((sky) => {
+        const night = withGround(sky)
+        // Same size as the day sky, so both prefiltered maps share one shader variant and
+        // the switch at dusk does not recompile every material.
+        grade(night, NIGHT_GRADE)
+        upscale(night, this.dayWidth / (night.image as { width: number }).width)
+        paintLowerHalf(night, [0.02, 0.018, 0.03])
+        const pmrem = new THREE.PMREMGenerator(gl)
+        this.env.night = pmrem.fromEquirectangular(night).texture
+        pmrem.dispose()
+        this.dome.uniforms.nightMap.value = night
+        this.setTime(this.hours)
+      })
+      .catch((e: unknown) => {
+        // The dimmed day sky keeps standing in. setTime runs every frame, so wait before retrying.
+        console.warn('night sky failed to load', e)
+        setTimeout(() => (this.nightAsked = false), NIGHT_RETRY_MS)
+      })
   }
 
   /** Move the sun, moon, sky, haze, and image-based light to `hours` (0 to 24). */
