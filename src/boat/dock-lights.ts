@@ -31,6 +31,16 @@ export function buildDockLights(ctx: WorldCtx, plan: MarinaPlan) {
     new THREE.SphereGeometry(0.13, 12, 8).translate(l.x, top + POST + 0.1, l.z),
   )
   addMerged(ctx, globes, glass, { cast: false, receive: false })
+  const { pool, pools } = buildPools(ctx, plan)
+  return (night: number) => {
+    glass.emissiveIntensity = 0.2 + 5 * night
+    pool.opacity = 0.3 * night
+    pools.visible = night > 0.01
+  }
+}
+
+/** The warm light on the planks under each lamp, as additive quads (no real lights). */
+function buildPools(ctx: WorldCtx, plan: MarinaPlan) {
   const pool = new THREE.MeshBasicMaterial({
     map: poolTexture(),
     color: WARM,
@@ -43,12 +53,7 @@ export function buildDockLights(ctx: WorldCtx, plan: MarinaPlan) {
   const quads = plan.lamps.map(({ pool: r }) =>
     new THREE.PlaneGeometry(r.x1 - r.x0, r.z1 - r.z0)
       .rotateX(-Math.PI / 2)
-      .translate((r.x0 + r.x1) / 2, top + 0.02, (r.z0 + r.z1) / 2),
+      .translate((r.x0 + r.x1) / 2, plan.deckY + 0.02, (r.z0 + r.z1) / 2),
   )
-  const pools = addMerged(ctx, quads, pool, { cast: false, receive: false })!
-  return (night: number) => {
-    glass.emissiveIntensity = 0.2 + 5 * night
-    pool.opacity = 0.3 * night
-    pools.visible = night > 0.01
-  }
+  return { pool, pools: addMerged(ctx, quads, pool, { cast: false, receive: false })! }
 }

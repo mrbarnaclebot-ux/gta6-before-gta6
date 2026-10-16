@@ -89,7 +89,11 @@ export class Crowd {
     ).length
   }
 
-  /** Someone to play a car's driver: a person off screen if any, else the farthest away. */
+  /**
+   * Someone to play a car's driver: a person off screen if any, else the farthest away.
+   * ponytail: in a crowd with nobody off screen, the farthest visible person pops to the door;
+   * a pooled extra driver figure would remove the pop.
+   */
   borrow(from: THREE.Vector3): Pedestrian {
     const far = (p: Pedestrian) => (p.root.visible ? p.position.distanceTo(from) : Infinity)
     return this.people.reduce((a, b) => (far(b) > far(a) ? b : a))
