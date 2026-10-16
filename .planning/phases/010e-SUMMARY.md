@@ -107,7 +107,7 @@ Status: built and verified on branch `phase-10e-audio` (from `phase-10d-boats`).
 ## Screenshots (`.planning/phases/010e-screens/`)
 
 - `audio-settings.jpg`: the new Audio tab on the title screen.
-- `audio-radio.jpg`: tuning to Bayside Beats while driving, the station toast mid-fade.
+- `audio-radio.jpg`: tuning to Bayside Beats in a car, with the station and song toast on its glass panel.
 - `audio-radio2.jpg`: the "Radio Off" toast on its glass panel.
 - `audio-credits.jpg`: the Credits sheet with the Epidemic Sound entry and track list (caught mid-fade-in).
 
