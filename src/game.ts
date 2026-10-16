@@ -155,20 +155,27 @@ export function chase(car: { quaternion: THREE.Quaternion; speed: number; kind?:
   return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed, boat: car.kind === 'boat' }
 }
 
+/** Main-thread time spent on frames so far (simulate, draw submission, HUD), for the perf probe. */
+const CPU_WORK = { ms: 0, frames: 0 }
+
 /** Long frames are clamped, not caught up. While paused the world holds still but still draws. */
 function runLoop(w: World, input: Input, ui: Ui, look: Look, onFrame: (dt: number) => void) {
   let acc = 0
+  const work = CPU_WORK
   let last = performance.now()
   w.renderer.gl.setAnimationLoop((now) => {
     // The first animation frame can be stamped before `last` when a long task (shader
     // compiles) delays it, so a negative step is clamped too, or the world would stall.
     const dt = Math.min(Math.max((now - last) / 1000, 0), MAX_FRAME)
     last = now
+    const t0 = performance.now()
     if (!menuKeys(ui, w, input)) acc = simulate(w, input, dt, acc)
     w.carModels.newFrame()
     look.update(dt)
     w.renderer.render(dt)
     onFrame(dt)
+    work.ms += performance.now() - t0
+    work.frames++
   })
 }
 
@@ -219,6 +226,9 @@ export async function startGame(
       quality: presetOf(look.graphics),
       drawCalls: w.renderer.gl.info.render.calls,
       triangles: w.renderer.gl.info.render.triangles,
+      geometries: w.renderer.gl.info.memory.geometries,
+      textures: w.renderer.gl.info.memory.textures,
+      cpu: { ...CPU_WORK },
     }),
   })
 }

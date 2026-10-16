@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { FollowCamera } from './camera/follow-camera'
 import { surfaceAt } from './city/terrain'
+import { offset } from './land/polyline'
 import type { Combat } from './combat/combat'
 import type { Input } from './input/input'
 import { RESPAWN_AFTER, type Life } from './life/life'
@@ -39,10 +40,13 @@ interface HookDeps {
     quality: Preset | 'custom'
     drawCalls: number
     triangles: number
+    geometries: number
+    textures: number
+    cpu: { ms: number; frames: number }
   }
 }
 
-const xyz = (p: THREE.Vector3) => ({ x: p.x, y: p.y, z: p.z })
+const xyz = (p: { x: number; y: number; z: number }) => ({ x: p.x, y: p.y, z: p.z })
 const EULER = new THREE.Euler()
 
 /** The driven vehicle's bow-up pitch and left-down roll, in degrees. */
@@ -252,6 +256,11 @@ function worldHelpers(deps: HookDeps) {
     aimAt: (x: number, y: number, z: number) => follow.aimAt(new THREE.Vector3(x, y, z)),
     setCameraYaw: (yaw: number) => (follow.yaw = yaw),
     setCameraPitch: (pitch: number) => (follow.pitch = pitch),
+    /** Points of a named road (`highway`, `forest trail`...), `side` meters right of its centerline. */
+    lane: (name: string, side = 0) => {
+      const road = city.layout.paths.find((p) => p.name === name)
+      return road ? offset(road.pts, side).map(xyz) : null
+    },
     /** The waypoint and the GPS route to it (road points ending at the waypoint), or null. */
     waypoint: () => {
       const { target, path } = deps.ui.nav
