@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { assetManifest } from './scripts/build-assets'
+import { assetManifest } from './scripts/build-assets.ts'
 
 export default defineConfig({
   // ponytail: Rapier compat inlines its WASM as base64 (about 4 MB); it is lazy-loaded
