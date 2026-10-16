@@ -9,5 +9,6 @@ The living city: people on the sidewalks, traffic in the lanes, the wanted level
 - `places.ts` pure sidewalk walking loops and hospital respawn spots
 - `pedestrian.ts`, `crowd.ts` one person (the generated man or woman, walk, flee, die) and the recycled pool of them
 - `outfit.ts` dyes a person's clothes another hue, leaving skin alone, so one texture dresses many
-- `traffic-car.ts`, `traffic.ts` one kinematic AI car and the recycled pool that stops for obstacles
+- `traffic-car.ts`, `traffic.ts` one kinematic AI car and the recycled pool that stops for obstacles (and for a player walking up to a slow car)
+- `carjack.ts` F beside a stopped traffic car: walk to the door, haul the driver out (they flee), take the car; `carjack-rules.ts` pure eligibility and what crime it is
 - `*.test.ts` checks for the pure rules
