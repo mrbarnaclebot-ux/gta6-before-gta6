@@ -35,7 +35,8 @@ const SHOTS = [
   ['door-close', sfx('car.door.close')],
   ['crash-1', sfx('car.crash.1')],
   ['crash-2', sfx('car.crash.2')],
-  // The game loops its steady middle while H is held; no trim, so those offsets stay put.
+  // The game loops 0.05 to 0.17 s of the trimmed file while H is held (HORN_LOOP in
+  // src/audio/vehicle-audio.ts); TRIM starts it at the attack. Re-measure that if this changes.
   ['horn', sfx('car.horn'), 'atrim=0.05:0.7'],
   ['shot-1', sfx('pistol.shot.1')],
   ['shot-2', sfx('pistol.shot.2')],

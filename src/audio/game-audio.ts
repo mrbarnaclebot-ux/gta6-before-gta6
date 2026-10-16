@@ -63,6 +63,12 @@ export class GameAudio {
     const { pause, worldMap } = this.ui
     this.mixer.underwater(this.w.city.underwater)
     this.mixer.dimWorld(pause.open || worldMap.open ? 0.3 : 1)
+    this.vehicle.paused = pause.open
+    // Q and E pressed in the menu are dropped, not kept for when it closes.
+    if (pause.open) {
+      this.input.consume('radioNext')
+      this.input.consume('radioPrev')
+    }
     for (const part of this.parts) part.update(dt)
     this.cues()
     this.duckFor = Math.max(0, this.duckFor - dt)

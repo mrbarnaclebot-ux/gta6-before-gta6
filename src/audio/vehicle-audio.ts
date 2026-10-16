@@ -8,7 +8,7 @@ import { Loop } from './loop'
 import type { Mixer } from './mixer'
 
 const LAYERS: Sound[] = ['engine-idle', 'engine-2k', 'engine-4k', 'engine-5k']
-// The horn file's steady middle, looped while H is held (see scripts/audio.mjs).
+// The horn file's steady middle (its sustain runs about 0.01 to 0.20 s), looped while H is held.
 const HORN_LOOP = [0.05, 0.17]
 const ENGINE_LEVEL = 0.5
 
@@ -30,6 +30,8 @@ export class VehicleAudio {
   private horn: AudioBufferSourceNode | null = null
   /** Seconds since a carjacking pulled a door open; the hop in then only shuts it. */
   sinceJack = Infinity
+  /** The pause menu is open: H does not honk. */
+  paused = false
 
   constructor(
     private readonly mixer: Mixer,
@@ -56,7 +58,7 @@ export class VehicleAudio {
     this.motor.set(boat ? boat.motor * 0.55 : 0, boat?.rate ?? 1, dt, 0.15)
     this.wake.set(car?.kind === 'boat' ? boatMix(car.speed, 0).wake * 0.5 : 0, 1, dt, 0.3)
     this.slide(dt, car?.kind === 'car' ? car : null, held.has('jump'))
-    this.honk(car?.kind === 'car' && !car.dead && held.has('horn'))
+    this.honk(car?.kind === 'car' && !car.dead && held.has('horn') && !this.paused)
   }
 
   private swap(from: Vehicle | null, to: Vehicle | null): void {
@@ -97,7 +99,9 @@ export class VehicleAudio {
     if (handbrake && Math.abs(car.speed) > 4)
       slip = Math.max(slip, Math.min(1, Math.abs(car.speed) / 14))
     this.skid.set(slip * 0.6, 0.92 + 0.16 * slip, dt, 0.06)
-    const hit = this.fresh ? 0 : impact(this.vel.distanceTo(this.prevVel), dt)
+    // Horizontal only: dropping off a curb or a ramp changes the vertical speed, not a crash.
+    const jolt = Math.hypot(this.vel.x - this.prevVel.x, this.vel.z - this.prevVel.z)
+    const hit = this.fresh ? 0 : impact(jolt, dt)
     this.prevVel.copy(this.vel)
     this.fresh = false
     if (hit > 0 && this.crashCool <= 0) {
