@@ -3,7 +3,11 @@ import { N8AOPostPass } from 'n8ao'
 
 export type AoTier = 'medium' | 'high' | 'ultra'
 
-/** Ambient occlusion tuned for the city's scale: half resolution below Ultra. */
+/**
+ * Ambient occlusion tuned for the city's scale, always at half resolution (depth-aware
+ * upsampling keeps edges clean). Full resolution on Ultra cost about 18 ms a frame on the
+ * M4 hillside for a difference hard to see; Ultra keeps the most samples instead.
+ */
 export function aoPass(
   scene: THREE.Scene,
   camera: THREE.Camera,
@@ -15,7 +19,7 @@ export function aoPass(
   ao.configuration.aoRadius = 1.6
   ao.configuration.distanceFalloff = 0.6
   ao.configuration.intensity = 2.2
-  ao.configuration.halfRes = tier !== 'ultra'
+  ao.configuration.halfRes = true
   ao.setQualityMode(tier === 'medium' ? 'Low' : tier === 'high' ? 'Medium' : 'High')
   // The transparent sea would switch on N8AO's transparency mode: two more scene renders a
   // frame, each re-drawing the water's reflection. AO on the water itself is invisible.
