@@ -34,6 +34,8 @@ type Made = { visual: CarVisual; kind: CarKind; variant: number; body: THREE.Obj
 export class CarModels {
   private readonly made: Made[] = []
   private readonly wheels = new Map<CarKind, WheelBatch>()
+  /** Bodies loaded so far: cars made after that (traffic replacing a stolen car) get them at once. */
+  private readonly loaded = new Map<CarKind, THREE.Mesh>()
 
   private stale = true
 
@@ -68,7 +70,10 @@ export class CarModels {
       police: kind === 'police',
       kind,
     }
-    this.made.push({ visual, kind, variant, body })
+    const made = { visual, kind, variant, body }
+    this.made.push(made)
+    const source = this.loaded.get(kind)
+    if (source) this.dress(made, source)
     return visual
   }
 
@@ -86,20 +91,22 @@ export class CarModels {
   }
 
   private swap(kind: CarKind, source: THREE.Mesh): void {
-    const spec = CAR_SPECS[kind]
+    this.loaded.set(kind, source)
+    for (const m of this.made) if (m.kind === kind) this.dress(m, source)
+  }
+
+  private dress(m: Made, source: THREE.Mesh): void {
+    const spec = CAR_SPECS[m.kind]
     const base = source.material as THREE.MeshStandardMaterial
-    for (const m of this.made) {
-      if (m.kind !== kind) continue
-      const paint = spec.paints[m.variant % spec.paints.length]
-      const body = new THREE.Mesh(source.geometry, carBodyMaterial(base, paint, m.visual.lamps))
-      body.scale.copy(bodyScale(spec))
-      body.position.y = spec.clearance + (spec.size[1] / 2) * spec.length
-      body.castShadow = body.receiveShadow = true
-      m.visual.root.remove(m.body)
-      m.visual.root.add(body)
-      m.body = body
-      delete m.visual.root.userData.castShadow
-    }
+    const paint = spec.paints[m.variant % spec.paints.length]
+    const body = new THREE.Mesh(source.geometry, carBodyMaterial(base, paint, m.visual.lamps))
+    body.scale.copy(bodyScale(spec))
+    body.position.y = spec.clearance + (spec.size[1] / 2) * spec.length
+    body.castShadow = body.receiveShadow = true
+    m.visual.root.remove(m.body)
+    m.visual.root.add(body)
+    m.body = body
+    delete m.visual.root.userData.castShadow
   }
 
   private addWheels(root: THREE.Object3D, kind: CarKind): THREE.Object3D[] {

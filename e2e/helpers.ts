@@ -5,6 +5,8 @@ export type GameState = {
   position: Point
   frames: number
   mode: string
+  vehicle: 'car' | 'boat' | null
+  carjack: 'walk' | 'pull' | null
   fps: number
   drawCalls: number
   breath: number
@@ -31,7 +33,8 @@ export type Game = {
   dummies: () => (Point & { health: number })[]
   aimAt: (x: number, y: number, z: number) => void
   peds: () => (Point & { health: number; state: string })[]
-  traffic: () => (Point & { id: number; speed: number })[]
+  traffic: () => (Point & { id: number; speed: number; heading: number })[]
+  boats: () => (Point & { heading: number })[]
   hospitals: () => (Point & { name: string })[]
   hurt: (amount: number) => void
   skipDeath: () => void

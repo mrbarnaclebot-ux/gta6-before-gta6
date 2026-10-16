@@ -21,7 +21,8 @@ async function expectGrounded(page: Page, where: string) {
 test('stands in the residential streets, on the hill, in the forest, and on the flyover, with nothing afloat', async ({
   page,
 }) => {
-  test.setTimeout(300_000 * SLOW)
+  // Four far-flung visits, each compiling shaders anew under SwiftShader beside the other specs.
+  test.setTimeout(480_000 * SLOW)
   const errors = await play(page, '/?quality=low')
   for (const [name, yaw] of [
     ['residential', 2.4],

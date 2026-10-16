@@ -30,6 +30,8 @@ export class TrafficCar {
   speed = 0
   heading = 0
   braking = false
+  /** Stopped by a carjacking in progress: the driver waits, door about to open. */
+  held = false
   /** Set by the traffic manager: called on the first bullet since this car was placed. */
   onShot: () => void = () => {}
   private path: Waypoint[] = []

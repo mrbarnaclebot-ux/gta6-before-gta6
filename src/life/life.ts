@@ -6,6 +6,7 @@ import type { Figure } from '../player/figure'
 import type { Player } from '../player/player'
 import type { CarFactory } from '../vehicle/car-model'
 import type { Driving } from '../vehicle/driving'
+import { Carjack } from './carjack'
 import { Crowd } from './crowd'
 import { hospitals, nearest, type Hospital } from './places'
 import { Traffic, type Obstacle } from './traffic'
@@ -39,6 +40,7 @@ export class Life {
   readonly wanted = newWanted()
   readonly crowd: Crowd
   readonly traffic: Traffic
+  readonly carjack: Carjack
   readonly hospitals: Hospital[]
   /** Seconds since the player died; null while alive. */
   deadFor: number | null = null
@@ -61,6 +63,7 @@ export class Life {
     this.traffic = new Traffic(d.scene, d.physics, d.layout, d.makeCar, () =>
       this.struckBy('vandalism'),
     )
+    this.carjack = new Carjack(this.traffic, this.crowd, d.driving, d.player, (c) => this.crime(c))
     this.hospitals = hospitals(d.layout)
   }
 
@@ -73,7 +76,8 @@ export class Life {
     const focus = this.driving.position
     this.crowd.update(dt, focus, !this.filled)
     const siren = stars(this.wanted) > 0
-    this.traffic.update(dt, focus, view, this.obstacles(), { night, siren })
+    const walker = this.driving.mode === 'walking' ? this.player.position : null
+    this.traffic.update(dt, focus, view, this.obstacles(), { night, siren, walker })
     this.filled = true
     if (shot.count !== this.shots) {
       this.shots = shot.count

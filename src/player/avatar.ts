@@ -16,6 +16,8 @@ const CLIPS: Record<AnimState, string> = {
   tread: 'Swim_Idle_Loop',
   drive: 'Driving_Loop',
   dead: 'Death01',
+  // Reaching for the door handle and hauling: the closest clip to pulling a driver out.
+  pull: 'Interact',
 }
 
 // ponytail: estimated in-place stride speeds; measure foot travel if sliding shows.

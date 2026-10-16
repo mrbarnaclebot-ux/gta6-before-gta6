@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { cameraRelative } from '../camera/orbit-math'
 import { moveAxes } from '../input/bindings'
 import type { Input } from '../input/input'
-import { RAPIER, type PhysicsWorld } from '../physics'
+import { RAPIER, SOLID, type PhysicsWorld } from '../physics'
 import type { Avatar } from './avatar'
 import { findLedge } from './ledge'
 import {
@@ -54,6 +54,8 @@ export class Player {
   mode: Mode = 'walking'
   /** While set, the body turns to face this heading and walks instead of running (aiming). */
   facing: number | null = null
+  /** While set, this clip plays instead of the one movement picks (a scripted moment). */
+  acting: AnimState | null = null
   private readonly body: InstanceType<typeof RAPIER.RigidBody>
   private readonly controller: InstanceType<typeof RAPIER.KinematicCharacterController>
   private readonly prev = new THREE.Vector3()
@@ -129,6 +131,22 @@ export class Player {
     if (target !== null) this.heading = turnToward(this.heading, target, dt)
   }
 
+  /**
+   * Walk toward `target` on the ground without input (a scripted moment) and turn to face
+   * `face` once there, or the way it walks. Returns the distance left on the ground.
+   */
+  approach(dt: number, target: THREE.Vector3, face: number): number {
+    const dx = target.x - this.curr.x
+    const dz = target.z - this.curr.z
+    const d = Math.hypot(dx, dz)
+    const speed = d > 0.15 ? Math.min(WALK_SPEED * 1.3, d / dt) / d : 0
+    steer(this.motion, dx * speed, dz * speed, dt)
+    fall(this.motion, this.grounded, false, dt)
+    this.move(dt)
+    this.heading = turnToward(this.heading, d > 0.4 ? Math.atan2(dx, dz) : face, dt)
+    return d
+  }
+
   private walk(dt: number, input: Input, wish: { x: number; z: number }, depth: number): false {
     const run = input.held.has('run') && this.facing === null
     const speed = (run ? RUN_SPEED : WALK_SPEED) * wadeFactor(depth)
@@ -157,7 +175,7 @@ export class Player {
   private move(dt: number): void {
     const m = this.motion
     const want = { x: m.vx * dt, y: m.vy * dt, z: m.vz * dt }
-    this.controller.computeColliderMovement(this.collider, want)
+    this.controller.computeColliderMovement(this.collider, want, SOLID)
     const moved = this.controller.computedMovement()
     // Bumped a ceiling: stop rising instead of sticking to it.
     if (m.vy > 0 && moved.y < want.y * 0.5) m.vy = 0
@@ -205,6 +223,7 @@ export class Player {
   /** Below the surface, tread upright only while rising; otherwise swim pitched nose-down. */
   private pose(speed: number): { state: AnimState; pitch: number } {
     if (this.dead) return { state: 'dead', pitch: 0 }
+    if (this.acting) return { state: this.acting, pitch: 0 }
     if (this.mode !== 'swimming') return { state: animState(this.motion), pitch: 0 }
     const deep = this.feetDepth > FLOAT_DEPTH + 0.5
     const diving = this.diveHeld || (deep && this.motion.vy < 0.3)

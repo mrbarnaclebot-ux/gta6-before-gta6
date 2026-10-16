@@ -20,6 +20,8 @@ import { exposeTestHook } from './test-hook'
 import { createUi, menuKeys, updateHud, type Ui } from './ui/hud-sync'
 import type { Loading } from './ui/loading'
 import type { PauseMenu } from './ui/pause'
+import { buildHarbor } from './boat/harbor'
+import type { Boat } from './boat/boat'
 import { CarModels } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
@@ -63,22 +65,23 @@ async function loadWorld(canvas: HTMLCanvasElement, loading: Loading) {
   return { scene, camera, renderer, sky, shadows, physics, figures, city, carModels, load }
 }
 
-/** The player on foot, the parked cars, and who is driving what. */
+/** The player on foot, the parked cars, the boats, and who is driving what. */
 function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
   const { scene, physics, figures, city } = world
   const avatar = new Avatar(figures.male)
   underwaterLightAll(avatar.root)
   scene.add(avatar.root)
   const player = new Player(physics, avatar, city.spawn, city.water)
-  const cars = parkCars({ scene, physics }, city, world.carModels.make)
-  return { player, cars, driving: new Driving(physics, cars, player, scene) }
+  const harbor = buildHarbor({ scene, physics }, city.layout, city.water)
+  const cars = [...parkCars({ scene, physics }, city, world.carModels.make), ...harbor.boats]
+  return { player, cars, harbor, driving: new Driving(physics, cars, player, scene, city.water) }
 }
 
 async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
   const world = await loadWorld(canvas, loading)
   const { scene, camera, renderer, sky, shadows, physics, figures, city, carModels } = world
   const makeCar = carModels.make
-  const { player, cars, driving } = spawnPlayer(world)
+  const { player, cars, harbor, driving } = spawnPlayer(world)
   const follow = new FollowCamera(camera, physics, player.collider)
   const { layout, spawn } = city
   const people = [figures.male, figures.female]
@@ -90,6 +93,7 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     targets: life.crowd.people,
   })
   life.onRevive = () => Object.assign(combat.shooter.pistol, newPistol())
+  life.carjack.onSteal = (gone, fresh) => combat.swap(gone, fresh)
   const clock = { hours: startHour() }
   return {
     scene,
@@ -106,7 +110,8 @@ async function buildScene(canvas: HTMLCanvasElement, loading: Loading) {
     life,
     clock,
     carModels,
-    upgradeCars: () => carModels.upgrade(world.load),
+    harbor,
+    upgradeCars: () => Promise.all([carModels.upgrade(world.load), harbor.upgrade(world.load)]),
   }
 }
 
@@ -126,6 +131,9 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
   const car = w.driving.car
   w.follow.ignore = car?.collider ?? w.player.collider
   w.follow.update(dt, input.consumeLook(), w.driving.position, car ? chase(car) : undefined)
+  const boat = car?.kind === 'boat' ? (car as Boat) : null
+  w.harbor.wake.update(dt, boat, w.sky.ambient, w.renderer.gl.domElement.height)
+  w.harbor.setNight(ambient.night)
   const armed = w.driving.mode === 'walking' && !w.life.dead
   w.combat.update(dt, input, armed, w.renderer.gl.domElement.height)
   const { shots, lastShot } = w.combat.shooter
@@ -140,9 +148,9 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
 }
 
 const FORWARD = new THREE.Vector3()
-export function chase(car: { quaternion: THREE.Quaternion; speed: number }) {
+export function chase(car: { quaternion: THREE.Quaternion; speed: number; kind?: string }) {
   FORWARD.set(0, 0, 1).applyQuaternion(car.quaternion)
-  return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed }
+  return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed, boat: car.kind === 'boat' }
 }
 
 /** Long frames are clamped, not caught up. While paused the world holds still but still draws. */
@@ -192,6 +200,7 @@ export async function startGame(
   })
   exposeTestHook({
     ...w,
+    dock: w.harbor.dock,
     input,
     setGraphics: ui.setGraphics,
     graphics: () => look.graphics,

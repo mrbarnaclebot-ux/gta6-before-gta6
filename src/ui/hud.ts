@@ -1,7 +1,10 @@
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-// Where the speedometer ring is full, in km/h.
-const DIAL_MAX = 220
+// Where the speedometer ring is full: 220 km/h in a car, 50 knots in a boat.
+const DIAL_MAX = { 'km/h': 220, kn: 50 }
+/** m/s to the speedometer's unit. */
+const PER_MS = { 'km/h': 3.6, kn: 1.944 }
+export type SpeedUnit = keyof typeof DIAL_MAX
 // How long a help toast stays, in ms; matches the toast-life animation in hud-panels.css.
 const TOAST_MS = 6000
 
@@ -21,6 +24,7 @@ export class Hud {
   private readonly speedoEl = $('speedo')
   private readonly speedEl = $('speed')
   private readonly arcEl = $('speed-arc')
+  private readonly unitEl = $('speed-unit')
   private readonly toastsEl = $('toasts')
   private readonly stallEl = $('stall')
   private readonly promptEl = $('prompt')
@@ -77,16 +81,21 @@ export class Hud {
     this.underwaterEl.hidden = !on
   }
 
-  /** Speedometer in km/h while driving; null hides it. `warning` replaces the engine notice. */
-  setSpeed(kmh: number | null, warning: string | null): void {
-    this.speedoEl.hidden = kmh === null
+  /**
+   * Speedometer while driving, from m/s: km/h in a car, knots in a boat; null hides it.
+   * `warning` replaces the engine notice.
+   */
+  setSpeed(ms: number | null, warning: string | null, unit: SpeedUnit = 'km/h'): void {
+    this.speedoEl.hidden = ms === null
     this.stallEl.hidden = warning === null
     if (warning && this.stallEl.textContent !== warning) this.stallEl.textContent = warning
-    const text = String(Math.round(kmh ?? 0))
+    if (this.unitEl.textContent !== unit) this.unitEl.textContent = unit
+    const value = (ms ?? 0) * PER_MS[unit]
+    const text = String(Math.round(value))
     if (this.speedEl.textContent === text) return
     this.speedEl.textContent = text
     // The ring is three quarters of a circle (75 of its 100 path units), open at the bottom.
-    this.arcEl.style.strokeDasharray = `${Math.min(1, (kmh ?? 0) / DIAL_MAX) * 75} 100`
+    this.arcEl.style.strokeDasharray = `${Math.min(1, value / DIAL_MAX[unit]) * 75} 100`
   }
 
   /** Pistol readout while on foot; null hides it and the crosshair. */

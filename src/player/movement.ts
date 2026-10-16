@@ -16,7 +16,7 @@ export function fallDamage(vy: number): number {
 }
 
 export type AnimState =
-  'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'swim' | 'tread' | 'drive' | 'dead'
+  'idle' | 'walk' | 'run' | 'jump' | 'fall' | 'swim' | 'tread' | 'drive' | 'dead' | 'pull'
 
 export interface Motion {
   vx: number

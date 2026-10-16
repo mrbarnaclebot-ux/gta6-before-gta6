@@ -82,9 +82,21 @@ export class Crowd {
     }
   }
 
-  /** People alive within `radius` of a point: witnesses. */
+  /** People alive and out on the street within `radius` of a point: witnesses. */
   near(at: THREE.Vector3, radius: number): number {
-    return this.people.filter((p) => p.alive && p.position.distanceTo(at) < radius).length
+    return this.people.filter(
+      (p) => p.alive && p.root.visible && p.position.distanceTo(at) < radius,
+    ).length
+  }
+
+  /**
+   * Someone to play a car's driver: a person off screen if any, else the farthest away.
+   * ponytail: in a crowd with nobody off screen, the farthest visible person pops to the door;
+   * a pooled extra driver figure would remove the pop.
+   */
+  borrow(from: THREE.Vector3): Pedestrian {
+    const far = (p: Pedestrian) => (p.root.visible ? p.position.distanceTo(from) : Infinity)
+    return this.people.reduce((a, b) => (far(b) > far(a) ? b : a))
   }
 
   /** Knock down anyone in front of or under a fast car. Returns how many were hit. */

@@ -15,6 +15,8 @@ type Collider = InstanceType<typeof RAPIER.Collider>
 const RIGS = {
   foot: { height: 1.55, distance: 4.6, shoulder: 0 },
   car: { height: 1.35, distance: 7.2, shoulder: 0 },
+  // Higher and farther back: the hull is longer, and the wake behind it is the show.
+  boat: { height: 2.3, distance: 10.5, shoulder: 0 },
   // Gun raised for hip fire: over the shoulder so the crosshair clears the head, no zoom.
   ready: { height: 1.55, distance: 3.6, shoulder: 0.62 },
   // Over the right shoulder, close in, so the crosshair clears the body.
@@ -23,10 +25,11 @@ const RIGS = {
 const AIM_ZOOM = 13
 const AIM_RATE = 10
 
-/** Something to chase: its facing (yaw 0 is +Z) and forward speed in m/s. */
+/** Something to chase: its facing (yaw 0 is +Z), forward speed in m/s, and whether it is a boat. */
 export interface ChaseTarget {
   heading: number
   speed: number
+  boat?: boolean
 }
 
 /** Third-person orbit camera that sweeps a sphere toward its ideal spot so walls never clip the view. */
@@ -50,7 +53,7 @@ export class FollowCamera {
   private aimBlend = 0
   private readyBlend = 0
   private readonly focus = new THREE.Vector3()
-  /** The collider the wall probe looks through: the player's capsule or the driven car. */
+  /** The collider (and its body) the wall probe looks through: the player's capsule or the driven car. */
   ignore: Collider
   private distance = RIGS.foot.distance
   private idle = 0
@@ -82,7 +85,11 @@ export class FollowCamera {
     this.pitch = clampPitch(this.pitch + look.y * sens * (this.invertY ? -1 : 1))
     this.idle = look.x || look.y ? 0 : this.idle + dt
     if (chase) this.recenter(chase, dt)
-    const rig = chase ? RIGS.car : mixRig(mixRig(RIGS.foot, RIGS.ready, ready), RIGS.aim, aim)
+    const rig = chase
+      ? chase.boat
+        ? RIGS.boat
+        : RIGS.car
+      : mixRig(mixRig(RIGS.foot, RIGS.ready, ready), RIGS.aim, aim)
     this.focus.copy(focus)
     this.place(focus, rig)
     this.distance = nextDistance(this.distance, this.clearance(rig.distance), dt)
@@ -141,6 +148,8 @@ export class FollowCamera {
       undefined,
       CAMERA_PROBE_GROUPS,
       this.ignore,
+      // The whole vehicle: a boat's windshield is a second collider on the same body.
+      this.ignore.parent() ?? undefined,
     )
     return hit ? Math.max(MIN_DISTANCE, hit.time_of_impact) : max
   }

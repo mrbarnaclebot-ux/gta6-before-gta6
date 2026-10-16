@@ -71,6 +71,8 @@ for (const [name, yaw, at] of [
   // From the beach out over the surf and foam.
   ['shore', -Math.PI / 2, 'beach'],
   ['canal', 0],
+  // From the marina's T-head back along the pier, the moored boats, and the city beyond.
+  ['marina', Math.PI / 2],
   ['hillside', -Math.PI / 2],
   ['flyover', Math.PI],
   ['residential', 2.4],

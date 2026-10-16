@@ -41,16 +41,34 @@ export class Combat {
   readonly dummies: Dummy[]
   private readonly effects: Effects
   private readonly cars: Smoker[]
+  private readonly targets = new Map<number, Target>()
   private readonly hood = new THREE.Vector3()
 
   constructor(d: CombatDeps) {
     this.dummies = placeDummies(d.mannequin, d.physics, d.layout, d.spawn)
     d.scene.add(...this.dummies.map((x) => x.root))
     this.effects = new Effects(d.scene)
-    this.cars = d.cars
-    const targets = new Map<number, Target>()
-    for (const t of [...this.dummies, ...d.cars, ...d.targets]) targets.set(t.collider.handle, t)
-    this.shooter = new Shooter(d.physics, d.player, d.follow, targets, this.effects)
+    this.cars = [...d.cars]
+    for (const t of [...this.dummies, ...d.cars, ...d.targets])
+      this.targets.set(t.collider.handle, t)
+    this.shooter = new Shooter(d.physics, d.player, d.follow, this.targets, this.effects)
+  }
+
+  /**
+   * Cars changed bodies (a stolen traffic car, a scrapped stolen one): stop tracking the
+   * removed ones so the map does not grow (Rapier handles are generational, so a stale one
+   * never matches a new collider), and track the new ones.
+   */
+  swap(gone: Smoker[], fresh: Smoker[]): void {
+    for (const g of gone) {
+      this.targets.delete(g.collider.handle)
+      const i = this.cars.indexOf(g)
+      if (i >= 0) this.cars.splice(i, 1)
+    }
+    for (const t of fresh) {
+      this.targets.set(t.collider.handle, t)
+      this.cars.push(t)
+    }
   }
 
   /** Render-rate update after the camera moves. `armed`: on foot and out of the water. */

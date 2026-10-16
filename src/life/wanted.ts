@@ -10,7 +10,8 @@ export const COOL_DELAY = 6
 /** Seconds per star after that. */
 export const COOL_RATE = 8
 
-export type Crime = 'gunshot' | 'vandalism' | 'assault' | 'murder' | 'runover'
+export type Crime =
+  'gunshot' | 'vandalism' | 'assault' | 'murder' | 'runover' | 'carjack' | 'copcar'
 
 const HEAT: Record<Crime, number> = {
   gunshot: 0.35,
@@ -18,6 +19,9 @@ const HEAT: Record<Crime, number> = {
   assault: 0.6,
   murder: 1,
   runover: 1,
+  // A witnessed carjacking is a star; taking a police cruiser is two.
+  carjack: 1,
+  copcar: 2,
 }
 
 export interface Wanted {
