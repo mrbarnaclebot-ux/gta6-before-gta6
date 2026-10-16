@@ -1,10 +1,11 @@
 // Rebuilds the GPU-compressed assets in public/assets from the sources in assets-src:
-//   node scripts/compress-assets.mjs [textures] [models] [hdri]
+//   node scripts/compress-assets.mjs [textures] [models] [hdri] [atlases]
 // Textures: each PBR set becomes three KTX2 files (Basis ETC1S, mipmapped); the terrain's four
 // layers become two KTX2 array textures (color with roughness in alpha, and normals).
 // Models: every glb gets Meshopt geometry compression (quantized, reordered); JPEG textures
 // become WebP, and plant textures are capped at 1024 px (cards seen from metres away).
 // HDRIs: only the sky half ships (src/render/sky.ts paints the ground half itself).
+// Atlases: the owner's room pictures and shop and billboard elevations become 2D-array KTX2s.
 // Needs basisu (brew install basis_universal), ffmpeg, and cwebp/dwebp (brew install webp).
 import { Document, NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS, EXTTextureWebP } from '@gltf-transform/extensions'
@@ -85,6 +86,26 @@ function terrain() {
     '-output_file',
     join(out, 'terrain_normal.ktx2'),
   ])
+}
+
+// One layer per picture, in this order (src/world/room-atlas.ts and src/world/sign-atlas.ts).
+const ROOMS = ['living', 'office', 'hotel', 'bar', 'bedroom', 'kitchen']
+const SIGNS = [
+  ...['shop_cafe', 'shop_surf', 'shop_pharmacy', 'shop_pawn', 'shop_diner', 'shop_club'],
+  ...['shop_gym', 'shop_juice', 'bb_surge', 'bb_condo'],
+]
+
+/** Pictures resized to one size and packed as layers of one array texture, not flipped. */
+function atlas(dir, names, size, out) {
+  const pngs = names.map((n, i) => {
+    const png = join(tmp, `${out}${i}.png`)
+    const args = ['-y', '-loglevel', 'error', '-i', join(SRC, 'textures', dir, `${n}.png`)]
+    execFileSync('ffmpeg', [...args, '-vf', `scale=${size}:flags=lanczos`, png])
+    return png
+  })
+  const file = join(OUT, 'textures', `${out}.ktx2`)
+  basisu(['-srgb', '-tex_type', '2darray', ...pngs, '-output_file', file])
+  console.log(file, statSync(file).size)
 }
 
 function walk(dir) {
@@ -203,5 +224,9 @@ if (!want.length || want.includes('textures')) {
   }
   terrain()
   console.log('textures done')
+}
+if (!want.length || want.includes('atlases')) {
+  atlas('rooms', ROOMS.map((r) => `room_${r}`), '512:512', 'rooms')
+  atlas('signs', SIGNS, '1024:576', 'signs')
 }
 if (!want.length || want.includes('models')) await models()
