@@ -36,6 +36,8 @@ const ROCKS = ['rocks_moss_01.glb', 'rocks_moss_02.glb']
 const NEAR = 60
 const MID = 130
 const BUSH_RANGE = 120
+/** Impostor chunks: about a ninth of the map each. */
+const FAR_CHUNK = 800
 /** Deep in the woods at ground level, trunks hide everything past this: it is not drawn. */
 const WOODS_SIGHT = 350
 const ROCK_RANGE = 450
@@ -88,7 +90,12 @@ async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: 
     const models = await Promise.all(files.map((f) => load(DIR + f)))
     models.forEach((m, i) => {
       const { near, mid, bake } = treeLevels(m.scene)
-      const place = { scale: (s: Grounded) => s.s, ranges: [NEAR, MID], shadowLevels: 1 }
+      const place = {
+        scale: (s: Grounded) => s.s,
+        ranges: [NEAR, MID],
+        shadowLevels: 1,
+        farChunk: FAR_CHUNK,
+      }
       const spots = share(flora[kind], models.length, i)
       updates.push(instanceByDistance(ctx, [near, mid, fuller(impostor(gl, bake))], spots, place))
     })
