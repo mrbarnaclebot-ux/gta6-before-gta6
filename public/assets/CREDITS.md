@@ -34,7 +34,7 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - textures/rocky_terrain_02 - https://polyhaven.com/a/rocky_terrain_02 (terrain grass) - Amal Kumar
 - textures/forest_ground_04 - https://polyhaven.com/a/forest_ground_04 (terrain dirt, trail, forest floor) - Rob Tuytel, Rico Cilliers
 - textures/aerial_rocks_02 - https://polyhaven.com/a/aerial_rocks_02 (terrain rock on steep slopes) - Rob Tuytel
-- textures/wood_floor_deck - https://polyhaven.com/a/wood_floor_deck (marina docks; re-encoded JPEG quality 72) - Dimitrios Savva
+- textures/wood_planks_grey - https://polyhaven.com/a/wood_planks_grey (marina docks; re-encoded JPEG quality 72) - Rob Tuytel
 - No glass/window texture found; use a procedural window grid or MeshPhysicalMaterial glass.
 
 ## Water
