@@ -16,7 +16,8 @@ Renderer, post-processing, shadows, sky, and the day and night cycle.
 - `height-fog.ts` swaps three's fog for height fog (aerial perspective)
 - `view-distance.ts` what each render distance reaches
 - `dynamic-res.ts` render scale controller that holds 60 fps
-- `sky.ts` sky, image-based light, sun or moon, haze, all driven by the time of day
+- `sky.ts` sky, image-based light, sun or moon, haze, all driven by the time of day; the night sky loads near dusk
+- `ktx2.ts` the shared KTX2 (Basis) loader and the in-place swap of placeholder textures
 - `sky-dome.ts` the sky shader: day and night HDRIs blended, sunset glow, sun disk
 - `daynight.ts` pure sun path and light levels for an hour of the day
 - `sky-analysis.ts` finds the sun and horizon color in an HDRI; ACES curve for fog without post

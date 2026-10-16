@@ -13,4 +13,5 @@ The ocean: waves, foam, the view from under the surface, and sea life.
 - `boids.ts` pure fish school steering; `fish-model.ts`, `fish.ts` the instanced fish
 - `reef-plan.ts` pure placement of reefs, seagrass, kelp, corals, and rocks; `seabed-models.ts` their procedural meshes
 - `rays.ts` gliding eagle rays; `sea-life.ts` builds all sea life and culls it away from the reefs
-- `sea.ts` entry point: plans the field and reefs, builds the water, the underwater view, and the life
+- `sea-plan.ts` pure: the reefs and the baked field (runs in the plan worker)
+- `sea.ts` entry point: adds the field's uniforms, builds the water, the underwater view, and the life

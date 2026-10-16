@@ -17,6 +17,8 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `neon.ts` neon tubes and their color wash on art-deco and tower facades at night
 - `night-windows.ts` lit-window emissive maps for the facades
 - `hospital-signs.ts` lightbox signs at the respawn points
-- `instancing.ts`, `chunks.ts` instancing (grounded spots: height, tilt, tint) and frustum-culling helpers; `lod-instances.ts` levels of detail chosen per spot by distance, chunks that cannot change skipped
-- `blocks.ts` shared geometry and collider helpers
+- `instancing.ts`, `chunks.ts` instancing (grounded spots: height, tilt, tint) and frustum-culling helpers, `splitByTile`; `lod-instances.ts` levels of detail chosen per spot by distance, chunks that cannot change skipped, far impostors on 800 m chunks
+- `blocks.ts` shared geometry and collider helpers; `addTiled` merges and cuts meshes along the terrain tiles
+- `static-colliders.ts` small fixed colliders (trunks, posts, buildings, houses) streamed in 128 m tiles around the player and camera; `rings.ts` the pure ring and hysteresis math
+- `load-model.ts` the glTF loader: Meshopt geometry widened back to floats
 - `materials.ts` Poly Haven PBR texture sets
