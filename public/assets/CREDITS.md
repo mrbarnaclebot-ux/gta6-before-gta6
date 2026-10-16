@@ -8,6 +8,7 @@ Generated with AssetHub (Tripo 3.1 mesh, Tripo v2.5 auto-rig for the people), pa
 - models/character/female.glb - a woman in a white tank top and denim shorts, for pedestrians. Rigged without neck or head bones. 1024 px textures.
 - models/vehicle/sports_car.glb - an orange wedge sports car body without wheels (the game adds its own). 2048 px textures.
 - models/vehicle/police.glb - a black and white police sedan body without wheels, with a roof light bar. 2048 px textures.
+- models/vehicle/boat.glb - a sport speedboat (white hull, teal and orange stripe, cream seats, outboard motor), about 23k vertices. 2048 px WebP textures, 1.5 MB (from 3.7 MB). Generated for Phase 10d.
 - models/vegetation/palm.glb - a coconut palm with solid fronds. 1024 px textures.
 - models/vegetation/palm_far.glb - the same palm simplified to about 2.3k triangles with 512 px textures, drawn beyond about 110 m.
 
@@ -33,6 +34,7 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - textures/rocky_terrain_02 - https://polyhaven.com/a/rocky_terrain_02 (terrain grass) - Amal Kumar
 - textures/forest_ground_04 - https://polyhaven.com/a/forest_ground_04 (terrain dirt, trail, forest floor) - Rob Tuytel, Rico Cilliers
 - textures/aerial_rocks_02 - https://polyhaven.com/a/aerial_rocks_02 (terrain rock on steep slopes) - Rob Tuytel
+- textures/wood_floor_deck - https://polyhaven.com/a/wood_floor_deck (marina docks; re-encoded JPEG quality 72) - Dimitrios Savva
 - No glass/window texture found; use a procedural window grid or MeshPhysicalMaterial glass.
 
 ## Water
