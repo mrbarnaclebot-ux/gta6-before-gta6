@@ -21,6 +21,8 @@ export interface CarSpec {
   wheel: { radius: number; width: number; x: number; front: number; rear: number }
   /** Light bar's lowest point in model units, or above the roof if there is none. */
   roofLamps: number
+  /** Window sills' height in model units: grey texels above it are glass (car-paint.ts). */
+  belt: number
   /** Driver's feet in car space while seated. */
   seat: THREE.Vector3
   paints: Paint[]
@@ -45,6 +47,7 @@ export const CAR_SPECS: Record<CarKind, CarSpec> = {
     clearance: 0.11,
     wheel: { radius: 0.34, width: 0.28, x: 0.88, front: 1.2, rear: -1.33 },
     roofLamps: 1,
+    belt: 0,
     seat: new THREE.Vector3(0.38, -0.3, -0.2),
     paints: SPORTS_PAINTS,
   },
@@ -56,6 +59,7 @@ export const CAR_SPECS: Record<CarKind, CarSpec> = {
     clearance: 0.14,
     wheel: { radius: 0.36, width: 0.25, x: 0.74, front: 1.45, rear: -1.425 },
     roofLamps: 0.13,
+    belt: 0.03,
     seat: new THREE.Vector3(0.38, -0.1, -0.1),
     paints: [[0, 1, 1]],
   },

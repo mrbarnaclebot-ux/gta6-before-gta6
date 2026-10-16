@@ -10,8 +10,8 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 
 const SPOKES = 5
 
-const rubber = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.92 })
-const alloy = new THREE.MeshStandardMaterial({ color: 0x9a9da3, metalness: 1, roughness: 0.32 })
+const rubber = new THREE.MeshStandardMaterial({ color: 0x1b1b1c, roughness: 0.86 })
+const alloy = new THREE.MeshStandardMaterial({ color: 0xa4a7ad, metalness: 1, roughness: 0.26 })
 
 /** Tire cross-section, lathed about y, then laid on its side. */
 function tire(radius: number, width: number): THREE.BufferGeometry {
@@ -42,10 +42,18 @@ function rimGeometry(radius: number, width: number): THREE.BufferGeometry {
       .translate(face, 0, 0),
     new THREE.TorusGeometry(r * 0.96, 0.012, 4, 24).rotateY(Math.PI / 2).translate(face, 0, 0),
   ]
+  // Twin spokes, a lug nut between each pair, and the brake disc seen through them.
   for (let i = 0; i < SPOKES; i++) {
-    const spoke = new THREE.BoxGeometry(0.035, r * 0.8, 0.07).translate(face - 0.01, r * 0.55, 0)
-    parts.push(spoke.rotateX((i / SPOKES) * Math.PI * 2))
+    const a = (i / SPOKES) * Math.PI * 2
+    for (const side of [-0.13, 0.13]) {
+      const spoke = new THREE.BoxGeometry(0.03, r * 0.78, 0.04).translate(face - 0.01, r * 0.56, 0)
+      parts.push(spoke.rotateX(side).rotateX(a))
+    }
+    const nut = new THREE.CylinderGeometry(0.012, 0.012, 0.03, 6).rotateZ(Math.PI / 2)
+    parts.push(nut.translate(face + 0.02, r * 0.16, 0).rotateX(a + Math.PI / SPOKES))
   }
+  const disc = new THREE.CylinderGeometry(r * 0.78, r * 0.78, 0.025, 24).rotateZ(Math.PI / 2)
+  parts.push(disc.translate(face - 0.09, 0, 0))
   return mergeGeometries(parts)!
 }
 
