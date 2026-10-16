@@ -20,7 +20,7 @@ Code Reviewer and Designer have not reviewed this branch yet. The realism score 
   - Their bright parts glow after dark.
   - The ground-floor deco eyebrow is dropped so it no longer cuts across the signs.
 - **Billboards** (`src/land/billboards.ts`, `src/world/billboards.ts`).
-  - The two parody billboards stand on 1 in 9 low-rise roofs, turned toward the nearest street, and on 9 m poles every 260 m beside the highway, kept clear of every road.
+  - The two parody billboards stand on 1 in 9 low-rise art-deco roofs (glass and residential roofs keep a stair core or plant room at the center, so they carry none), turned toward the nearest street, and on 9 m poles every 260 m beside the highway, kept clear of every road.
   - They are lit at night.
   - All of them together are two meshes.
 - **Rooftops** (`src/world/rooftops.ts`). AC units, water tanks on legs, and antennas. They are merged into each chunk's trim mesh (no extra draw calls) and have colliders. The rooftop landmark corner stays clear.
@@ -190,3 +190,14 @@ Unchanged. Settings: the "Water reflections" row is now "Reflections". High and 
 - `pnpm lint`: clean.
 - `pnpm test`: 51 files, 179 tests passed. New: shop placement, lawn tiles, furniture placement, billboard placement.
 - `pnpm test:e2e`: 15 passed (16.6 min). An earlier run failed 4 specs because I edited files while it ran: the dev server reloaded and dropped `window.__game`.
+
+## Review fixes
+- **Blocker, roof billboards in stair cores:** `onRoofs()` now places boards on deco roofs only. Four residential roofs had a board at the center, where the 3.2 m stair core swallowed the 2.2 m legs and catwalk. A Vitest check asserts every roof board stands on a deco building. 38 roof boards remain.
+- **Blocker, `src/game.ts` over 300 lines:** `lateLoads()` is gone. `upgradeCars` is one `Promise.all` again, and `loadLateTextures()` catches its own failure (stand-ins stay). 290 lines.
+- **Oil stains:** they darken more (0.4) and drop roughness by 12% instead of 50%, so they no longer mirror the sky as blue or purple puddles.
+- **Far facades:** a far room's light falls to 25% instead of 50%, so mid-distance towers read more as reflective glass.
+- **Skin:** subsurface tint (0.9, 0.45, 0.34) at 0.32 weight instead of (0.9, 0.38, 0.26) at 0.5: less orange-red under the 1.4 saturation grade.
+- **Robustness:** `swaying()` and the road-wear `patch()` return early on a material they already patched. The SSR alpha contract is documented next to `reflectiveOut`. The lawn reads the shared `WIND` clock. The stand-in array textures are disposed when the KTX2 arrives. The `compress-assets.mjs` comment names the real files.
+- **Not done:** the sparse lawn (accepted for its GPU cost), the bark shards near trunks and the radio banner over the tip toast on phones (both on main, not this phase). Roof billboards still have no colliders: the player can walk through the legs.
+- **Screenshots** (`.planning/phases/012b-screens/`, High, Metal): `fix-bb-res-a4-front.jpg` (the reviewer's repro spot: bare core, no board), `fix-bb-deco-roof.jpg`, `fix-downtown.jpg`, `fix-downtown-night.jpg` (no sky-mirror stains), `fix-rooftop.jpg`. No console errors, 60 fps.
+- **Gates after the fixes:** `pnpm build` built, `pnpm lint` clean, `pnpm test` 51 files and 180 tests passed, `pnpm test:e2e` 15 passed (15.1 min).
