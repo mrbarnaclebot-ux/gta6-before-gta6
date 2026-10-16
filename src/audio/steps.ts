@@ -32,6 +32,6 @@ export class StepDetector {
 
   /** Forget the swing: after a jump, a swim, or a cutscene. */
   reset(): void {
-    this.prev.length = this.lo.length = this.hi.length = 0
+    this.prev.length = this.lo.length = this.hi.length = this.since.length = 0
   }
 }

@@ -22,6 +22,7 @@ export class Siren {
   private depth: GainNode | null = null
   private clock = 0
   private lastDist = -1
+  private lastAt: THREE.Vector3 | null = null
 
   constructor(
     private readonly mixer: Mixer,
@@ -34,8 +35,10 @@ export class Siren {
   /** Each frame: `at` the cruiser to sound from, or null for silence. */
   update(dt: number, at: THREE.Vector3 | null, listener: THREE.Vector3): void {
     const v = this.voice
+    // A different cruiser (or none): no closing speed from the old one's distance.
+    if (at !== this.lastAt) this.lastDist = -1
+    this.lastAt = at
     if (!at) {
-      this.lastDist = -1
       if (v.isPlaying) v.gain.gain.setTargetAtTime(0, v.context.currentTime, 0.4)
       if (v.isPlaying && v.gain.gain.value < 0.01) v.stop()
       return
