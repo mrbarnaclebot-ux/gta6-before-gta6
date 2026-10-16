@@ -4,6 +4,7 @@ import type { Grounded } from '../city/layout'
 import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
 import { matteCard } from '../render/card-normals'
+import { swaying } from '../render/foliage'
 import type { WorldCtx } from './blocks'
 import { impostor } from './impostor'
 import { instanceParts, modelParts, type Part } from './instancing'
@@ -18,6 +19,9 @@ const PALM_FAR = '/assets/models/vegetation/palm_far.glb'
 const PALM_RANGES = [80, 220]
 // Ferns are a meter tall: a few pixels past this, so they are not drawn at all.
 const FERN_RANGE = 140
+// The fronds flutter and glow when backlit; the trunk (near the axis) only bends.
+const PALM_SWAY = { bend: 0.014, flutter: 0.006, translucent: 0.3 }
+const FERN_SWAY = { bend: 0.05, flutter: 0.02, translucent: 0.3 }
 
 type Update = (eye: THREE.Vector3, reach?: number) => void
 
@@ -48,6 +52,8 @@ async function plantPalms(
   try {
     const [near, far] = await Promise.all([PALM, PALM_FAR].map(load))
     const parts = [modelParts(near.scene), modelParts(far.scene)]
+    // Near and far palms share their one material (trunk and fronds alike).
+    for (const p of parts.flat()) swaying(p.material, PALM_SWAY)
     const place = {
       scale: (s: Grounded) => s.s,
       ranges: PALM_RANGES,
@@ -69,7 +75,7 @@ async function plantPalms(
 function fernVariants(gltf: GLTF): Part[][] {
   const matte = new Map<THREE.Material, THREE.Material>()
   const swap = (m: THREE.Material) => {
-    if (!matte.has(m)) matte.set(m, matteCard(m as THREE.MeshStandardMaterial))
+    if (!matte.has(m)) matte.set(m, swaying(matteCard(m as THREE.MeshStandardMaterial), FERN_SWAY))
     return matte.get(m)!
   }
   return gltf.scene.children.map((child: THREE.Object3D) =>

@@ -8,6 +8,7 @@ import type { Land } from '../land/plan'
 import { GARDEN_TRUNK, ROCK_SPREAD, TRUNK } from '../land/plant'
 import { RAPIER } from '../physics'
 import { matteCard } from '../render/card-normals'
+import { swaying } from '../render/foliage'
 import type { WorldCtx } from '../world/blocks'
 import { impostor } from '../world/impostor'
 import { modelParts, type Part } from '../world/instancing'
@@ -52,13 +53,26 @@ const share = <T>(spots: T[], n: number, i: number) => spots.filter((_, k) => k 
 // so they read pale. Deeper, warmer greens, closer to the reference shots.
 const LEAF_TONE = new THREE.Color(0.5, 0.66, 0.36)
 
-/** Makes every leaf card in a loaded model matte and deeper green (once per file). */
+const LEAVES = { bend: 0.012, flutter: 0.004, translucent: 0.35 }
+const BARK = { bend: 0.012, flutter: 0, translucent: 0 }
+
+/**
+ * Makes every leaf card in a loaded model matte and deeper green, and sets leaves and bark
+ * swaying in the wind (once per file).
+ */
 function toneLeaves(scene: THREE.Object3D) {
+  const done = new Set<THREE.Material>()
   scene.traverse((o) => {
     const mesh = o as THREE.Mesh
-    if ((mesh.material as THREE.Material | undefined)?.name !== 'foliage_cards') return
-    const m = matteCard(mesh.material as THREE.MeshStandardMaterial)
+    const mat = mesh.material as THREE.MeshStandardMaterial | undefined
+    if (!mat || done.has(mat)) return
+    if (mat.name !== 'foliage_cards') {
+      done.add(swaying(mat, BARK))
+      return
+    }
+    const m = swaying(matteCard(mat), LEAVES)
     m.color.copy(LEAF_TONE)
+    done.add(m)
     mesh.material = m
   })
 }

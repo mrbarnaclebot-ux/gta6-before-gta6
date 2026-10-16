@@ -7,6 +7,7 @@ import { buildingHeight } from '../city/lots'
 import { surfaceAt } from '../city/terrain'
 import { FLOAT_DEPTH } from '../player/swim'
 import type { Ambient } from '../render/sky'
+import { WIND } from '../render/foliage'
 import { buildBeach } from '../scenery/beach'
 import { plantDuneGrass } from '../scenery/dune-grass'
 import { buildHouses } from '../scenery/houses'
@@ -165,6 +166,7 @@ export async function buildCity(
       return sea.underwater.depth
     },
     update(dt, camera, swimmer = null) {
+      WIND.value = performance.now() / 1000
       night(light.night, light.day, camera.position)
       plants(camera.position, reach)
       sea.update(dt, camera, swimmer)
