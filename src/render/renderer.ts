@@ -5,7 +5,7 @@ import { SunFx } from './sun-fx'
 
 const EXPOSURE = 1.0
 // Depth of field in normal play (a soft far background) and when aiming (a tight focus).
-const DOF_CALM = { range: 160, strength: 0.75 }
+const DOF_CALM = { range: 260, strength: 0.45 }
 const DOF_AIM = { range: 30, strength: 1 }
 // Motion blur on foot is a hint; in a car it grows with speed, full at this many m/s.
 const BLUR_FOOT = 0.3

@@ -83,7 +83,7 @@ function mainEffects(c: Ctx, g: Graphics, out: Chain): Effect[] {
     )
   }
   if (g.lensFlare) fx.push((out.flare = new LensFlareEffect()))
-  fx.push(new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }))
+  fx.push(new ToneMappingEffect({ mode: ToneMappingMode.AGX }))
   fx.push(new LUT3DEffect((lut ??= gradeLut())))
   fx.push(new VignetteEffect({ offset: 0.3, darkness: 0.4 }))
   return fx

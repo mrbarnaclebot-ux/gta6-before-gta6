@@ -3,8 +3,10 @@ import { LookupTexture } from 'postprocessing'
 type RGB = [number, number, number]
 
 // The trailer look: warm highlights, teal-leaning shadows, punchy contrast, rich color.
-const SATURATION = 1.14
-const CONTRAST = 0.22
+// AgX (post-chain.ts) keeps white facades and clouds from clipping but mutes color, so the
+// grade puts back more saturation and contrast than it needed after ACES.
+const SATURATION = 1.4
+const CONTRAST = 0.28
 const SHADOW_TINT: RGB = [-0.03, 0.012, 0.04]
 const HIGHLIGHT_TINT: RGB = [0.045, 0.012, -0.035]
 const LUT_SIZE = 32
