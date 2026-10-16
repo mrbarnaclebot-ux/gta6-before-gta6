@@ -25,7 +25,8 @@ const TREES = {
   broadleaf: ['jacaranda.glb', 'island_tree_01.glb'],
   garden: ['island_tree_02.glb', 'tree_small_02.glb'],
 }
-const BUSHES = ['bush_a.glb', 'bush_b.glb', 'bush_c.glb', 'bush_d.glb']
+// One file, one node per bush (scripts/compress-assets.mjs merges them: they share textures).
+const BUSHES = ['bush_a', 'bush_b', 'bush_c', 'bush_d']
 const ROCKS = ['rocks_moss_01.glb', 'rocks_moss_02.glb']
 /**
  * Full card trees within NEAR (times the render distance's plant reach), the same cards on
@@ -90,12 +91,13 @@ async function trees(ctx: WorldCtx, gl: THREE.WebGLRenderer, load: Load, flora: 
 }
 
 async function bushes(ctx: WorldCtx, load: Load, flora: Flora) {
-  const models = await Promise.all(BUSHES.map((f) => load(DIR + f)))
+  const file = await load(DIR + 'bushes.glb')
+  toneLeaves(file.scene)
   const place = { scale: (s: Grounded) => s.s, ranges: [BUSH_RANGE] }
-  return models.map((m, i) => {
-    toneLeaves(m.scene)
+  return BUSHES.map((name, i) => {
     const spots = share(flora.bushes, BUSHES.length, i)
-    return instanceByDistance(ctx, [modelParts(m.scene, true), []], spots, place)
+    const parts = modelParts(file.scene.getObjectByName(name)!, true)
+    return instanceByDistance(ctx, [parts, []], spots, place)
   })
 }
 
