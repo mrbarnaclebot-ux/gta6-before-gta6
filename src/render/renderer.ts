@@ -52,6 +52,9 @@ export class Renderer {
     this.gl.shadowMap.type = THREE.PCFShadowMap
     // Count draw calls across the whole frame (shadows, water reflection, post), not just the last pass.
     this.gl.info.autoReset = false
+    // Asking for each program's link status stalls until the driver finishes compiling; in a
+    // production build nobody reads the log, so let shaders compile in parallel.
+    this.gl.debug.checkShaderErrors = import.meta.env.DEV
     window.addEventListener('resize', () => this.resize())
   }
 

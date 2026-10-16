@@ -198,6 +198,9 @@ export async function startGame(
   const ui = createUi(w, input, look, boot.pause)
   loading.finish('world')
   const sound = gameSound(boot.audio, w, input, ui)
+  // Every material in the scene, hidden levels of detail too, compiles behind the loading
+  // screen (in parallel where the browser can), not mid-drive when it first comes into view.
+  await w.renderer.gl.compileAsync(w.scene, w.camera)
   let frames = 0
   runLoop(w, input, ui, look, (dt) => {
     updateHud(ui, w, dt)
