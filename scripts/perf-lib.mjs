@@ -78,17 +78,26 @@ export const drive = (page, pts, speed) =>
     [pts, speed],
   )
 
-/** Counts requests in flight and bytes received over a CDP session. */
+/**
+ * Counts bytes received and requests in flight over a CDP session. A worker's own script is
+ * fetched by the worker, so its finish never reaches the page: a request with no event for
+ * the quiet period counts as idle.
+ */
 export async function netMeter(ctx, page) {
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Network.enable')
-  const m = { bytes: 0, inflight: new Set(), lastActivity: Date.now(), fromCache: 0, requests: 0 }
-  cdp.on('Network.requestWillBeSent', (e) => {
-    m.inflight.add(e.requestId)
-    m.requests++
+  const m = { bytes: 0, inflight: new Map(), lastActivity: Date.now(), requests: 0 }
+  const touch = (e) => {
+    if (m.inflight.has(e.requestId)) m.inflight.get(e.requestId).at = Date.now()
     m.lastActivity = Date.now()
+  }
+  cdp.on('Network.requestWillBeSent', (e) => {
+    m.inflight.set(e.requestId, { url: e.request.url, at: Date.now() })
+    m.requests++
+    touch(e)
   })
-  cdp.on('Network.requestServedFromCache', () => m.fromCache++)
+  cdp.on('Network.responseReceived', touch)
+  cdp.on('Network.dataReceived', touch)
   const end = (e) => {
     m.inflight.delete(e.requestId)
     m.lastActivity = Date.now()
@@ -101,14 +110,20 @@ export async function netMeter(ctx, page) {
   return m
 }
 
-/** Waits until nothing has been in flight for `quiet` ms and the game says streaming is done. */
+/** Waits until the network has been quiet for `quiet` ms and the game says streaming is done. */
 export async function waitStreamed(page, m, quiet = 1500, timeout = 120000) {
   const t0 = Date.now()
   while (Date.now() - t0 < timeout) {
     const done = await page.evaluate(() => window.__game?.state().streamed !== false)
-    if (done && !m.inflight.size && Date.now() - m.lastActivity > quiet) return
+    const now = Date.now()
+    const busy = [...m.inflight.values()].some((r) => now - r.at < quiet)
+    if (done && !busy && now - m.lastActivity > quiet) return
     await page.waitForTimeout(100)
   }
+  console.error(
+    'still in flight:',
+    [...m.inflight.values()].map((r) => r.url),
+  )
 }
 
 /** Opens the page, presses Play, and times the title, the first frame, and the end of streaming. */

@@ -2,6 +2,7 @@
 
 The 2 x 2 km world around the city as pure, seeded data: no three.js. `src/scenery` turns it into meshes and colliders.
 
+- `world-plan.ts` runs `plan-worker.ts` (generateLand plus generateFlora) in a Web Worker from the title screen, with a main-thread fallback
 - `plan.ts` entry point `generateLand(seed, size)`: the city plan plus every road, house, and villa outside it, and the baked heightmap
 - `shape.ts` natural ground: rolling fields, the hills, the edge ridge, the beach and dunes, the coast line
 - `noise.ts` seeded gradient noise, fractal and ridged sums

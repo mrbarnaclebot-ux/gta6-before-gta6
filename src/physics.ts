@@ -18,8 +18,13 @@ export const CAMERA_PROBE_GROUPS = 0x0001fffd
  */
 export const SOLID = RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
 
+let wasm: Promise<void> | null = null
+
+/** Decodes and compiles Rapier's WASM once: the title screen starts it so Play does not wait. */
+export const initPhysics = () => (wasm ??= RAPIER.init())
+
 export async function createPhysics(): Promise<PhysicsWorld> {
-  await RAPIER.init()
+  await initPhysics()
   const world = new RAPIER.World({ x: 0, y: -9.81, z: 0 })
   world.timestep = FIXED_STEP
   // ponytail: Rapier 0.21's step() re-maps every body and collider through a JS callback each

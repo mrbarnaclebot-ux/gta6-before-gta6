@@ -10,6 +10,7 @@ import './ui/pause.css'
 import './ui/settings.css'
 import { bootAudio } from './audio/boot'
 import { Input } from './input/input'
+import { planWorld } from './land/world-plan'
 import { loadGraphics, saveGraphics } from './render/graphics'
 import { loadPrefs, savePref } from './settings'
 import { Loading } from './ui/loading'
@@ -41,9 +42,18 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && pause.open && !pause.playing) pause.hide(false)
 })
 
-// Fetch the engine once the menu is up, so Play rarely waits on it. Lazy so the menu paints
-// before three.js and the physics WASM download; a failure here retries on Play.
-addEventListener('load', () => setTimeout(() => import('./game').catch(() => {}), 800))
+// Once the menu is up, fetch the engine, start the physics WASM, and generate the world in a
+// worker, so Play rarely waits on any of them. Lazy so the menu paints first; a failure here
+// retries on Play.
+addEventListener('load', () =>
+  setTimeout(() => {
+    void planWorld().catch(() => {})
+    import('./game')
+      .then(() => import('./physics'))
+      .then((p) => p.initPhysics())
+      .catch(() => {})
+  }, 300),
+)
 
 async function play(): Promise<void> {
   playButton.disabled = true
