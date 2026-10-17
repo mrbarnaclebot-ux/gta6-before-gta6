@@ -27,4 +27,20 @@ describe('offshore current', () => {
       expect(dir.x * Math.cos(a) + dir.z * Math.sin(a)).toBeLessThan(-0.5)
     }
   })
+
+  it('is at full strength all along the edge of the terrain grid, so no one reaches it', () => {
+    const { x0, x1, z0, z1 } = land.frame.grid
+    const dir = { x: 0, z: 0 }
+    for (let t = 0; t <= 1; t += 1 / 64) {
+      const x = x0 + (x1 - x0) * t
+      const z = z0 + (z1 - z0) * t
+      for (const [px, pz] of [
+        [x, z0],
+        [x, z1],
+        [x0, z],
+        [x1, z],
+      ])
+        expect(current(px, pz, dir)).toBeCloseTo(1)
+    }
+  })
 })

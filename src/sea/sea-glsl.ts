@@ -30,10 +30,11 @@ export const SEA_PARS = /* glsl */ `
 uniform sampler2D seaField;
 uniform vec4 seaRect;
 ${SEA_TIME_GLSL}
-// x: depth at rest, y: signed shore distance, z: wave scale. Past the field it is open sea.
+// x: depth at rest, y: signed shore distance, z: wave scale. Past the field it is open sea,
+// as deep as the seabed at the field's edge (shape.ts OPEN_SEA).
 vec3 seaFieldAt(vec2 xz) {
   vec2 uv = (xz - seaRect.xy) / seaRect.zw;
-  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(12.0, 1e4, 1.0);
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec3(30.0, 1e4, 1.0);
   return texture2D(seaField, uv).rgb;
 }
 float seaSurfPhase(vec2 p, float t, float shore) {

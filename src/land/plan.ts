@@ -5,13 +5,14 @@ import { buildHillside, HILL_ROAD_Z, LOOKOUT_R, type Villa } from './hillside'
 import { DECK_FROM, type Path } from './path'
 import { closest, type P2, type P3 } from './polyline'
 import { AVENUE_Z, buildResidential, type House } from './residential'
-import { bakeCoast } from './coast'
+import { bakeCoast, coastLine } from './coast'
 import { carveWaterways, CANAL_FLOOR, planWaterways, type Waterways } from './waterways'
 import { natural, type Frame } from './shape'
 import { Shaper } from './stamp'
 import { surfaceAt } from '../city/terrain'
 import { stand, type Surface } from './footing'
 import { SINK } from './plant'
+import { OFFSHORE } from '../sea/offshore'
 
 /*
  * The whole island as plain data: the city plan, every road outside it with its
@@ -21,9 +22,10 @@ import { SINK } from './plant'
 /** Ground under the paved city: below every slab and road, so it never shows through. */
 export const UNDER_CITY = -0.6
 export { CANAL_FLOOR } from './waterways'
-// How far the terrain reaches past the city: west and north/south to the seabed beyond the
-// island's coast, east over the sea.
-const REACH = { west: 1600, side: 800, sea: 700 }
+/** Meters the terrain reaches over the sea east of the city. */
+const EAST_SEA = 700
+/** Seabed past the outermost coast on every side: the offshore current turns everyone back before its end. */
+const SEA_MARGIN = OFFSHORE.full + 60
 
 export interface Land extends CityLayout {
   frame: Frame
@@ -43,11 +45,16 @@ export interface Land extends CityLayout {
 
 function frameOf(c: CityLayout): Frame {
   const { land } = c
+  const { line } = coastLine()
+  // Whole cells out from the city, so grid vertices keep lining up with its edges.
+  const out = (from: number, to: number) => Math.ceil(Math.max(0, to - from) / CELL) * CELL
+  const xs = line.map((p) => p.x)
+  const zs = line.map((p) => p.z)
   const grid: Rect = {
-    x0: land.x0 - REACH.west,
-    x1: land.x1 + REACH.sea,
-    z0: land.z0 - REACH.side,
-    z1: land.z1 + REACH.side,
+    x0: land.x0 - out(Math.min(...xs) - SEA_MARGIN, land.x0),
+    x1: land.x1 + Math.max(EAST_SEA, out(land.x1, Math.max(...xs) + SEA_MARGIN)),
+    z0: land.z0 - out(Math.min(...zs) - SEA_MARGIN, land.z0),
+    z1: land.z1 + out(land.z1, Math.max(...zs) + SEA_MARGIN),
   }
   return { city: land, grid, coast: bakeCoast(grid) }
 }

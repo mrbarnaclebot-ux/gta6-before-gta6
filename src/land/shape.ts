@@ -43,6 +43,9 @@ const BEACH: Profile = [
   [250, -8],
   [400, -12],
 ]
+/** Meters off the coast where the shelf drops away, where it reaches open-sea depth, and how much deeper. */
+export const OPEN_SEA = { from: 300, to: 500, depth: 18 }
+
 /** Meters seaward of the coast line where the high tide leaves its line of wrack. */
 export const TIDE_LINE = 57.5
 
@@ -130,9 +133,12 @@ export function natural(f: Frame, x: number, z: number): number {
   const sand = sandAt(f.coast, x, z)
   const top = inland(f, x, z)
   if (d >= 0) {
-    if (sand <= 0) return rockyShore(d, top, x, z)
+    // Past the shelf the seabed falls away to open-sea depth: far water reads deep blue
+    // and hides the end of the terrain grid.
+    const deep = OPEN_SEA.depth * smoothstep(OPEN_SEA.from, OPEN_SEA.to, d)
+    if (sand <= 0) return rockyShore(d, top, x, z) - deep
     const beach = beachHeight(d, x, z, wildness(f, x, z))
-    return sand >= 1 ? beach : beach + (rockyShore(d, top, x, z) - beach) * (1 - sand)
+    return (sand >= 1 ? beach : beach + (rockyShore(d, top, x, z) - beach) * (1 - sand)) - deep
   }
   // A sandy shore eases down to the top of the beach over the last 140 m inland.
   const eased = 0.1 + (top - 0.1) * smoothstep(0, 140, -d)

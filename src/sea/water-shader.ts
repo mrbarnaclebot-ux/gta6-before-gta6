@@ -54,6 +54,8 @@ foamNoise = smoothstep( 0.1, 0.8, foamNoise );
 
 const SCATTER = /* glsl */ `
 vec3 tint = mix( shallowColor, waterColor, smoothstep( 0.25, 6.0, waterDepth ) );
+// Past the shelf the open sea turns a deeper blue.
+tint = mix( tint, vec3( 0.012, 0.16, 0.34 ), smoothstep( 12.0, 26.0, waterDepth ) );
 vec3 scatter = ( 0.35 + 0.65 * max( 0.0, dot( surfaceNormal, eyeDirection ) ) ) * tint * waterLight;
 // Light through the thin wave crests: they glow a brighter green-blue.
 scatter *= 1.0 + 0.6 * smoothstep( 0.1, ${MAX_WAVE.toFixed(2)}, vLift );
@@ -97,6 +99,8 @@ vec3 foamColor = ( 0.3 + 0.35 * reflectionSample + 0.4 * sunColor * max( dot( su
 outgoingLight = mix( outgoingLight, foamColor, foam * 0.85 );
 // Light crosses more water at grazing angles: far and shallow-angled water goes opaque.
 float clarity = mix( 0.22, 0.95, smoothstep( 0.0, 14.0, waterDepth / max( eyeDirection.y, 0.06 ) ) );
+// Open-sea depth hides the seabed entirely, so nothing shows where the terrain grid ends.
+clarity = max( clarity, smoothstep( 14.0, 24.0, waterDepth ) );
 gl_FragColor = vec4( outgoingLight, max( max( clarity, reflectance ), foam ) );
 `
 
