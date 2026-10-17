@@ -24,9 +24,13 @@ const RIM = 1.1
 const SURROUND = 150
 const DEPTH = 5.5
 
-/** Shore radius toward angle `a`. */
+/** The shore never strays past this many radii. */
+const FARTHEST = 1.5
+
+/** Shore radius toward angle `a`: drawn out along one axis, with broad bays and points. */
 export function shoreRadius(l: Lake, a: number): number {
-  return l.r * (1 + 0.2 * fbm(Math.cos(a) * 1.3 + 4, Math.sin(a) * 1.3 + 4, 57, 3))
+  const bays = fbm(Math.cos(a) * 0.9 + 4, Math.sin(a) * 0.9 + 4, 57, 3)
+  return l.r * (1 + 0.16 * Math.cos(2 * (a - 0.6)) + 0.3 * bays)
 }
 
 /** The shore as a closed ring of points. */
@@ -42,8 +46,8 @@ export function lakeShore(l: Lake, step = 4): P2[] {
 /** Meters outside the shore at (x, z): negative over the water. */
 export function pastShore(l: Lake, x: number, z: number): number {
   const r = Math.hypot(x - l.x, z - l.z)
-  // The shore never strays past 1.4 radii: far away the exact distance does not matter.
-  if (r > l.r * 1.4 + 200) return r - l.r
+  // Far away the exact distance does not matter.
+  if (r > l.r * FARTHEST + 200) return r - l.r
   return r - shoreRadius(l, Math.atan2(z - l.z, x - l.x))
 }
 
@@ -56,7 +60,7 @@ export function lakeHollow(l: Lake, x: number, z: number, h: number): number {
 
 /** Digs the basin: a shelving shore, then a bowl. */
 export function carveLake(g: HeightGrid, l: Lake): void {
-  const reach = l.r * 1.4
+  const reach = l.r * FARTHEST
   const i0 = Math.max(0, Math.floor((l.x - reach - g.x0) / CELL))
   const j0 = Math.max(0, Math.floor((l.z - reach - g.z0) / CELL))
   const n = Math.ceil((2 * reach) / CELL)
