@@ -105,6 +105,10 @@ export function buildCanal(ctx: WorldCtx, c: CityLayout): void {
   )
   for (const r of sides) rectCollider(ctx, r, CANAL_FLOOR - 0.2, -PROUD)
   for (const r of parapets) rectCollider(ctx, r, 0, 0.9)
+  // ponytail: the decks clear the water by 30 cm, too low for a boat, so they are solid to the
+  // canal floor: a boat stops at the bridge instead of squeezing under the road. Raised
+  // bridges that boats pass under come with the open canal (Phase 13b).
+  for (const b of crossings) rectCollider(ctx, b.deck, CANAL_FLOOR - 0.2, -0.01)
   buildBanks(ctx, c, stone, metal)
 }
 
