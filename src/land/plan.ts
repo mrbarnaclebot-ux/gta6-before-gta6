@@ -45,7 +45,8 @@ export interface Land extends CityLayout {
 
 function frameOf(c: CityLayout): Frame {
   const { land } = c
-  const { line } = coastLine()
+  const coast = coastLine()
+  const { line } = coast
   // Whole cells out from the city, so grid vertices keep lining up with its edges.
   const out = (from: number, to: number) => Math.ceil(Math.max(0, to - from) / CELL) * CELL
   const xs = line.map((p) => p.x)
@@ -56,7 +57,7 @@ function frameOf(c: CityLayout): Frame {
     z0: land.z0 - out(Math.min(...zs) - SEA_MARGIN, land.z0),
     z1: land.z1 + out(land.z1, Math.max(...zs) + SEA_MARGIN),
   }
-  return { city: land, grid, coast: bakeCoast(grid) }
+  return { city: land, grid, coast: bakeCoast(grid, coast) }
 }
 
 /** Stamps every road and pad into the natural ground. */

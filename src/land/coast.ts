@@ -199,9 +199,9 @@ function spread(c: CoastField): void {
   }
 }
 
-/** Bakes the coast raster over `r` (the terrain grid). */
-export function bakeCoast(r: Rect): CoastField {
-  const { line, sand: lineSand } = coastLine()
+/** Bakes the coast raster for `coast` (from coastLine) over `r` (the terrain grid). */
+export function bakeCoast(r: Rect, coast: ReturnType<typeof coastLine>): CoastField {
+  const { line, sand: lineSand } = coast
   const w = Math.ceil((r.x1 - r.x0) / COAST_CELL) + 1
   const h = Math.ceil((r.z1 - r.z0) / COAST_CELL) + 1
   const c: CoastField = {
