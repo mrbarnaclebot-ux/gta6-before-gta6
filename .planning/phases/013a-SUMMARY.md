@@ -74,7 +74,6 @@ The scripted play-through ran in headless Chromium on the M4's GPU (Metal), at 1
   - Predicting crossing cars risks two-way deadlocks, and the existing unstick timer does not break those. It holds a stuck car at 0 while it "ignores" cars, so it never moves.
   - Junction logic belongs with 13c's turn lanes and stop bars.
 - **Two people on the same walking loop can overlap** when one overtakes the other.
-- **One bush stands on the edge of Street 2 North where it leaves Palm Avenue,** found by a scan of all 32,000 bushes against every road. The other flora is clear.
 - **The marina landmark stands the player on a bollard.** This is test placement only.
 - **Skipped on owner request:** the phone radio banner over the tip toast, and the silent first click on the title screen.
 
@@ -122,7 +121,6 @@ Each pair swings by 5 to 12 fps between rounds, and neither build wins consisten
 Unchanged.
 
 ## Known gaps
-- The 60 fps gate needs a re-run on a quiet machine before the Ship step (`NOWARM=1 node scripts/perf.mjs <url> <dir> medium 2`).
 - The canal is still closed (13b), and junctions have no right of way (13c).
 - The old position-only trunks remain on the firs and garden trees. They showed no shards, but `bark-lod.mjs` can redo them if they ever do.
 - The broadleaf trunk ends that the scan leaves open (where its separate branch mesh would continue) show as cut stumps when seen from below the crown.
@@ -154,3 +152,16 @@ Unchanged.
 - `pnpm lint`: clean (eslint and prettier).
 - `pnpm test`: 53 files, 187 tests passed. New: billboard colliders (3), traffic stopping (3), and furniture walking-line clearance (1).
 - `pnpm test:e2e`: 15 passed (18.0 min). No files were edited while it ran.
+
+## Review fixes
+| Review item | Fix |
+|---|---|
+| Perf gate not verified (shared machine) | Re-run on a quiet machine (load 2 to 3, nothing else running), production builds on `vite preview`, `NOWARM=1 node scripts/perf.mjs <url> <dir> medium 2`, branch and `main` back to back. **Every scene held 60 fps on both builds, p99 16.8 ms, max 16.8 ms, and the 86 s drive held 60 with no frame over 50 ms.** Main-thread work was 3.4 to 6.6 ms a frame on the branch, 3.2 to 5.9 on `main`. Uncapped A/B, two alternating rounds (main / branch fps): spawn 63.7, 69.7 / 66.4, 64.0; downtown 67.2, 79.5 / 76.8, 77.2; beach 62.0, 62.7 / 61.3, 64.7. No regression. Cold transfer 26.6 MB on both. No page errors. |
+| A wedge of grass at every cul-de-sac where the square street end met the curved ring | `deadEnd()` in `src/land/residential.ts` ends the street at `STREET_END = BULB - WIDTH.loop / 4`, in the ring's inner lane, so the ring's asphalt covers the street's square end. The street's last stretch is also levelled to the ring's height, so the flattened pad no longer buries it (new land test). The GPS still joins each street to its ring (`JOIN` comment in `road-graph.ts` updated; the land tests pass). Screens: `culdesac-ring-street1.jpg`, `culdesac-ring-street4.jpg`, `culdesac-ring-palm.jpg`, `culdesac-level-*.jpg`. |
+| The bush on Street 2 North was listed as not fixed | It was a corner lot's front hedge running on into the side street: `hedges()` never checked the road. Hedges now skip any spot inside the 1.5 m roadside verge that the avenue palms already use (`src/land/flora-rows.ts`). The grounding test now checks every bush against every road, not a sample. `hedge-street2-junction.jpg`. |
+| Dead code: `Traffic.unstick` holds the car instead of releasing it | Marked `ponytail:` in `src/life/traffic.ts`: it holds the stuck car (releasing it drives it into the other one), to be replaced by 13c's junction yield rules. |
+| Nit: a parking meter's jitter was not tested against the shelter | `src/city/furniture.ts` tests the jittered spot. |
+
+Gates after the review fixes: `pnpm build` built, `pnpm lint` clean, `pnpm test` 53 files and 188 tests passed, `pnpm test:e2e` 15 passed (15.1 min, no files edited while it ran).
+
+Older bugs the review found, left for later phases: highway traffic passing 1.9 m from a car stopped on the `highway` lane and nudging it (13c, with the lane work), the driver's legs through the floor of an upside-down car, the HILLSIDE map label over the header hint, and the cool grey-blue look of island trunks in the mid-distance.
