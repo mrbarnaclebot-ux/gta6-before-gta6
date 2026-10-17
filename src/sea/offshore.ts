@@ -1,4 +1,4 @@
-import { seaward, type CoastField } from '../land/coast'
+import { seaNormal, seaward, type CoastField } from '../land/coast'
 import { smoothstep } from '../land/noise'
 
 /*
@@ -18,12 +18,10 @@ export function offshoreCurrent(coast: CoastField): Current {
     const d = seaward(coast, x, z)
     const k = smoothstep(OFFSHORE.from, OFFSHORE.full, d)
     if (k === 0) return 0
-    // Down the slope of the distance to the coast: straight back toward the nearest shore.
-    const gx = seaward(coast, x + 8, z) - seaward(coast, x - 8, z)
-    const gz = seaward(coast, x, z + 8) - seaward(coast, x, z - 8)
-    const len = Math.hypot(gx, gz) || 1
-    out.x = -gx / len
-    out.z = -gz / len
+    // Straight back toward the nearest shore.
+    const n = seaNormal(coast, x, z, 8)
+    out.x = -n.x
+    out.z = -n.z
     return k
   }
 }

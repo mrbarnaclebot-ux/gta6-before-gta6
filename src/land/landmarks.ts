@@ -1,5 +1,5 @@
 import { heightAt } from '../city/terrain'
-import { seaward } from './coast'
+import { seaNormal, seaward } from './coast'
 import { EAST_X, LANES } from './highway'
 import { HILL_ROAD_Z } from './hillside'
 import { LAKE, lakeJetty } from './lake'
@@ -11,12 +11,9 @@ const SURFACE = 0.05
 
 /** The coast line's point nearest p, moved `d` meters along the way to sea (negative: inland). */
 function offCoast(land: Land, p: P2, d: number): P2 {
-  const { coast } = land.frame
-  const at = closest(coast.line, p).at
-  const gx = seaward(coast, at.x + 4, at.z) - seaward(coast, at.x - 4, at.z)
-  const gz = seaward(coast, at.x, at.z + 4) - seaward(coast, at.x, at.z - 4)
-  const len = Math.hypot(gx, gz) || 1
-  return { x: at.x + (gx / len) * d, z: at.z + (gz / len) * d }
+  const at = closest(land.frame.coast.line, p).at
+  const n = seaNormal(land.frame.coast, at.x, at.z)
+  return { x: at.x + n.x * d, z: at.z + n.z * d }
 }
 
 /** Named spots outside the city for tests, the perf probe, and debugging: feet positions. */

@@ -3,7 +3,7 @@ import { heightAt } from '../city/terrain'
 import { stand } from './footing'
 import { inMarina, planMarina } from './marina-plan'
 import type { Land } from './plan'
-import { sandAt, seaward } from './coast'
+import { shoreline, type Shore } from './coast'
 import { wildness } from './shape'
 
 const TOWER_GAP = 160
@@ -20,27 +20,16 @@ export type BeachProp = {
   yaw: number
 }
 
-/** A point on a sandy stretch of the coast line and the way out to sea from it. */
-export type Shore = { x: number; z: number; nx: number; nz: number }
+export type { Shore } from './coast'
 
 /** Points every `gap` meters along the coast line where the shore is sandy. */
 export function sandyShore(land: Land, gap: number): Shore[] {
-  const { coast } = land.frame
-  const line = coast.line
-  const out: Shore[] = []
-  let run = gap
-  for (let i = 1; i + 1 < line.length; i++) {
-    run += Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z)
-    if (run < gap || sandAt(coast, line[i].x, line[i].z) < 0.9) continue
-    run = 0
-    const tx = line[i + 1].x - line[i - 1].x
-    const tz = line[i + 1].z - line[i - 1].z
-    const len = Math.hypot(tx, tz)
-    let [nx, nz] = [tz / len, -tx / len]
-    if (seaward(coast, line[i].x + nx * 10, line[i].z + nz * 10) < 0) [nx, nz] = [-nx, -nz]
-    out.push({ x: line[i].x, z: line[i].z, nx, nz })
-  }
-  return out
+  let next = 0
+  return shoreline(land.frame.coast).filter((p) => {
+    if (p.s < next || p.sand < 0.9) return false
+    next = p.s + gap
+    return true
+  })
 }
 
 /** Where everything goes: towers along every beach, umbrella clusters between them near town. */

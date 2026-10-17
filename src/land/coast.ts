@@ -246,3 +246,38 @@ export function seaward(c: CoastField, x: number, z: number): number {
 
 /** 0 (rocky) to 1 (sandy): the shore nearest (x, z). */
 export const sandAt = (c: CoastField, x: number, z: number) => read(c, c.sand, x, z)
+
+/** The way out to sea at (x, z): up the slope of the distance to the coast, measured `h` meters each way. */
+export function seaNormal(c: CoastField, x: number, z: number, h = 4): P2 {
+  const gx = seaward(c, x + h, z) - seaward(c, x - h, z)
+  const gz = seaward(c, x, z + h) - seaward(c, x, z - h)
+  const len = Math.hypot(gx, gz) || 1
+  return { x: gx / len, z: gz / len }
+}
+
+/** A point on the coast line, the way out to sea, how sandy the shore is, and meters along the line. */
+export interface Shore {
+  x: number
+  z: number
+  nx: number
+  nz: number
+  sand: number
+  s: number
+}
+
+/** Every point of the coast line with its seaward normal, taken square to the line. */
+export function shoreline(c: CoastField): Shore[] {
+  const { line } = c
+  const out: Shore[] = []
+  let s = 0
+  for (let i = 1; i + 1 < line.length; i++) {
+    s += Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z)
+    const tx = line[i + 1].x - line[i - 1].x
+    const tz = line[i + 1].z - line[i - 1].z
+    const len = Math.hypot(tx, tz)
+    let [nx, nz] = [tz / len, -tx / len]
+    if (seaward(c, line[i].x + nx * 10, line[i].z + nz * 10) < 0) [nx, nz] = [-nx, -nz]
+    out.push({ ...line[i], nx, nz, sand: sandAt(c, line[i].x, line[i].z), s })
+  }
+  return out
+}
