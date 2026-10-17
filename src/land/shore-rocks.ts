@@ -145,29 +145,37 @@ function riverStones(land: Land, put: Put, r: Rand) {
   }
 }
 
+/** Inside `q` grown by `m` meters on every side. */
+const near = (q: Rect, x: number, z: number, m: number) =>
+  x > q.x0 - m && x < q.x1 + m && z > q.z0 - m && z < q.z1 + m
+
 /** Every rock along the shores, set on the ground and tilted with it. */
 export function shoreRocks(land: Land, clear: Clearance, ground: Surface): Grounded[] {
-  const r = rng(651)
   const out: Grounded[] = []
-  const { quays, dredged } = land.waterways.channels
-  const keepOut = [...quays, ...dredged].map((q) => ({
-    x0: q.x0 - 2,
-    x1: q.x1 + 2,
-    z0: q.z0 - 2,
-    z1: q.z1 + 2,
-  }))
-  const put: Put = (x, z, s, sink = SINK.rock) => {
-    if (clearAt(clear, x, z) === BLOCKED) return
-    if (keepOut.some((q) => x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1)) return
-    const up = upAt(ground, x, z, s * ROCK_SPREAD)
-    const y = lie(ground, x, z, s * ROCK_SPREAD * ROCK_RIM, up) - sink * s
-    out.push({ x, z, s, r: r() * Math.PI * 2, y, up, tint: pale(tint(r, 0.5)) })
+  const { quays, dredged, moles: rubble } = land.waterways.channels
+  const place =
+    (r: Rand): Put =>
+    (x, z, s, sink = SINK.rock) => {
+      if (clearAt(clear, x, z) === BLOCKED) return
+      // No rock may overhang a quay; the moles' inner rows edge the dredged channel on purpose.
+      if (quays.some((q) => near(q, x, z, Math.max(2, s * ROCK_SPREAD)))) return
+      if (dredged.some((q) => near(q, x, z, 2))) return
+      const up = upAt(ground, x, z, s * ROCK_SPREAD)
+      const y = lie(ground, x, z, s * ROCK_SPREAD * ROCK_RIM, up) - sink * s
+      out.push({ x, z, s, r: r() * Math.PI * 2, y, up, tint: pale(tint(r, 0.5)) })
+    }
+  // Each kind draws from its own stream, so changing one never reshuffles the others.
+  const kind = (seed: number, f: (put: Put, r: Rand) => void) => {
+    const r = rng(seed)
+    f(place(r), r)
   }
   const shore = shoreline(land.frame.coast)
-  riprap(shore, ground, put, r)
-  outcrops(shore, ground, put, r)
-  groynes(land, shore, put, r)
-  moles(land.waterways.channels.moles, put, r)
-  riverStones(land, put, r)
+  kind(651, (put, r) => {
+    riprap(shore, ground, put, r)
+    outcrops(shore, ground, put, r)
+  })
+  kind(652, (put, r) => groynes(land, shore, put, r))
+  kind(653, (put, r) => moles(rubble, put, r))
+  kind(654, (put, r) => riverStones(land, put, r))
   return out
 }
