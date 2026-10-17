@@ -59,7 +59,7 @@ export function fishGeometry(): THREE.BufferGeometry {
       0, 0, -0.33, 0, 0.17, -0.52, 0, 0.02, -0.44, 0, 0, -0.33, 0, -0.02, -0.44, 0, -0.15, -0.52,
     ]),
     fin([0, 0.13, 0.08, 0, 0.21, -0.08, 0, 0.1, -0.16]),
-  ].map((g) => g.toNonIndexed())
+  ].map((g) => (g.index ? g.toNonIndexed() : g))
   parts.forEach((g) => g.deleteAttribute('normal'))
   const merged = mergeGeometries(parts)
   merged.computeVertexNormals()
