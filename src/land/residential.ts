@@ -1,6 +1,6 @@
 import { rng, type Rand } from '../city/rng'
 import { smoothstep } from './noise'
-import { lift, path, type Path } from './path'
+import { lift, path, WIDTH, type Path } from './path'
 import { arc, closest, resample, stations, tangent, type P2, type P3 } from './polyline'
 import { profile } from './profile'
 
@@ -18,6 +18,8 @@ const STREETS_X = [-790, -930, -1070, -1210]
 const NORTH_LEN = 200
 const SOUTH_LEN = 250
 const BULB = 13
+/** A street ends this far from the circle's middle, in the ring's inner lane: the ring covers its square end. */
+const STREET_END = BULB - WIDTH.loop / 4
 /** The street is level with its ring this far from the middle: past the flat pad and a cell more. */
 const LEVEL = BULB + 8
 /** House lots: spacing along the street, footprint range, and front setback from the curb. */
@@ -34,8 +36,9 @@ function bulb(end: P3, name: string): Path {
 }
 
 /**
- * A street and the turning circle at its end. The street stops where it meets the ring's
- * centerline: run on to the circle's middle, its asphalt poked into the grass island. Its last
+ * A street and the turning circle at its end. The street stops inside the ring's inner lane:
+ * run on to the circle's middle, its asphalt poked into the grass island; cut at the ring's
+ * centerline, its square corners left a wedge of grass against the ring's outer edge. Its last
  * stretch levels out at the ring's height: plan.ts flattens the ground 4 m past the ring's
  * centerline at that height, which buried the end of a street still climbing to it.
  */
@@ -46,9 +49,9 @@ function deadEnd(name: string, kind: 'street' | 'avenue', sloped: P3[]): [Path, 
     ...p,
     y: p.y + (end.y - p.y) * smoothstep(LEVEL + 12, LEVEL, off(p)),
   }))
-  const k = pts.findIndex((p) => off(p) < BULB)
+  const k = pts.findIndex((p) => off(p) < STREET_END)
   const [a, b] = [pts[k - 1], pts[k]]
-  const t = (off(a) - BULB) / (off(a) - off(b))
+  const t = (off(a) - STREET_END) / (off(a) - off(b))
   const meet = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }
   return [path(name, kind, [...pts.slice(0, k), meet]), bulb(end, `${name} circle`)]
 }
