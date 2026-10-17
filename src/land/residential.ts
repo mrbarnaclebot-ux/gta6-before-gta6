@@ -18,6 +18,8 @@ const STREETS_X = [-790, -930, -1070, -1210]
 const NORTH_LEN = 200
 const SOUTH_LEN = 250
 const BULB = 13
+/** The street is level with its ring this far from the middle: past the flat pad and a cell more. */
+const LEVEL = BULB + 8
 /** House lots: spacing along the street, footprint range, and front setback from the curb. */
 const LOT = { spacing: 25, setback: 8 }
 
@@ -33,11 +35,17 @@ function bulb(end: P3, name: string): Path {
 
 /**
  * A street and the turning circle at its end. The street stops where it meets the ring's
- * centerline: run on to the circle's middle, its asphalt poked into the grass island.
+ * centerline: run on to the circle's middle, its asphalt poked into the grass island. Its last
+ * stretch levels out at the ring's height: plan.ts flattens the ground 4 m past the ring's
+ * centerline at that height, which buried the end of a street still climbing to it.
  */
-function deadEnd(name: string, kind: 'street' | 'avenue', pts: P3[]): [Path, Path] {
-  const end = pts[pts.length - 1]
+function deadEnd(name: string, kind: 'street' | 'avenue', sloped: P3[]): [Path, Path] {
+  const end = sloped[sloped.length - 1]
   const off = (p: P3) => Math.hypot(p.x - end.x, p.z - end.z)
+  const pts = sloped.map((p) => ({
+    ...p,
+    y: p.y + (end.y - p.y) * smoothstep(LEVEL + 12, LEVEL, off(p)),
+  }))
   const k = pts.findIndex((p) => off(p) < BULB)
   const [a, b] = [pts[k - 1], pts[k]]
   const t = (off(a) - BULB) / (off(a) - off(b))
