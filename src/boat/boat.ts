@@ -92,9 +92,14 @@ export class Boat implements Vehicle {
     return out.set(0, 1.2, -3.5).applyQuaternion(this.quaternion).add(this.position)
   }
 
-  /** Move instantly, at rest, keeping the heading (tests and debugging). */
-  place(at: THREE.Vector3): void {
+  /** Move instantly, at rest, turned to `heading` if given (tests and debugging). */
+  place(at: THREE.Vector3, heading?: number): void {
     this.body.setTranslation(at, true)
+    if (heading !== undefined)
+      this.body.setRotation(
+        { x: 0, y: Math.sin(heading / 2), z: 0, w: Math.cos(heading / 2) },
+        true,
+      )
     this.body.setLinvel({ x: 0, y: 0, z: 0 }, true)
     this.body.setAngvel({ x: 0, y: 0, z: 0 }, true)
     this.moored = null

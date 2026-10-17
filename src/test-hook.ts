@@ -258,7 +258,7 @@ function worldHelpers(deps: HookDeps) {
       }
     },
     ...vehicleHelpers(deps),
-    /** `heading` (yaw 0 faces +Z) turns a driven car too. */
+    /** `heading` (yaw 0 faces +Z) turns a driven car or boat too. */
     teleport: (x: number, y: number, z: number, heading?: number) =>
       driving.teleport(new THREE.Vector3(x, y, z), heading),
     /** Walkable ground height at (x, z): terrain, or the city's sidewalks and roads. */
