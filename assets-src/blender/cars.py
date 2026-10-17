@@ -31,7 +31,7 @@ def materials(sp):
     mats.define('grille', 0x0c0d0e, rough=0.4, metal=0.4)
     mats.define('chrome', 0xd8d8d8, rough=0.1, metal=1.0)
     mats.define('glass', 0x141b20, rough=0.03, alpha=0.72, double=True)
-    mats.define('light_head', 0xb4bcc2, rough=0.1, metal=0.7, emit=0xfff2dd, power=0.2)
+    mats.define('light_head', 0xc9d0d5, rough=0.12, metal=0.6, emit=0xfff2dd, power=0.2)
     mats.define('light_tail', 0x7a0b0b, rough=0.1, emit=0xff2010, power=0.15)
     mats.define('light_indicator', 0xd98b1f, rough=0.12)
     mats.define('light_reverse', 0xdedede, rough=0.08)

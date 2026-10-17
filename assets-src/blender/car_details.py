@@ -15,15 +15,11 @@ def lamp(surf, side, at, d, mats, offset=0.005, segs=24):
 
 
 def heads(sp, surf, lod):
-    """Headlamps (lens and bezel), their projector eyes, and amber indicators."""
+    """Headlamps (lens in a dark bezel) and amber indicators."""
     d = sp['head']
     at = (d['x'], d['y'], 0)
     rings = ['light_head', 'trim_black'] if lod else ['light_head', 'light_head', 'trim_black']
     g = lamp(surf, 'front', at, d, rings, segs=12 if lod else 28)
-    if not lod:
-        for dx in d.get('eyes', ()):
-            eye = disc(d['b'] * 0.42, d['b'] * 0.42, ['light_head', 'chrome'], n=2, segs=16)
-            g.add(place(eye, surf, 'front', (d['x'] + dx, d['y'], 0), 0.009))
     if 'ind' in sp:
         i = sp['ind']
         g.add(lamp(surf, 'front', (i['x'], i['y'], 0), i, ['light_indicator'], 0.006, 12))
