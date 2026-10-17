@@ -56,6 +56,10 @@ const LEAF_TONE = new THREE.Color(0.5, 0.66, 0.36)
 // No flutter on tree cards: thousands of them per tree made it the forest's biggest cost.
 const LEAVES = { bend: 0.012, flutter: 0, translucent: 0.35 }
 const BARK = { bend: 0.012, flutter: 0, translucent: 0 }
+// The island tree's scanned bark is a cool pale grey that read blue-white among the browns.
+const BARK_TONE: Record<string, THREE.Color> = {
+  island_tree_01: new THREE.Color(0.7, 0.64, 0.56),
+}
 
 /**
  * Makes every leaf card in a loaded model matte and deeper green, and sets leaves and bark
@@ -68,6 +72,7 @@ function toneLeaves(scene: THREE.Object3D) {
     const mat = mesh.material as THREE.MeshStandardMaterial | undefined
     if (!mat || done.has(mat)) return
     if (mat.name !== 'foliage_cards') {
+      if (mat.name in BARK_TONE) mat.color.copy(BARK_TONE[mat.name])
       done.add(swaying(mat, BARK))
       return
     }

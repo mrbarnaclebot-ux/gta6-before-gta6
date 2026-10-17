@@ -3,6 +3,7 @@ import { SEA_LEVEL } from '../city/layout'
 import { heightAt, waterSurfaceAt } from '../city/terrain'
 import { CELL } from './grid'
 import { generateLand, UNDER_CITY } from './plan'
+import { offset } from './polyline'
 import { HILLS } from './shape'
 
 const land = generateLand(7, 1000)
@@ -76,6 +77,22 @@ describe('terrain', () => {
       const worst = Math.max(...p.pts.map((q) => Math.abs(heightAt(land, q.x, q.z) - q.y)))
       // The narrow trail climbs at up to 30%, between grid points 4 m apart.
       expect(worst, p.name).toBeLessThan(p.kind === 'trail' ? 0.8 : 0.4)
+    }
+  })
+
+  it('keeps the ground under each street where it meets its turning circle', () => {
+    for (const ring of land.paths.filter((p) => p.name.endsWith(' circle'))) {
+      const street = land.paths.find((p) => `${p.name} circle` === ring.name)!
+      const c = ring.pts.reduce((a, q) => ({ x: a.x + q.x, z: a.z + q.z }), { x: 0, z: 0 })
+      const near = (q: { x: number; z: number }) =>
+        Math.hypot(q.x - c.x / ring.pts.length, q.z - c.z / ring.pts.length) < 25
+      for (const side of [-1, 0, 1]) {
+        offset(street.pts, side * (street.width / 2 - 0.3)).forEach((q, i) => {
+          // Asphalt lies 5 cm over its centerline (scenery/bridges.ts LIFT).
+          if (near(q))
+            expect(heightAt(land, q.x, q.z) - street.pts[i].y, ring.name).toBeLessThan(0.05)
+        })
+      }
     }
   })
 })

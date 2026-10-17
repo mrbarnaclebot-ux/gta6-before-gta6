@@ -9,3 +9,6 @@ playwright-report/
 # Local review screenshots (about 300 MB) and owner reference images
 .planning/phases/screens-*/
 ingame-examples/
+
+# Poly Haven scans fetched by scripts/bark-lod.mjs (tens of MB each)
+assets-src/.polyhaven/

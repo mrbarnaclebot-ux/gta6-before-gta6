@@ -10,7 +10,10 @@ import type { Land } from '../land/plan'
 import { canJack, driverWaits } from './carjack-rules'
 import { highwayStart } from './highway-traffic'
 import { gridStart, randomHeading } from './lanes'
+import { stopLimit, type Obstacle } from './stopping'
 import { TrafficCar } from './traffic-car'
+
+export type { Obstacle }
 
 // ponytail: ten cars kept within 220 m of the player, no traffic lights; intersections
 // work on "stop for whatever is in front". Lights and a density map can come later.
@@ -20,23 +23,9 @@ const POLICE_EVERY = 3
 const NEAR = 60
 const FAR = 220
 const DESPAWN = 260
-const LOOK = 30
 const HALF_WIDTH = 1.0
-const HALF_LENGTH = 2.4
-const STOP_MARGIN = 1.5
 const STUCK_AFTER = 3
 const IGNORE_FOR = 2
-
-/** Something a driver must not hit: its ground position and rough radius. */
-export interface Obstacle {
-  x: number
-  y: number
-  z: number
-  r: number
-}
-
-// Things farther apart than this in height are on different levels: a bridge and the road under it.
-const LEVEL = 3
 
 const DOWN = { x: 0, y: -1, z: 0 }
 const NUDGE = 0.0013
@@ -146,10 +135,10 @@ export class Traffic {
       const hidden = !car.visual.root.visible
       if (hidden || car.position.distanceTo(focus) > DESPAWN) this.spawn(car, focus, view, hidden)
       if (!car.visual.root.visible) return
-      const cars = this.ignoring[i] > 0 ? 0 : this.limit(car, this.carObstacles(car))
+      const cars = this.ignoring[i] > 0 ? 0 : stopLimit(car, this.carObstacles(car))
       const w = lights.walker
       const waits = car.held || (w !== null && driverWaits(car.speed, car.position.distanceTo(w)))
-      const limit = waits ? 0 : Math.min(cars, this.limit(car, others))
+      const limit = waits ? 0 : Math.min(cars, stopLimit(car, others))
       this.unstick(i, car, cars, limit, dt)
       car.update(dt, limit, lights.night, lights.siren)
       castShadows(car.visual.root, car.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
@@ -182,24 +171,12 @@ export class Traffic {
     return list
   }
 
-  /** Top speed that still stops short of the nearest obstacle in this car's path. */
-  private limit(car: TrafficCar, list: Obstacle[]): number {
-    const fx = Math.sin(car.heading)
-    const fz = Math.cos(car.heading)
-    let limit = Infinity
-    for (const o of list) {
-      if (Math.abs(o.y - car.position.y) > LEVEL) continue
-      const dx = o.x - car.position.x
-      const dz = o.z - car.position.z
-      const ahead = dx * fx + dz * fz
-      if (ahead <= 0 || ahead > LOOK || Math.abs(dx * fz - dz * fx) > HALF_WIDTH + o.r) continue
-      const gap = ahead - HALF_LENGTH - o.r - STOP_MARGIN
-      limit = Math.min(limit, gap <= 0 ? 0 : Math.sqrt(7 * gap))
-    }
-    return limit
-  }
-
-  /** Two cars nose to nose in an intersection would wait forever: after a while, one goes. */
+  /**
+   * Two cars nose to nose in an intersection would wait forever: after a while, one goes.
+   * ponytail: `ignoring` sets the car limit to 0 in update(), so the stuck car is held, not
+   * released; letting it go (Infinity) drives it into the other car. Replace with the
+   * junction yield rules that come with the 13c lane work.
+   */
   private unstick(i: number, car: TrafficCar, carLimit: number, limit: number, dt: number) {
     this.ignoring[i] = Math.max(0, this.ignoring[i] - dt)
     const blockedByCar = car.speed < 0.2 && carLimit <= limit + 1e-6 && carLimit < 0.5

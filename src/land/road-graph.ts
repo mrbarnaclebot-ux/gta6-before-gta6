@@ -21,7 +21,7 @@ const SPEED: Record<Kind | 'city', number> = {
   trail: 4,
   city: 12,
 }
-// A road ending this close to another is joined to it (a cul-de-sac's center to its ring is 13 m).
+// A road ending this close to another is joined to it (a cul-de-sac street's end is a few meters from its ring's nearest point).
 const JOIN = 16
 
 export interface RoadGraph {
