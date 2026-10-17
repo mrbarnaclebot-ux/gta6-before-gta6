@@ -5,7 +5,7 @@ import { heightAt } from '../city/terrain'
 import { seaward } from '../land/coast'
 import { stand } from '../land/footing'
 import { LAKE, lakeShore } from '../land/lake'
-import { fbm } from '../land/noise'
+import { fbm, smoothstep } from '../land/noise'
 import type { Land } from '../land/plan'
 import { keepCardNormals } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
@@ -51,51 +51,67 @@ function reedTexture(): THREE.CanvasTexture {
   return t
 }
 
-/** Spots along a line of points: a clump every few meters where the bed is not broken. */
-function along(land: Land, pts: { x: number; z: number }[], out: Grounded[], r: () => number) {
-  const ground = (x: number, z: number) => heightAt(land, x, z)
-  for (const p of pts) {
-    if (fbm(p.x / 24, p.z / 24, 71, 2) < -0.3 || r() < 0.12) continue
-    const x = p.x + range(r, -1.2, 1.2)
-    const z = p.z + range(r, -1.2, 1.2)
-    const s = range(r, 1.5, 2.4)
-    out.push({ x, z, y: stand(ground, x, z, CLUMP_FOOT * s, 0.1), s, r: r() * Math.PI * 2 })
-  }
+type Rand = () => number
+
+/** A reed clump at (x, z): its height, a lean with the wind, and a tint from green to straw. */
+function reed(land: Land, x: number, z: number, r: Rand): Grounded {
+  const s = range(r, 1.1, 2.7)
+  const ground = (a: number, b: number) => heightAt(land, a, b)
+  const lean = range(r, 0, 0.12)
+  const a = r() * Math.PI * 2
+  const up: [number, number, number] = [Math.cos(a) * lean, 1, Math.sin(a) * lean]
+  const v = r()
+  const tint = (Math.round(205 + 50 * v) << 16) | (Math.round(225 + 30 * v) << 8) | 205
+  return { x, z, y: stand(ground, x, z, CLUMP_FOOT * s, 0.1), s, r: r() * Math.PI * 2, up, tint }
 }
 
-/** Both banks of the river at the waterline, and the lake's shore. */
-export function reedSpots(land: Land): Grounded[] {
-  const r = rng(29)
-  const out: Grounded[] = []
+/**
+ * Reed beds in patches along both river banks: where the patch noise is high, clumps are
+ * scattered across the band from the shallows to the mud, thick in the middle of a bed and
+ * thinning at its ends; elsewhere the bank is open.
+ */
+function riverReeds(land: Land, r: Rand): Grounded[] {
   const river = land.waterways.river
+  const out: Grounded[] = []
   for (const side of [-1, 1]) {
-    const bank: { x: number; z: number }[] = []
     for (let i = 1; i + 1 < river.pts.length; i++) {
+      const bed = fbm(river.pts[i].x / 42, river.pts[i].z / 42, 71 + side, 3)
+      if (bed < -0.05 || r() < 0.2) continue
       const [a, b] = [river.pts[i - 1], river.pts[i + 1]]
       const len = Math.hypot(b.x - a.x, b.z - a.z)
-      for (const d of [river.half[i] - 1.5, river.half[i] + 1]) {
-        const p = river.pts[i]
-        bank.push({
-          x: p.x - ((b.z - a.z) / len) * d * side,
-          z: p.z + ((b.x - a.x) / len) * d * side,
-        })
+      const [tx, tz] = [(b.x - a.x) / len, (b.z - a.z) / len]
+      const thick = smoothstep(-0.05, 0.4, bed)
+      const n = 1 + Math.floor(5 * thick * r())
+      for (let k = 0; k < n; k++) {
+        // Out into the water as far as the bed is thick, and back up the mud.
+        const d = (river.half[i] + range(r, -3 * thick - 0.5, 5)) * side
+        const along = range(r, -2, 2)
+        const x = river.pts[i].x - tz * d + tx * along
+        out.push(reed(land, x, river.pts[i].z + tx * d + tz * along, r))
       }
     }
-    along(land, bank, out, r)
   }
   // Only where the water is shallow enough to root, and upriver of the beach.
-  const kept = out.filter((s) => s.y > SEA_LEVEL - 0.6 && seaward(land.frame.coast, s.x, s.z) < -10)
-  const lake: Grounded[] = []
-  along(
-    land,
-    lakeShore(LAKE, STEP).flatMap((p) => [
-      p,
-      { x: LAKE.x + (p.x - LAKE.x) * 0.96, z: LAKE.z + (p.z - LAKE.z) * 0.96 },
-    ]),
-    lake,
-    r,
-  )
-  return [...kept, ...lake]
+  return out.filter((s) => s.y > SEA_LEVEL - 0.6 && seaward(land.frame.coast, s.x, s.z) < -10)
+}
+
+/** Patches of reeds round the lake: in the shallows and on the bank, with open shore between. */
+function lakeReeds(land: Land, r: Rand): Grounded[] {
+  const out: Grounded[] = []
+  for (const p of lakeShore(LAKE, STEP)) {
+    if (fbm(p.x / 30, p.z / 30, 73, 2) < 0 || r() < 0.3) continue
+    for (let k = 0, n = 1 + Math.floor(r() * 3); k < n; k++) {
+      const f = range(r, 0.9, 1.04)
+      out.push(reed(land, LAKE.x + (p.x - LAKE.x) * f, LAKE.z + (p.z - LAKE.z) * f, r))
+    }
+  }
+  return out
+}
+
+/** The river's reed beds and the lake's. */
+export function reedSpots(land: Land): Grounded[] {
+  const r = rng(29)
+  return [...riverReeds(land, r), ...lakeReeds(land, r)]
 }
 
 /** The reed beds, drawn near the camera only (no shadows, not in the sea's mirror). */
@@ -112,5 +128,13 @@ export function plantReeds(
     }),
   )
   const place = { scale: (s: Grounded) => s.s, ranges: [RANGE], detail: true }
-  return instanceByDistance(ctx, [[{ geometry: clump(), material }], []], reedSpots(land), place)
+  const spots = reedSpots(land)
+  // Two builds of clump, so the beds are not one shape repeated: a few tall stems, and a thick tussock.
+  const tall = spots.filter((_, k) => k % 3 === 0)
+  const thick = spots.filter((_, k) => k % 3 !== 0)
+  const kinds = [
+    instanceByDistance(ctx, [[{ geometry: clump(2, 0.7, 1.15), material }], []], tall, place),
+    instanceByDistance(ctx, [[{ geometry: clump(4, 1.5, 0.85), material }], []], thick, place),
+  ]
+  return (eye, reach) => kinds.forEach((update) => update(eye, reach))
 }

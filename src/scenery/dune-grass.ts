@@ -47,15 +47,17 @@ function bladeTexture(): THREE.CanvasTexture {
   return t
 }
 
-/** Three crossed cards, 1 m tall, normals leaning up so the clump lights like a tuft. */
-export function clump(): THREE.BufferGeometry {
-  const cards = [0, 1, 2].map((k) => {
-    const q = new THREE.PlaneGeometry(1.1, 1).translate(0, 0.5, 0).rotateY((k * Math.PI) / 3)
+/** Crossed cards, normals leaning up so the clump lights like a tuft. */
+export function clump(cards = 3, width = 1.1, height = 1): THREE.BufferGeometry {
+  const planes = Array.from({ length: cards }, (_, k) => {
+    const q = new THREE.PlaneGeometry(width, height)
+      .translate(0, height / 2, 0)
+      .rotateY((k * Math.PI) / cards)
     const n = q.attributes.normal as THREE.BufferAttribute
     for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.4, 0.9, n.getZ(i) * 0.4)
     return q
   })
-  return mergeGeometries(cards)
+  return mergeGeometries(planes)
 }
 
 /** Spots on the dune crests of every sandy shore, where the dunes stand proud of the plain beach slope. */
