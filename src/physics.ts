@@ -7,10 +7,12 @@ export const FIXED_STEP = 1 / 60
 
 /*
  * Collision groups: the high 16 bits say which groups a collider is in, the low 16
- * which groups it interacts with. People and traffic sit in group 2 so the camera's
- * wall probe can look straight through them.
+ * which groups it interacts with. People sit in group 2 so the camera's wall probe can
+ * look straight through them. Traffic has its own group the probe does see: a car that
+ * stops behind the player is solid, and the camera stays in front of it, not inside.
  */
 export const ACTOR_GROUPS = 0x0002ffff
+export const TRAFFIC_GROUPS = 0x0004ffff
 export const CAMERA_PROBE_GROUPS = 0x0001fffd
 /**
  * Sensors are camera-only shapes (a boat's windshield, which the hull box leaves out):

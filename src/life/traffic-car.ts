@@ -2,16 +2,16 @@ import * as THREE from 'three'
 import { easeAngle } from '../camera/orbit-math'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
-import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
+import { RAPIER, TRAFFIC_GROUPS, type PhysicsWorld } from '../physics'
 import type { CarVisual } from '../vehicle/car-model'
 import { CAR_SPECS } from '../vehicle/car-specs'
 import { corners, restOnCorners } from '../land/footing'
 import { CAR_HALF } from '../city/parking'
 import { CRUISE, type Driver, type Start, type Waypoint } from './lanes'
+import { BRAKE } from './stopping'
 
 const HP = 160
 const ACCEL = 3
-const BRAKE = 7
 const EULER = new THREE.Euler()
 // Light bar flashes per second, alternating red and blue.
 const FLASH_RATE = 3
@@ -61,7 +61,7 @@ export class TrafficCar {
     this.body = physics.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased())
     const shape = RAPIER.ColliderDesc.cuboid(size.x * 0.43, size.y * 0.4, size.z / 2)
       .setTranslation(center.x, size.y * 0.5, center.z)
-      .setCollisionGroups(ACTOR_GROUPS)
+      .setCollisionGroups(TRAFFIC_GROUPS)
     this.collider = physics.createCollider(shape, this.body)
     // Parked at the origin until first placed; nothing should bump into it there.
     this.collider.setEnabled(false)
