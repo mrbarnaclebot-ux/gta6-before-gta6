@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { seaward } from '../land/coast'
 import { generateLand } from '../land/plan'
-import { OFFSHORE, offshoreCurrent } from './offshore'
+import { hullDrag, MASS, thrust } from '../boat/hull'
+import { OFFSHORE, offshoreCurrent, setOnHull } from './offshore'
 
 const land = generateLand(7, 1000)
 const current = offshoreCurrent(land.frame.coast)
@@ -42,5 +43,23 @@ describe('offshore current', () => {
       ])
         expect(current(px, pz, dir)).toBeCloseTo(1)
     }
+  })
+})
+
+describe('the set on a boat', () => {
+  it('slows a boat heading out, then holds full throttle to a slow drift back', () => {
+    // One axis, positive toward the island: a 1600 kg hull at full throttle straight out.
+    let v = -20
+    let slowest = 0
+    for (let t = 0; t < 30; t += 1 / 60) {
+      const a = setOnHull(1, v)
+      expect(a).toBeLessThanOrEqual(8)
+      slowest = Math.max(slowest, a)
+      v += (a - thrust(1, -v, false) / MASS + hullDrag(-v) / -MASS) / 60
+    }
+    expect(slowest).toBe(8)
+    expect(v).toBeGreaterThan(1.5)
+    expect(v).toBeLessThan(3)
+    expect(setOnHull(1, 5)).toBe(0)
   })
 })

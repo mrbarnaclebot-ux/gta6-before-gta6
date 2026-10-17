@@ -15,7 +15,7 @@ import {
   thrust,
   trim,
 } from './hull'
-import type { Current } from '../sea/offshore'
+import { setOnHull, type Current } from '../sea/offshore'
 
 type Body = InstanceType<typeof RAPIER.RigidBody>
 type WaterQuery = (x: number, z: number) => number | null
@@ -56,14 +56,12 @@ export class BoatForces {
       for (const k of KEEL) this.keel(k, wet, dt)
       this.impulse(push.set(0, lift(speed) * wet, 0), this.origin, dt)
       this.attitude(speed, helm.steer, wet, dt)
-      // Far offshore the sea pushes back harder than the outboard can push out.
+      // Far offshore the sea carries the boat back, a little faster than the outboard can push out.
       const k = this.current(this.origin.x, this.origin.z, toShore)
-      if (k > 0)
-        this.impulse(
-          push.set(toShore.x, 0, toShore.z).multiplyScalar(MASS * 8 * k * wet),
-          this.origin,
-          dt,
-        )
+      if (k > 0) {
+        const a = setOnHull(k, lin.x * toShore.x + lin.z * toShore.z) * MASS * wet
+        this.impulse(push.set(toShore.x * a, 0, toShore.z * a), this.origin, dt)
+      }
     }
     this.propel(helm, speed, dead, dt)
     return speed

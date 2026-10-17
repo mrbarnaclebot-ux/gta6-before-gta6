@@ -25,3 +25,15 @@ export function offshoreCurrent(coast: CoastField): Current {
     return k
   }
 }
+
+/** The set a boat drifts back at with its engine off, in m/s, and how hard the water grips the hull. */
+const SET = { drift: 3, grip: 4, most: 8 }
+
+/**
+ * Push in m/s² toward the island on a hull moving `toward` m/s toward it, at strength `k`. The
+ * water itself moves shoreward at the drift speed and drags the hull along with it, capped so
+ * a boat heading out at speed slows over seconds and a full throttle only holds it to a slow
+ * drift back. It never pulls outward.
+ */
+export const setOnHull = (k: number, toward: number) =>
+  k * Math.min(SET.most, Math.max(0, SET.grip * (SET.drift - toward)))
