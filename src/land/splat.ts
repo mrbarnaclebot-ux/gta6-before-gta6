@@ -29,7 +29,7 @@ export function splatGrid(land: Land, canopy: Float32Array | null): Float32Array
       const shade = canopy ? canopy[k] : 0
       const d = seaward(coast, x, z)
       // The sand's inland edge wanders, and grass creeps over the back dunes in tongues.
-      const edge = d + 7 * fbm(x / 34, z / 34, 43, 2)
+      const edge = d < -30 ? d : d + 7 * fbm(x / 34, z / 34, 43, 2)
       const beach = smoothstep(-14, -2, edge) * smoothstep(0.2, 0.6, sandAt(coast, x, z))
       // Whatever lies under the sea or the lake reads as sand, whatever shore is above it.
       const wet = Math.max(
