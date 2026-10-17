@@ -31,14 +31,42 @@ def empty(name, parent=None, at=(0, 0, 0), extras=None):
     return obj
 
 
+# Materials whose faces get slope UVs (u along the eave, v down the slope: roof tiles and
+# seams line up on every face of a hip roof) or one 0..1 square per face (window panes,
+# so an interior-mapping shader can find the pane's corners).
+SLOPE_UV = {'roof_tile', 'roof_metal'}
+UNIT_UV = {'glass_house'}
+
+
+def _slope_frame(n):
+    down = Vector((n.x, n.y, 0))
+    if down.length < 1e-4:
+        return None
+    down.normalize()
+    eave = Vector((-down.y, down.x, 0))
+    return eave, eave.cross(n).normalized()
+
+
 def box_uv(me, tile):
     """Box projection in metres: each face takes the plane it faces most; `tile` m per repeat."""
     uv = me.uv_layers.new(name='UVMap').data
+    names = [m.name if m else '' for m in me.materials]
     for poly in me.polygons:
+        name = names[poly.material_index] if names else ''
+        loops = list(poly.loop_indices)
+        cos = [me.vertices[me.loops[li].vertex_index].co for li in loops]
+        if name in UNIT_UV and len(loops) == 4:
+            for li, c in zip(loops, ((0, 0), (1, 0), (1, 1), (0, 1))):
+                uv[li].uv = c
+            continue
+        frame = _slope_frame(poly.normal) if name in SLOPE_UV else None
+        if frame:
+            for li, co in zip(loops, cos):
+                uv[li].uv = (co.dot(frame[0]) / 2.0, co.dot(frame[1]) / 2.0)
+            continue
         k = max(range(3), key=lambda i: abs(poly.normal[i]))
         axes = [i for i in range(3) if i != k]
-        for li in poly.loop_indices:
-            co = me.vertices[me.loops[li].vertex_index].co
+        for li, co in zip(loops, cos):
             uv[li].uv = (co[axes[0]] / tile, co[axes[1]] / tile)
 
 
