@@ -14,7 +14,7 @@ import { stand, type Surface } from './footing'
 import { SINK } from './plant'
 
 /*
- * The whole 2 x 2 km map as plain data: the city plan, every road outside it with its
+ * The whole island as plain data: the city plan, every road outside it with its
  * height, houses and villas, and the baked terrain heightmap they are cut into.
  */
 

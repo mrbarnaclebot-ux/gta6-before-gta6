@@ -12,8 +12,8 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `billboards.ts` parody billboards on low-rise roofs and on poles by the highway (placed by `src/land/billboards.ts`), with colliders for the picture, catwalk, legs and pole
 - `rooftops.ts` AC units, water tanks, and antennas, merged into each chunk's trim
 - `late-textures.ts` the room and sign atlases, loaded after the first frame
-- `canal.ts` seawalls, bridges, railings, and swim-out steps (ramp colliders)
-- `water.ts` reflective sea and canal water on the wave grid (shaders in `src/sea`); `wet-areas.ts` skips its mirror when no water is in view
+- `canal.ts` seawalls, railings, and swim-out steps (ramp colliders); `canal-bridges.ts` the humped street bridges a boat passes under
+- `water.ts` reflective sea and canal water on the wave grid (shaders in `src/sea`); `wet-areas.ts` skips its mirror when no water is in view; `lake.ts` the forest lake's still surface
 - `impostor.ts` 4-triangle cards baked from a model, for far palms
 - `underwater.ts` the wavy surface seen from below with a refracted Snell's window, light shafts, and motes; hides the reflective top while the camera is under
 - `vegetation.ts` the generated palm (near and far versions, chosen per tree by distance in `lod-instances.ts`) and scanned ferns; `palm-model.ts` procedural palms if the glb fails

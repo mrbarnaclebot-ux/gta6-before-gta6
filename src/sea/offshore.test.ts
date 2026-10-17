@@ -1,0 +1,30 @@
+import { describe, expect, it } from 'vitest'
+import { seaward } from '../land/coast'
+import { generateLand } from '../land/plan'
+import { OFFSHORE, offshoreCurrent } from './offshore'
+
+const land = generateLand(7, 1000)
+const current = offshoreCurrent(land.frame.coast)
+const coast = land.frame.coast
+
+/** The point straight out from the island's middle at angle `a` where the sea is `d` meters off the coast. */
+function out(a: number, d: number) {
+  let r = 0
+  const at = () => ({ x: -700 + Math.cos(a) * r, z: Math.sin(a) * r })
+  while (seaward(coast, at().x, at().z) < d) r += 2
+  return at()
+}
+
+describe('offshore current', () => {
+  it('is still near the coast and full strength well out, all round the island', () => {
+    const dir = { x: 0, z: 0 }
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+      const near = out(a, OFFSHORE.from - 20)
+      expect(current(near.x, near.z, dir)).toBe(0)
+      const far = out(a, OFFSHORE.full + 10)
+      expect(current(far.x, far.z, dir)).toBeCloseTo(1)
+      // It sets back toward the island: against the way out.
+      expect(dir.x * Math.cos(a) + dir.z * Math.sin(a)).toBeLessThan(-0.5)
+    }
+  })
+})

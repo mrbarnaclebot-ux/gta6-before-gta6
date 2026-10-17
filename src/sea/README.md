@@ -11,7 +11,8 @@ The ocean: waves, foam, the view from under the surface, and sea life.
 - `caustics.ts` underwater absorption and animated caustics, patched into lit materials
 - `shafts.ts`, `motes.ts` underwater light shafts and drifting specks
 - `boids.ts` pure fish school steering; `fish-model.ts`, `fish.ts` the instanced fish
-- `reef-plan.ts` pure placement of reefs, seagrass, kelp, corals, and rocks; `seabed-models.ts` their procedural meshes
+- `reef-plan.ts` pure placement of reefs, seagrass, kelp, corals, and rocks off every beach; `seabed-models.ts` their procedural meshes
 - `rays.ts` gliding eagle rays; `sea-life.ts` builds all sea life and culls it away from the reefs
-- `sea-plan.ts` pure: the reefs and the baked field (runs in the plan worker)
+- `sea-plan.ts` pure: the reefs and the baked field over the whole terrain grid, calm in the canal and river (runs in the plan worker)
+- `offshore.ts` the soft edge of the world: a current that sets in about 320 m off the coast and carries swimmers and boats back
 - `sea.ts` entry point: adds the field's uniforms, builds the water, the underwater view, and the life
