@@ -144,7 +144,9 @@ export function generateFlora(land: Land): Flora {
   coastPalms(land, c, surface, out)
   bushes(land, c, surface, out)
   rocks(land, c, surface, out)
-  out.palms.push(...avenuePalms(land, surface))
-  out.bushes.push(...hedges(land, surface))
+  // Roadside rows keep only a narrow verge clear: the full one would empty them.
+  const tight = clearance(land, 1.5)
+  out.palms.push(...avenuePalms(land, tight, surface))
+  out.bushes.push(...hedges(land, tight, surface))
   return out
 }

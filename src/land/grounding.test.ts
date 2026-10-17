@@ -127,9 +127,11 @@ describe('grounding', () => {
   })
 
   it('keeps plants off roads and out of the water, and is the same every time', () => {
-    const all = [...flora.conifers, ...flora.broadleaf, ...flora.bushes]
+    const trees = [...flora.conifers, ...flora.broadleaf]
     const r = rng(5)
-    for (const s of Array.from({ length: 1500 }, () => all[Math.floor(r() * all.length)])) {
+    // Every bush: a corner lot's hedge once ran on into the side street.
+    const sample = Array.from({ length: 1500 }, () => trees[Math.floor(r() * trees.length)])
+    for (const s of [...sample, ...flora.bushes]) {
       expect(s.y!).toBeGreaterThan(-1)
       for (const p of land.paths.filter((q) => q.kind !== 'trail')) {
         const near = p.pts.some((q) => Math.hypot(q.x - s.x, q.z - s.z) < p.width / 2)
