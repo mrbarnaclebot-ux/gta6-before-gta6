@@ -1,6 +1,6 @@
 # Phase 13b summary: the island
 
-Status: built and verified on branch `phase-13b-island` (from `main` at 38ae109). Not pushed, not deployed. Code Reviewer and Designer have not reviewed it yet.
+Status: built and verified on branch `phase-13b-island` (from `main` at 38ae109). Not pushed, not deployed. Reviewed; the blockers are fixed (see Review fixes at the end).
 
 ## What changed
 
@@ -165,7 +165,7 @@ All on an M4 at 1920x1080, DSF2, Medium, with `scripts/perf.mjs` against product
 - **Pedestrians cannot cross the canal humps.** The parapets keep the drop to the sidewalk safe, and people walk only their block's loop.
 - **Waves on the west and north coasts.** The Gerstner swell still comes from the east everywhere. The shore-following surf wave breaks on every beach, but the open-sea swell runs away from the west coast.
 - **The perf gate on the first scene.** In the full run, spawn showed two start-up hitches over 50 ms. Repeat runs held 60.
-- **Seabed edge.** Past the terrain grid there is no seabed, so a swimmer diving far offshore sees the terrain's edge. The current turns people back before then on most sides; off the west headland the grid edge is about 290 m out.
+- **Seabed edge.** Fixed in review: the grid now reaches 520 m past the outermost coast on every side, beyond where the current is at full strength, and the open sea over its edge is opaque.
 - **The sea field texture** is 16.7 MB on the GPU, up from 4.9 MB. Desktop-only concern; phones are out of scope for this phase.
 
 ## Screenshots (`.planning/phases/013b-screens/`, 1920x1080, Medium, production build)
@@ -176,3 +176,75 @@ All on an M4 at 1920x1080, DSF2, Medium, with `scripts/perf.mjs` against product
 - **Beaches:** `beach-west.jpg`, `beach-west-dunes.jpg`, `beach-south-dunes.jpg`, `beach-east-wrack-ripples.jpg`.
 - **Coasts:** `coast-sw-headland.jpg`, `coast-north-cliffs.jpg`, `coast-nw-bay.jpg`, `coast-north-horizon.jpg`.
 - **Perf scenes at DSF2:** `perf-medium-<scene>.jpg` for spawn, beach, and the five new scenes.
+
+## Review fixes
+
+After the Code Reviewer's and Designer's pass. Screenshots of each fix are in `.planning/phases/013b-screens/` with the prefix `fix-`.
+
+### Blockers
+1. **The seam where the terrain grid ended** (`src/land/plan.ts`, `src/land/shape.ts`, `src/sea/water-shader.ts`, `src/sea/sea-glsl.ts`)
+   - The grid's reach now comes from the coast's bounds: 520 m (`OFFSHORE.full` + 60) past the outermost coast to the west, north and south, and at least the old 700 m east of the city. The grid is now x −2346..1066, z −1526..1474 (was −2114..1066, ±1314).
+   - A new test (`offshore.test.ts`) checks that the current is at full strength all along the grid's edge, so no swimmer or boat reaches it. It fails on the old reach.
+   - Past 300 m off the coast the seabed falls a further 18 m, reaching open-sea depth (about 29 m of water) by 500 m. Water deeper than 14 to 24 m is drawn opaque, and off the field the shader reads that same depth. So nothing under the water shows where the grid ends, from the sea or from the air. The open sea also turns a deeper blue past the shelf.
+   - Re-filmed at the reviewer's two spots (`fix-edge-west-above.jpg`, `fix-edge-north-above.jpg`): no line.
+2. **Rocky headlands and cliffs** (`src/land/shore-rocks.ts`, `src/land/shape.ts`, `src/scenery/terrain-material.ts`)
+   - Riprap is now heaped by noise along the shore. Stones lie in piles with bare gaps between. Sizes fall off like scree: mostly 0.5 to 1.5, a few to 2.5. The distance from the waterline varies from 3.5 m up the cliff foot to 5 m out.
+   - Big boulders (2.6 to 4.6) lie at the cliff foot or half drowned in the shallows. Clumps of bedrock (2.2 to 4.5) are sunk into the cliff faces.
+   - The cliff face is no longer one even bank. Its lean varies between about 38 and 53 degrees along the shore. It is steep for most of its height (half linear, half eased), not only in the middle. On the wild shores the cliff tops rise into knolls up to about 3 m.
+   - Within about 25 m of the sea, rock shows on gentler slopes (from about 25 degrees), except on sand. The headlands now read as rock, not smeared earth.
+   - `BEDROCK_SINK` (0.3 of a rock's size) is the deepest any rock is set. The grounding test now bounds sinking by it.
+3. **Reed beds** (`src/scenery/reeds.ts`)
+   - Beds lie in patches set by noise, with open bank between.
+   - Within a bed, 1 to 5 clumps stand per 4 m of bank. They are scattered from about 3.5 m into the water to 5 m up the mud, and the bed is thicker in its middle.
+   - Clumps vary in height (1.1 to 2.7 m), lean, and tint (green to straw). There are two builds: a few tall stems (2 cards), and a thick tussock (4 cards).
+   - The lake has patches in the shallows and on the bank, not a ring.
+   - There are 557 clumps (was 1,047 in two fences). The second build costs one more draw call where reeds are in view.
+4. **Beaches from above and from the ground** (`src/land/shape.ts`, `src/land/splat.ts`, `src/scenery/terrain-material.ts`)
+   - Sand tiling: the sand layer blends two copies of its 4 m tile (one turned and shifted) by a slow noise. Farther away, a coarse turned tile takes over, with broad lighter and darker patches. From 140 m the square grid is gone.
+   - Foredunes on the wild beaches now reach about 6 m (was 4.5) and are wider. Inland of the coast line, a hummocky field of older dunes up to about 4 m lies over the last 60 m.
+   - Grass holds the back dunes on the wild beaches, in tongues, darker than the bare sand. The crests that dune grass holds are darkened in the ground's splat. So the vegetation reads from the air, beyond the 75 m where its cards are drawn.
+   - Below the berm crest, the foreshore is drawn as damp, packed sand: darker, with a wandering edge about 15 m from the waterline. The crest and the tide line read from the air.
+   - Re-filmed: `fix-aerial-beach-west.jpg`, `fix-aerial-south-bay.jpg`, `fix-westBeach-along.jpg`.
+   - The landmark spot on the west beach (`westBeach`, 40 m out) is still on the flat part between the dunes and the water. That part of a real beach is flat.
+
+### Notes taken
+- **Lake** (`src/land/lake.ts`, `src/land/splat.ts`)
+  - The shore is drawn out along one axis, with broader bays and points. It is no longer a near circle.
+  - Its banks are mud of varying width, not a 3 m ring of sand. Sand is now only under the water.
+  - The fan mesh's slightly stepped edge from above is unchanged.
+- **Duplication:** `coast.ts` now has `seaNormal()` and `shoreline()`, used by shore rocks, beach props (`sandyShore`), landmarks, and the offshore current. Their four copies are gone.
+- **Dune grass scan:** it skips ahead along each row where the coast distance shows the band is out of reach. It gives the same spots, in 15 ms instead of 26 ms. The check that dune grass grows at a point is now one function (`duneGrassAt` in `shape.ts`), shared with the splat.
+- **Test hook:** `teleport(x, y, z, heading)` now turns a driven boat as well as a car (checked in game: heading 3.14 to 1.57).
+- **Deep water colour:** the open sea past the shelf is a deeper blue in the water's own colour. From far off, the reflected hazy sky and the fog still dominate. The milky look is softer, not gone.
+
+### Not done, for the owner to accept
+- **Traffic over the river bridge:** AI traffic still does not use Palm Avenue's river bridge (see Known gaps). The GPS does.
+- **The river:** it is still sea level all the way up, and the open-sea swell still runs from the east on every coast (see Known gaps).
+- **Bridge parapets, hump undersides, quay walls and the highway's channel bridges:** still plain, untextured slabs.
+- **The island connectivity test:** it still flood-fills heights only, ignoring colliders. I did not drive the south mouth or the branch canal in game.
+
+### Corrections to the summary above
+- The "Seabed edge" known gap no longer holds: the grid now ends past where the current is at full strength on every side, and the open sea is opaque over it.
+- The terrain grid is now 640k vertices (was 523k before the fixes, 413k on `main`).
+
+### Measurements after the fixes
+Same setup as above (M4, 1920x1080, DSF2, Medium, `scripts/perf.mjs` on `vite preview`). The machine was busier this time: load average 5 to 8, with the owner's Chrome playing video.
+
+- **Every perf scene holds 60 fps:** p99 16.8 ms, no frame over 50 ms. That covers spawn, downtown, beach, shore, canal, marina, hillside, flyover, residential, forest, forest-hill, northCoast, westBeach, riverMouth, lake, canalMouth, underwater, and downtown-night.
+  - Draw calls are within about ±60 of the numbers above. Beach is 799, marina 821.
+- **The 40 m/s highway drive:**
+  - 59.2 fps in the full run (one frame over 50 ms), then 59.5 alone (three frames over 50 ms).
+  - Back to back under the same load, the pre-fix branch build gave 58.0 (seven frames over 50 ms) and this build 56.7 (four frames over 50 ms). Load noise is bigger than any change from the fixes.
+- **Cold load:**
+  - Transfer is 26.6 MB, unchanged (no new assets).
+  - Play to first frame is 2.53 s (2.21 s above, on a quieter machine).
+  - JS heap is 367 MB at load and 379 MB after the scenes.
+- **Plan worker** (node, `makePlan(7, 1000)`, three runs each, back to back): 1.73 to 1.82 s before the fixes, 2.26 to 2.31 s after, about +0.5 s.
+  - Most of that is the bigger grid: 641k vertices, up from 524k.
+  - The sea field texture is 20.5 MB on the GPU, up from 16.7 MB.
+  - Load is out of scope this phase, so I left it.
+- **Gates:**
+  - `pnpm build` passes.
+  - `pnpm lint` is clean.
+  - `pnpm test`: 55 files, 196 tests passed. The new test checks that the current is at full strength all along the grid's edge.
+  - `pnpm test:e2e`: 15 passed (14.9 min).
