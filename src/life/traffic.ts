@@ -171,7 +171,12 @@ export class Traffic {
     return list
   }
 
-  /** Two cars nose to nose in an intersection would wait forever: after a while, one goes. */
+  /**
+   * Two cars nose to nose in an intersection would wait forever: after a while, one goes.
+   * ponytail: `ignoring` sets the car limit to 0 in update(), so the stuck car is held, not
+   * released; letting it go (Infinity) drives it into the other car. Replace with the
+   * junction yield rules that come with the 13c lane work.
+   */
   private unstick(i: number, car: TrafficCar, carLimit: number, limit: number, dt: number) {
     this.ignoring[i] = Math.max(0, this.ignoring[i] - dt)
     const blockedByCar = car.speed < 0.2 && carLimit <= limit + 1e-6 && carLimit < 0.5
