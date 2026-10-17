@@ -8,6 +8,7 @@ import { COCKPIT_BOUNDS, HULL_BOUNDS } from './boat-model'
 import { mooring, type Mooring } from './mooring'
 import { BoatForces } from './forces'
 import { MASS } from './hull'
+import type { Current } from '../sea/offshore'
 
 const HP = 300
 type WaterQuery = (x: number, z: number) => number | null
@@ -39,6 +40,7 @@ export class Boat implements Vehicle {
     readonly visual: BoatVisual,
     spot: { x: number; y: number; z: number; yaw: number },
     water: WaterQuery,
+    current: Current,
   ) {
     const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spot.yaw)
     const desc = RAPIER.RigidBodyDesc.dynamic()
@@ -50,7 +52,7 @@ export class Boat implements Vehicle {
     this.collider = physics.createCollider(hullShape(), this.body)
     // The windshield rises above the hull box: a sensor, so only the camera probe sees it.
     physics.createCollider(boxDesc(COCKPIT_BOUNDS).setSensor(true).setDensity(0), this.body)
-    this.forces = new BoatForces(this.body, water)
+    this.forces = new BoatForces(this.body, water, current)
     this.moored = { ...spot }
     this.snapshot()
     this.snapshot()

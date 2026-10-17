@@ -1,4 +1,6 @@
 import { sampleGrid } from '../land/grid'
+import { LAKE, lakeSurfaceAt } from '../land/lake'
+import { roadRise } from './canal-bridge'
 import type { Land } from '../land/plan'
 import { CURB_H, ROAD_HALF, SEA_LEVEL, type CityLayout, type Rect } from './layout'
 
@@ -9,8 +11,10 @@ export function heightAt(c: Pick<Land, 'ground'>, x: number, z: number): number 
   return sampleGrid(c.ground, x, z)
 }
 
-/** Water surface height at (x, z), or null on land. Sea and canal share sea level. */
+/** Still water surface height at (x, z), or null on land: the lake's own level, else the sea's (canal and river too). */
 export function waterSurfaceAt(c: Pick<Land, 'ground'>, x: number, z: number) {
+  const lake = lakeSurfaceAt(LAKE, x, z)
+  if (lake !== null && heightAt(c, x, z) < lake) return lake
   return heightAt(c, x, z) < SEA_LEVEL ? SEA_LEVEL : null
 }
 
@@ -30,5 +34,5 @@ export function surfaceAt(c: CityLayout & Pick<Land, 'ground'>, x: number, z: nu
       ? Math.abs(z - r.at) < ROAD_HALF && x > r.from && x < r.to
       : Math.abs(x - r.at) < ROAD_HALF && z > r.from && z < r.to,
   )
-  return onRoad ? 0 : CURB_H
+  return onRoad ? roadRise(c, x, z) : CURB_H
 }

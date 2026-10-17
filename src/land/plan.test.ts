@@ -3,8 +3,10 @@ import { SEA_LEVEL } from '../city/layout'
 import { heightAt, waterSurfaceAt } from '../city/terrain'
 import { CELL } from './grid'
 import { generateLand, UNDER_CITY } from './plan'
+import { DECK_FROM } from './path'
 import { offset } from './polyline'
 import { HILLS } from './shape'
+import { LAKE } from './lake'
 
 const land = generateLand(7, 1000)
 const g = land.ground
@@ -43,8 +45,9 @@ describe('terrain', () => {
         )
       }
     }
-    // About 55 degrees at the steepest bank cut for a hairpin: steep, never a wall.
-    expect(steepest / CELL).toBeLessThan(1.5)
+    // About 57 degrees at the steepest: a hairpin's bank cut and the headlands' low cliffs.
+    // Steep, never a wall.
+    expect(steepest / CELL).toBeLessThan(1.6)
   })
 
   it('rises to hills of 60 to 100 m in the north-west', () => {
@@ -54,7 +57,7 @@ describe('terrain', () => {
     expect(land.lookout.y).toBeCloseTo(peak, 0)
   })
 
-  it('has a dry beach that slopes under the sea, and water only in the sea and canal', () => {
+  it('has a dry beach that slopes under the sea, and water only in the sea, canal, river, and lake', () => {
     const { land: c, canal } = land
     expect(heightAt(land, c.x1 + 20, 0)).toBeGreaterThan(SEA_LEVEL)
     expect(waterSurfaceAt(land, c.x1 + 120, 0)).toBe(SEA_LEVEL)
@@ -64,17 +67,22 @@ describe('terrain', () => {
     for (const [x, z] of [
       [-1000, 400],
       [-1150, -560],
-      [-300, -800],
-      [-1500, 900],
+      [-300, -590],
+      [-1550, 600],
     ]) {
       expect(waterSurfaceAt(land, x, z)).toBeNull()
     }
+    const river = land.waterways.river.pts
+    expect(waterSurfaceAt(land, river[10].x, river[10].z)).toBe(SEA_LEVEL)
+    expect(waterSurfaceAt(land, LAKE.x, LAKE.z)).toBe(LAKE.level)
   })
 
-  it('cuts every road outside the city into the ground it runs on', () => {
+  it('cuts every road outside the city into the ground it runs on, but where it bridges water', () => {
     for (const p of land.paths) {
       if (p.kind === 'highway' || p.kind === 'ramp') continue
-      const worst = Math.max(...p.pts.map((q) => Math.abs(heightAt(land, q.x, q.z) - q.y)))
+      // A deck spans wherever a road stands clear of the ground (scenery/bridges.ts).
+      const ground = p.pts.filter((q) => q.y - heightAt(land, q.x, q.z) <= DECK_FROM)
+      const worst = Math.max(...ground.map((q) => Math.abs(heightAt(land, q.x, q.z) - q.y)))
       // The narrow trail climbs at up to 30%, between grid points 4 m apart.
       expect(worst, p.name).toBeLessThan(p.kind === 'trail' ? 0.8 : 0.4)
     }

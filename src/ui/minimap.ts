@@ -1,6 +1,6 @@
 import type { P2 as P } from '../land/polyline'
 import { carIcon, hospitalIcon, playerArrow, routeLine, waypointIcon } from './map-icons'
-import type { Base } from './map-paint'
+import { MAP_COLORS, type Base } from './map-paint'
 
 // CSS pixels; the canvas backing store is scaled by devicePixelRatio.
 const W = 240
@@ -79,6 +79,9 @@ export class Minimap {
     g.beginPath()
     g.roundRect(0, 0, W, H, RADIUS)
     g.clip()
+    // Past the painted map it is open sea all round.
+    g.fillStyle = MAP_COLORS.sea
+    g.fillRect(0, 0, W, H)
     this.ground(m, s)
     this.marks(m)
     g.restore()

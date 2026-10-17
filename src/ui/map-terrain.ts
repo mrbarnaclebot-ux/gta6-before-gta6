@@ -2,7 +2,8 @@ import { SEA_LEVEL } from '../city/layout'
 import { forestAt } from '../land/districts'
 import { CELL, index } from '../land/grid'
 import type { Land } from '../land/plan'
-import { coastX } from '../land/shape'
+import { sandAt, seaward } from '../land/coast'
+import { LAKE, lakeSurfaceAt } from '../land/lake'
 
 type RGB = [number, number, number]
 
@@ -27,7 +28,9 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
 /** Ground color before shading: sea by depth, sand, grass, forest, rock on slopes, dirt. */
 function groundColor(land: Land, k: number, x: number, z: number, h: number, slope: number): RGB {
   if (h < SEA_LEVEL) return mix(SHALLOWS, SEA, Math.min(1, (SEA_LEVEL - h) / 6))
-  if (x > coastX(land.frame, z) - 4) return SAND
+  if (lakeSurfaceAt(LAKE, x, z) !== null) return mix(SHALLOWS, SEA, 0.35)
+  const { coast } = land.frame
+  if (seaward(coast, x, z) > -4 && sandAt(coast, x, z) > 0.45) return SAND
   let c = mix(GRASS, FOREST, forestAt(x, z))
   c = mix(c, DIRT, land.dirt[k] / 255)
   return mix(c, ROCK, Math.min(1, Math.max(0, (slope - 0.35) * 2.5)))

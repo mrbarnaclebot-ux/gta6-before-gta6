@@ -40,6 +40,8 @@ vec3 groundN;
 // (most ground is one or two layers), and explicit gradients keep that legal.
 vec2 gdx;
 vec2 gdy;
+vec3 gdx3;
+vec3 gdy3;
 
 // Wet where the swash covers the sand now or did in the last few seconds, drying behind it;
 // always damp just above the still waterline.
@@ -65,6 +67,21 @@ vec4 layer(float i, float tile, float w) {
   vec4 b = textureGrad(groundAlbedo, vec3(p / far + 0.31, i), gdx / far, gdy / far);
   return mix(a, b, 0.42) * w;
 }
+// Rock on cliffs is projected from the side as well (triplanar), so steep faces are not
+// streaks of a texture stretched down them; flat rock keeps the one top-down sample.
+vec4 rockLayer(float tile, float w) {
+  if (w < 0.004) return vec4(0.0);
+  vec3 b = pow(abs(groundN), vec3(4.0));
+  b /= b.x + b.y + b.z;
+  if (b.y > 0.97) return layer(2.0, tile, w);
+  vec3 p = vGroundPos / tile;
+  vec3 dx = gdx3 / tile;
+  vec3 dy = gdy3 / tile;
+  vec4 c = textureGrad(groundAlbedo, vec3(p.xz, 2.0), dx.xz, dy.xz) * b.y
+    + textureGrad(groundAlbedo, vec3(p.zy, 2.0), dx.zy, dy.zy) * b.x
+    + textureGrad(groundAlbedo, vec3(p.xy, 2.0), dx.xy, dy.xy) * b.z;
+  return c * w;
+}
 vec3 layerNormal(float i, float tile, float w) {
   if (w < 0.004) return vec3(0.0);
   vec3 n = textureGrad(groundNormal, vec3(vGroundPos.xz / tile, i), gdx / tile, gdy / tile).xyz;
@@ -74,8 +91,10 @@ vec3 layerNormal(float i, float tile, float w) {
 
 const MAP = /* glsl */ `
 groundN = normalize(vGroundNormal);
-gdx = dFdx(vGroundPos.xz);
-gdy = dFdy(vGroundPos.xz);
+gdx3 = dFdx(vGroundPos);
+gdy3 = dFdy(vGroundPos);
+gdx = gdx3.xz;
+gdy = gdy3.xz;
 float slope = 1.0 - groundN.y;
 float rock = smoothstep(0.26, 0.42, slope + (vSplat.w - 0.5) * 0.12);
 float sand = clamp(vSplat.x, 0.0, 1.0) * (1.0 - rock);
@@ -83,7 +102,7 @@ float dirt = clamp(vSplat.y, 0.0, 1.0) * (1.0 - rock) * (1.0 - sand);
 float grass = max(0.0, 1.0 - rock - sand - dirt);
 groundWeights = vec4(grass, dirt, rock, sand);
 vec4 ground = layer(0.0, TILE.x, grass) + layer(1.0, TILE.y, dirt)
-  + layer(2.0, TILE.z, rock) + layer(3.0, TILE.w, sand);
+  + rockLayer(TILE.z, rock) + layer(3.0, TILE.w, sand);
 // The grass layer's photo is half bare soil: pull it toward a sward, its own detail kept as
 // brightness. Large patches of lusher and drier grass, and a finer mottle, break up the field.
 float grassLuma = dot(ground.rgb, vec3(0.3, 0.59, 0.11)) / max(grass, 1e-3);

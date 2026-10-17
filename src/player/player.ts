@@ -29,6 +29,11 @@ import {
   type Mode,
   type Vitals,
 } from './swim'
+import type { Current } from '../sea/offshore'
+
+/** Far offshore the current carries a swimmer back toward the island faster than they can swim. */
+const DRIFT = 3.2
+const toShore = { x: 0, z: 0 }
 
 const HALF_HEIGHT = 0.55
 const RADIUS = 0.35
@@ -69,6 +74,7 @@ export class Player {
     readonly avatar: Avatar,
     private readonly spawn: THREE.Vector3,
     private readonly water: WaterQuery,
+    private readonly current: Current,
   ) {
     const desc = RAPIER.RigidBodyDesc.kinematicPositionBased()
     this.body = physics.createRigidBody(desc.setTranslation(spawn.x, spawn.y + CENTER, spawn.z))
@@ -160,7 +166,8 @@ export class Player {
   private swim(dt: number, input: Input, wish: { x: number; z: number }, depth: number): boolean {
     const m = this.motion
     const speed = input.held.has('run') ? SWIM_SPRINT : SWIM_SPEED
-    steer(m, wish.x * speed, wish.z * speed, dt)
+    const drift = DRIFT * this.current(this.curr.x, this.curr.z, toShore)
+    steer(m, wish.x * speed + toShore.x * drift, wish.z * speed + toShore.z * drift, dt)
     m.airTime = 0
     m.vy = buoyancy(m.vy, depth, input.held.has('dive'), input.held.has('jump'), dt)
     // Space at the surface pulls up onto a wall or step ahead; there is no jumping in water.

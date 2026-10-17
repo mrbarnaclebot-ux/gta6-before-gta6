@@ -15,6 +15,9 @@ export const WIDTH: Record<Kind, number> = {
   loop: 9,
 }
 
+/** A road standing this far over the ground is on a deck (scenery/bridges.ts); below it, on the ground. */
+export const DECK_FROM = 0.4
+
 /** A road outside the city grid: a centerline about every 4 m with its height. */
 export interface Path {
   name: string

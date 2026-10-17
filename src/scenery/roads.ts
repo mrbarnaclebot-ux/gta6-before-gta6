@@ -1,4 +1,6 @@
+import { heightAt } from '../city/terrain'
 import type { Land } from '../land/plan'
+import { DECK_FROM, type Path } from '../land/path'
 import { addTiled, type WorldCtx } from '../world/blocks'
 import { pbr } from '../world/materials'
 import { wornAsphalt, wornPaint } from '../render/road-wear'
@@ -16,7 +18,9 @@ import { strip, sweep } from './sweep'
 export function buildRoads(ctx: WorldCtx, land: Land): void {
   const paved = land.paths.filter((p) => p.kind !== 'trail')
   const surfaces = paved.map((p) => sweep(p.pts, strip(p.width / 2, -p.width / 2, LIFT), p.closed))
-  const elevated = paved.filter((p) => p.kind === 'highway' || p.kind === 'ramp')
+  // The highway and its ramps, and any road that crosses water, stand on decks where they leave the ground.
+  const lifted = (p: Path) => p.pts.some((q) => q.y - heightAt(land, q.x, q.z) > DECK_FROM)
+  const elevated = paved.filter((p) => p.kind === 'highway' || p.kind === 'ramp' || lifted(p))
   elevated.forEach((p) => trimeshCollider(ctx, surfaces[paved.indexOf(p)]))
   const asphalt = wornAsphalt(
     pbr('asphalt_02', 0.25, {

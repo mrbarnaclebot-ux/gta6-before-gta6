@@ -17,29 +17,13 @@ const STEP_RUN = 0.4
 const STEP_RISE = (CURB_H - (SEA_LEVEL - 1.15)) / 10
 const STEP_COUNT = 12
 
-/** Seawalls along both banks and across both ends of the canal. */
+/** Seawalls along both banks; the canal runs on out of the city at both ends (land/channels.ts). */
 function walls(c: CityLayout): Rect[] {
   const k = c.canal
   return [
     { ...k, x0: k.x0 - WALL, x1: k.x0 + PROUD },
     { ...k, x0: k.x1 - PROUD, x1: k.x1 + WALL },
-    { ...k, z0: k.z0 - WALL, z1: k.z0 + PROUD },
-    { ...k, z0: k.z1 - PROUD, z1: k.z1 + WALL },
   ]
-}
-
-/** Interior roads cross the canal on short bridges: a deck under the road and two parapets. */
-function bridges(c: CityLayout) {
-  const k = c.canal
-  return c.zRoads.slice(1, -1).map((at) => ({
-    deck: { x0: k.x0, x1: k.x1, z0: at - ROAD_HALF - 0.3, z1: at + ROAD_HALF + 0.3 },
-    parapets: [-1, 1].map((s) => ({
-      x0: k.x0,
-      x1: k.x1,
-      z0: at + s * ROAD_HALF - 0.2 - s * 0.2,
-      z1: at + s * ROAD_HALF + 0.2 - s * 0.2,
-    })),
-  }))
 }
 
 type Step = { r: Rect; top: number }
@@ -91,24 +75,14 @@ function railing(x: number, z0: number, z1: number): THREE.BufferGeometry[] {
 export function buildCanal(ctx: WorldCtx, c: CityLayout): void {
   const stone = pbr('white_stucco', 0.5, { color: 0xd4ccbc, roughness: 0.95 })
   const metal = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.35, metalness: 0.6 })
+  // The streets cross on humped bridges a boat passes under (canal-bridges.ts, built with the streets).
   const sides = walls(c)
-  const crossings = bridges(c)
-  const parapets = crossings.flatMap((b) => b.parapets)
   addMerged(
     ctx,
-    [
-      ...sides.map((r) => rectBox(r, CANAL_FLOOR - 0.2, -PROUD)),
-      ...crossings.map((b) => rectBox(b.deck, -0.9, -0.01)),
-      ...parapets.map((r) => rectBox(r, 0, 0.9)),
-    ],
+    sides.map((r) => rectBox(r, CANAL_FLOOR - 0.2, -PROUD)),
     stone,
   )
   for (const r of sides) rectCollider(ctx, r, CANAL_FLOOR - 0.2, -PROUD)
-  for (const r of parapets) rectCollider(ctx, r, 0, 0.9)
-  // ponytail: the decks clear the water by 30 cm, too low for a boat, so they are solid to the
-  // canal floor: a boat stops at the bridge instead of squeezing under the road. Raised
-  // bridges that boats pass under come with the open canal (Phase 13b).
-  for (const b of crossings) rectCollider(ctx, b.deck, CANAL_FLOOR - 0.2, -0.01)
   buildBanks(ctx, c, stone, metal)
 }
 

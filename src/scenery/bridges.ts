@@ -1,7 +1,8 @@
 import * as THREE from 'three'
+import { SEA_LEVEL } from '../city/layout'
 import { heightAt } from '../city/terrain'
 import type { Land } from '../land/plan'
-import type { Path } from '../land/path'
+import { DECK_FROM, type Path } from '../land/path'
 import { closest, tangent, type P3 } from '../land/polyline'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from '../world/blocks'
@@ -74,7 +75,7 @@ export function bridgeGeometry(
   const out: THREE.BufferGeometry[] = []
   for (const p of roads) {
     const hw = p.width / 2
-    for (const run of runs(p.pts, (q) => lift(land, q) > 0.9)) {
+    for (const run of runs(p.pts, (q) => lift(land, q) > DECK_FROM)) {
       const parapets = [box(hw, hw - 0.4, LIFT, PARAPET), box(-hw + 0.4, -hw, LIFT, PARAPET)].map(
         (s) => sweep(run, s),
       )
@@ -85,6 +86,8 @@ export function bridgeGeometry(
     p.pts.forEach((q, i) => {
       if (i % (PIER_GAP / 4) || lift(land, q) < PIER_FROM + DECK) return
       if (under.some((u) => closest(u.pts, q).d < u.width / 2 + 3)) return
+      // Waterways stay clear for boats: the deck spans them.
+      if (heightAt(land, q.x, q.z) < SEA_LEVEL + 0.5) return
       const geos = pier(p, i, heightAt(land, q.x, q.z))
       out.push(...geos)
       geos.forEach((g) => trimeshCollider(ctx, g))

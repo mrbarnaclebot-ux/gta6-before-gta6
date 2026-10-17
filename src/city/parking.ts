@@ -3,6 +3,7 @@ import type { Land } from '../land/plan'
 import type { House } from '../land/residential'
 import { heightAt, surfaceAt, waterSurfaceAt } from './terrain'
 import { ROAD_HALF, type Road } from './layout'
+import { humpSpan, roadRise } from './canal-bridge'
 import { rng } from './rng'
 
 /** A parked car: chassis origin on the ground, yaw 0 facing +z, its tilt, and a paint variant index. */
@@ -24,6 +25,14 @@ const SPOT_OFFSETS = [-22, 18]
 /** Every curbside spot on one road: two per side per block, skipping bridges over water. */
 type Curb = { x: number; z: number; yaw: number }
 
+/** On or near a humped canal bridge, with a car's length to spare. */
+const onHump = (c: Land, s: Curb) => {
+  const span = humpSpan(c.canal)
+  return (
+    roadRise(c, s.x, s.z) > 0 || (s.x > span.x0 - 3 && s.x < span.x1 + 3 && Math.abs(s.yaw) > 1)
+  )
+}
+
 function spotsAlong(c: Land, road: Road): Curb[] {
   const crossings = (road.axis === 'z' ? c.zRoads : c.xRoads).filter(
     (v) => v > road.from && v < road.to,
@@ -39,7 +48,7 @@ function spotsAlong(c: Land, road: Road): Curb[] {
           road.axis === 'z'
             ? { x: lateral, z: mid + along * side, yaw: side > 0 ? Math.PI : 0 }
             : { x: mid + along * side, z: lateral, yaw: side > 0 ? Math.PI / 2 : -Math.PI / 2 }
-        if (waterSurfaceAt(c, spot.x, spot.z) === null) out.push(spot)
+        if (waterSurfaceAt(c, spot.x, spot.z) === null && !onHump(c, spot)) out.push(spot)
       }
     }
   }

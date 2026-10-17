@@ -1,7 +1,7 @@
 import { SEA_LEVEL } from '../city/layout'
 import type { World } from '../game'
 import { forestAt } from '../land/districts'
-import { coastX } from '../land/shape'
+import { seaward } from '../land/coast'
 import { bedWeights, BEDS, type Bed } from './ambience-mix'
 import { Loop } from './loop'
 import type { Mixer } from './mixer'
@@ -31,7 +31,7 @@ export class Ambience {
   update(dt: number): void {
     const p = this.w.camera.position
     const weights = bedWeights({
-      inland: coastX(this.w.city.layout.frame, p.z) - p.x,
+      inland: -seaward(this.w.city.layout.frame.coast, p.x, p.z),
       marina: Math.hypot(p.x - this.marina.x, p.z - this.marina.z),
       height: p.y - SEA_LEVEL,
       forest: forestAt(p.x, p.z),

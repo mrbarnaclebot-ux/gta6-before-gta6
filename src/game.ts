@@ -97,7 +97,7 @@ function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
   const avatar = new Avatar(figures.male)
   underwaterLightAll(avatar.root)
   scene.add(avatar.root)
-  const player = new Player(physics, avatar, city.spawn, city.water)
+  const player = new Player(physics, avatar, city.spawn, city.water, city.current)
   const harbor = buildHarbor(ctx, city.layout, city.water)
   const cars = [...parkCars(ctx, city, world.carModels.make), ...harbor.boats]
   return { player, cars, harbor, driving: new Driving(physics, cars, player, scene, city.water) }

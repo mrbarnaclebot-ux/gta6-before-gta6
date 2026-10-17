@@ -1,3 +1,4 @@
+import type { Rect } from '../city/layout'
 import { smoothstep } from './noise'
 import { lift, path, type Path } from './path'
 import { arc, chain, closest, resample, stations, tangent, type P2, type P3 } from './polyline'
@@ -11,7 +12,7 @@ import { clampGrade, profile } from './profile'
  */
 
 export const EAST_X = -640
-export const LEG_Z = 840
+export const LEG_Z = 640
 export const CORNER_R = 220
 /** Turnaround loops by the beaches, at the north and south ends. */
 export const TERMINAL = { x: 350, r: 26 }
@@ -23,6 +24,8 @@ export const BUMP = { height: 6.4, flat: 60, ramp: 175 }
 export const RAMP = { reach: 290, out: 34, taper: 130, gap: 5 }
 /** Steepest grade on the highway and its ramps. */
 export const MAX_GRADE = 0.06
+/** Over a waterway the deck's surface stands this high, level this far either side, easing over `ramp`. */
+export const OVER_WATER = { height: 5.6, flat: 30, ramp: 120 }
 
 type Ground = (x: number, z: number) => number
 
@@ -56,9 +59,23 @@ export interface Crossing {
 }
 
 /** The highway's height: smoothed ground, level through each interchange, a bridge over each crossing. */
-function heights(pts: P2[], ground: Ground, ends: number[], crossings: Crossing[]): number[] {
+function heights(
+  pts: P2[],
+  ground: Ground,
+  ends: number[],
+  crossings: Crossing[],
+  waters: P2[],
+): number[] {
   const st = stations(pts)
   const y = profile(pts, ground, { grade: 0.03, window: 400, start: ends[0], end: ends[1] })
+  for (const w of waters) {
+    const sc = closest(pts, w).s
+    st.forEach((s, i) => {
+      const d = Math.max(0, Math.abs(s - sc) - OVER_WATER.flat) / OVER_WATER.ramp
+      const k = d >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * d)
+      y[i] += Math.max(0, OVER_WATER.height - y[i]) * k
+    })
+  }
   for (const c of crossings) {
     const sc = closest(pts, c.at).s
     const zone = RAMP.reach + 10
@@ -157,10 +174,13 @@ export function buildHighway(
   crossY: (p: P2) => number,
   beachRoadX: number,
   cityEdge: number,
+  /** Walled channels the highway bridges, high enough for a boat to pass under. */
+  waters: Rect[],
 ): Path[] {
   const ends = [-1, 1].map((s) => ground(TERMINAL.x, s * LEG_Z))
   const line = centerline()
-  const hw = path('highway', 'highway', lift(line, heights(line, ground, ends, crossings)))
+  const spans = waters.map((r) => ({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 }))
+  const hw = path('highway', 'highway', lift(line, heights(line, ground, ends, crossings, spans)))
   const st = stations(hw.pts)
   const loops = [-1, 1].map((s, k) =>
     path(
