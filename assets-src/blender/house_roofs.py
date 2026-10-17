@@ -5,7 +5,7 @@ import math
 
 from mathutils import Matrix, Vector
 
-from lib.geo import Geo, box, merge, prism, tube
+from lib.geo import Geo, box, extrude_x, merge, tube
 
 
 def outward(g):
@@ -58,16 +58,6 @@ def cap(p, q, mat):
     cap_mat = 'roof_ridge' if mat == 'roof_tile' else 'trim'
     return tube([Vector(p) + Vector((0, 0.03, 0)), Vector(q) + Vector((0, 0.03, 0))], 0.09, 6,
                 cap_mat)
-
-
-def extrude_x(section, x0, x1, mat):
-    """A (z, y) polygon swept along x from x0 to x1, faces outward whatever its winding."""
-    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(section, section[1:] + section[:1]))
-    pts = [(-z, y) for z, y in section]
-    if area > 0:  # (-z, y) mirrors the winding; prism wants counter-clockwise
-        pts.reverse()
-    g = prism(pts, x1 - x0, mat)
-    return g.transform(Matrix.Rotation(math.pi / 2, 4, 'Y')).move(x0, 0, 0)
 
 
 def gable(w, d, y0, pitch, over, mat, wall_mat, fascia=0.22):

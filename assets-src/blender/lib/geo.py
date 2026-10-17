@@ -89,6 +89,24 @@ def lathe(profile, n, mat, cap_bottom=False, cap_top=False):
     return loft(rings, mat, closed=True, cap_start=cap_bottom, cap_end=cap_top)
 
 
+def sphere(r, n, rings, mat):
+    """A UV sphere centred on the origin (scale it for ellipsoids)."""
+    prof = [(r * math.sin(math.pi * k / rings), -r * math.cos(math.pi * k / rings))
+            for k in range(rings + 1)]
+    return welded(lathe(prof, n, mat), 1e-6)
+
+
+def torus(R, r, n, m, mat):
+    """A ring of radius R around +y, tube radius r."""
+    rings = []
+    for i in range(n + 1):
+        a = 2 * math.pi * i / n
+        u = Vector((math.cos(a), 0, math.sin(a)))
+        rings.append([u * (R + r * math.cos(-2 * math.pi * j / m))
+                      + Vector((0, r * math.sin(-2 * math.pi * j / m), 0)) for j in range(m)])
+    return welded(loft(rings, mat), 1e-6)
+
+
 def cyl(r, h, n, mat, caps=True, r_top=None):
     """A cylinder (or cone frustum) around +y from y = 0 to y = h."""
     return lathe([(r, 0.0), (r if r_top is None else r_top, h)], n, mat, caps, caps)
@@ -117,6 +135,16 @@ def loft(rings, mat, closed=True, cap_start=False, cap_end=False):
         g.faces.append(tuple(reversed(range(last, last + n))))
     g.mats = [mat] * len(g.faces)
     return g
+
+
+def extrude_x(section, x0, x1, mat):
+    """A (z, y) polygon swept along x from x0 to x1, faces outward whatever its winding."""
+    area = sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(section, section[1:] + section[:1]))
+    pts = [(-z, y) for z, y in section]
+    if area > 0:  # (-z, y) mirrors the winding; prism wants counter-clockwise
+        pts.reverse()
+    g = prism(pts, x1 - x0, mat)
+    return g.transform(Matrix.Rotation(math.pi / 2, 4, 'Y')).move(x0, 0, 0)
 
 
 def frame_along(path, i, up=Vector((0, 1, 0))):
