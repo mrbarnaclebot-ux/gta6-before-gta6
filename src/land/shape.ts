@@ -97,11 +97,15 @@ export const beachHeight = (d: number, x: number, z: number, wild: number) =>
 /** A rocky shore: the ground keeps its height `top` to the edge, then drops in a cliff to the seabed. */
 function rockyShore(d: number, top: number, x: number, z: number): number {
   const drop = top + 2.6
-  // No steeper than about 50 degrees at the cliff's middle, so the terrain never folds.
-  const w = Math.max(10, 1.15 * drop)
+  // The face leans between about 38 and 53 degrees along the shore: bare rock where it is
+  // steep, grassed slopes between, so the cliff is never one even bank. Half linear, half
+  // eased, so most of its height is near the steepest, and never past it (the terrain folds).
+  const steep = smoothstep(-0.6, 0.05, fbm(x / 45, z / 45, SEED + 23, 2))
+  const w = Math.max(5, (1.25 * drop) / (0.78 + 0.55 * steep))
+  const t = Math.min(1, d / w)
   const lumps = 0.8 * fbm(x / 14, z / 14, SEED + 17, 2)
   const bed = -2.6 - 9.4 * smoothstep(w, w + 300, d) + lumps * smoothstep(w, w + 20, d)
-  return d < w ? top - drop * smoothstep(0, w, d) : bed
+  return d < w ? top - drop * (0.5 * t + 0.5 * smoothstep(0, 1, t)) : bed
 }
 
 const hill = (h: Hill, x: number, z: number) => {
@@ -127,11 +131,18 @@ function inland(f: Frame, x: number, z: number): number {
   return Math.max(0.25, 0.1 + (rolling + hills - 0.1) * k)
 }
 
+/** Knolls along the cliff tops of the wild rocky shores, so the cliff line rises and falls. */
+function knoll(f: Frame, d: number, sand: number, x: number, z: number): number {
+  if (d < -40 || sand >= 1) return 0
+  const lift = 5 * Math.max(0, fbm(x / 55, z / 55, SEED + 29, 2))
+  return lift * (1 - sand) * wildness(f, x, z) * smoothstep(-40, 0, Math.min(d, 0))
+}
+
 /** Natural ground height at (x, z), before roads, building pads, and waterways are cut in. */
 export function natural(f: Frame, x: number, z: number): number {
   const d = seaward(f.coast, x, z)
   const sand = sandAt(f.coast, x, z)
-  const top = inland(f, x, z)
+  const top = inland(f, x, z) + knoll(f, d, sand, x, z)
   if (d >= 0) {
     // Past the shelf the seabed falls away to open-sea depth: far water reads deep blue
     // and hides the end of the terrain grid.

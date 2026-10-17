@@ -1,19 +1,23 @@
 import { SEA_LEVEL, type Grounded, type Rect } from '../city/layout'
 import { range, rng, type Rand } from '../city/rng'
 import { BLOCKED, clearAt, type Clearance } from './clearance'
-import { sandAt, seaward } from './coast'
+import { shoreline, type Shore } from './coast'
 import { lie, upAt, type Surface } from './footing'
 import type { Land } from './plan'
 import { ROCK_RIM, ROCK_SPREAD, SINK, tint } from './plant'
+import { fbm, smoothstep } from './noise'
 import { wildness } from './shape'
 
 /*
  * Rocks the sea has put to work: the canal's breakwaters, groynes across the wild beaches,
- * riprap and fallen boulders along every rocky shore, outcrops where beach meets rock, and
- * stones on the river's banks. All are the forest's moss rocks, tinted paler.
+ * heaps of stones and fallen boulders along every rocky shore, bedrock in the cliff faces,
+ * outcrops where beach meets rock, and stones on the river's banks. All are the forest's
+ * moss rocks, tinted paler.
  */
 
 const GROYNE = { gap: 260, from: 26, to: 112 }
+/** Big boulders and bedrock sit this share of their size into the ground: the deepest any rock is set. */
+export const BEDROCK_SINK = 0.3
 
 /** Sun-bleached and salt-washed: a quarter of the way from a tint to white. */
 const pale = (c: number) =>
@@ -22,50 +26,63 @@ const pale = (c: number) =>
     return out | (Math.round(v + (255 - v) * 0.25) << sh)
   }, 0)
 
-type Put = (x: number, z: number, s: number) => void
+type Put = (x: number, z: number, s: number, sink?: number) => void
 
-/** A point on the coast line, the way out to sea, its sandiness, and meters along the line. */
-interface Shore {
-  x: number
-  z: number
-  nx: number
-  nz: number
-  sand: number
-  s: number
+/** Meters out from the coast line to where the ground falls below the waterline. */
+function waterline(p: Shore, ground: Surface): number {
+  let d = 0
+  while (d < 60 && ground(p.x + p.nx * d, p.z + p.nz * d) > SEA_LEVEL + 0.4) d += 1
+  return d
 }
 
-function shoreline(land: Land): Shore[] {
-  const { coast } = land.frame
-  const line = coast.line
-  const out: Shore[] = []
-  let s = 0
-  for (let i = 1; i + 1 < line.length; i++) {
-    s += Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z)
-    const tx = line[i + 1].x - line[i - 1].x
-    const tz = line[i + 1].z - line[i - 1].z
-    const len = Math.hypot(tx, tz)
-    let [nx, nz] = [tz / len, -tx / len]
-    if (seaward(coast, line[i].x + nx * 10, line[i].z + nz * 10) < 0) [nx, nz] = [-nx, -nz]
-    out.push({ ...line[i], nx, nz, sand: sandAt(coast, line[i].x, line[i].z), s })
-  }
-  return out
-}
+/** Mostly small stones, some larger, a rare big one: sizes fall off the way scree does. */
+const stoneSize = (r: Rand) => 0.45 + 2.1 * r() ** 2.4
 
-/** Riprap at the waterline below every rocky shore, a second row half drowned. */
+/**
+ * Rocks along every rocky shore, heaped by noise along the line: piles with bare gaps between,
+ * stones scattered up and down the beach line, and big boulders fallen to the cliff's foot.
+ */
 function riprap(shore: Shore[], ground: Surface, put: Put, r: Rand) {
   let next = 0
   for (const p of shore) {
     if (p.sand > 0.3 || p.s < next) continue
-    next = p.s + range(r, 2.6, 4.2)
-    let d = 0
-    while (d < 60 && ground(p.x + p.nx * d, p.z + p.nz * d) > SEA_LEVEL + 0.4) d += 1
-    for (const [k, big] of [
-      [-1.5, 1],
-      [1.2, 0.8],
-    ]) {
-      const dd = d + k + range(r, -0.8, 0.8)
-      const side = range(r, -1.2, 1.2)
-      put(p.x + p.nx * dd - p.nz * side, p.z + p.nz * dd + p.nx * side, big * range(r, 0.9, 2.2))
+    next = p.s + range(r, 1.4, 2.6)
+    const heap = fbm(p.s / 38, 0.5, 23, 3)
+    if (heap < -0.2 && r() > 0.12) continue
+    const d = waterline(p, ground)
+    const n = heap < -0.2 ? 1 : 1 + Math.floor(5 * smoothstep(-0.2, 0.5, heap) * r())
+    for (let k = 0; k < n; k++) {
+      const s = stoneSize(r)
+      // Big stones lie at the foot of the cliff; small ones are rolled out into the shallows.
+      const dd = d + (s > 1.6 ? range(r, -3.5, 0.5) : range(r, -2.5, 5))
+      const side = range(r, -1.6, 1.6)
+      put(p.x + p.nx * dd - p.nz * side, p.z + p.nz * dd + p.nx * side, s)
+    }
+    // Big boulders: fallen to the cliff's foot, or out in the shallows, half drowned.
+    if (heap > 0.2 && r() < 0.14) {
+      const dd = d + (r() < 0.6 ? -range(r, 2, 5) : range(r, 3, 12))
+      put(p.x + p.nx * dd, p.z + p.nz * dd, range(r, 2.6, 4.6), BEDROCK_SINK)
+    }
+  }
+}
+
+/** Bedrock breaking through the cliff face in clumps: big rocks sunk deep into the slope. */
+function outcrops(shore: Shore[], ground: Surface, put: Put, r: Rand) {
+  let next = 0
+  for (const p of shore) {
+    if (p.sand > 0.2 || p.s < next) continue
+    next = p.s + range(r, 9, 26)
+    if (fbm(p.s / 70, 3.5, 29, 2) < -0.25) continue
+    const d = waterline(p, ground)
+    for (let k = 0, n = 1 + Math.floor(r() * 3); k < n; k++) {
+      const dd = d * range(r, 0.15, 0.75)
+      const side = range(r, -4, 4)
+      put(
+        p.x + p.nx * dd - p.nz * side,
+        p.z + p.nz * dd + p.nx * side,
+        range(r, 2.2, 4.5),
+        BEDROCK_SINK,
+      )
     }
   }
 }
@@ -139,15 +156,16 @@ export function shoreRocks(land: Land, clear: Clearance, ground: Surface): Groun
     z0: q.z0 - 2,
     z1: q.z1 + 2,
   }))
-  const put: Put = (x, z, s) => {
+  const put: Put = (x, z, s, sink = SINK.rock) => {
     if (clearAt(clear, x, z) === BLOCKED) return
     if (keepOut.some((q) => x > q.x0 && x < q.x1 && z > q.z0 && z < q.z1)) return
     const up = upAt(ground, x, z, s * ROCK_SPREAD)
-    const y = lie(ground, x, z, s * ROCK_SPREAD * ROCK_RIM, up) - SINK.rock * s
+    const y = lie(ground, x, z, s * ROCK_SPREAD * ROCK_RIM, up) - sink * s
     out.push({ x, z, s, r: r() * Math.PI * 2, y, up, tint: pale(tint(r, 0.5)) })
   }
-  const shore = shoreline(land)
+  const shore = shoreline(land.frame.coast)
   riprap(shore, ground, put, r)
+  outcrops(shore, ground, put, r)
   groynes(land, shore, put, r)
   moles(land.waterways.channels.moles, put, r)
   riverStones(land, put, r)
