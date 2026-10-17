@@ -5,10 +5,9 @@ import { rng, range } from '../city/rng'
 import type { Grounded } from '../city/layout'
 import { stand } from '../land/footing'
 import { gridRect } from '../land/grid'
-import { fbm } from '../land/noise'
 import type { Land } from '../land/plan'
-import { sandAt, seaward } from '../land/coast'
-import { duneHeight, wildness } from '../land/shape'
+import { seaward } from '../land/coast'
+import { duneGrassAt } from '../land/shape'
 import { keepCardNormals } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { instanceByDistance } from '../world/lod-instances'
@@ -70,9 +69,12 @@ export function duneGrassSpots(land: Land): Grounded[] {
   for (let z = g.z0 + 20; z < g.z1 - 20; z += STEP) {
     for (let x = g.x0 + 20; x < g.x1 - 20; x += STEP) {
       const d = seaward(coast, x, z)
-      if (d < 4 || d > 36 || sandAt(coast, x, z) < 0.7) continue
-      const dune = duneHeight(d, x, z, wildness(land.frame, x, z))
-      if (dune < 0.3 || fbm(x / 18, z / 18, 61, 2) < -0.1 || r() < 0.4) continue
+      if (d < 4 || d > 36) {
+        // The distance grows no faster than the step, so skip what cannot reach the band.
+        x += Math.max(0, Math.floor((0.9 * Math.max(4 - d, d - 36)) / STEP) - 1) * STEP
+        continue
+      }
+      if (!duneGrassAt(land.frame, x, z, d) || r() < 0.4) continue
       const px = x + range(r, -1, 1)
       const pz = z + range(r, -1, 1)
       const s = range(r, 0.55, 1.1)

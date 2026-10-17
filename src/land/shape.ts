@@ -80,14 +80,31 @@ export function duneHeight(d: number, x: number, z: number, wild: number): numbe
   if (d < 2 || d > 38) return 0
   const crest = 15 + 6 * noise2(x / 95, z / 95, SEED + 11)
   const ridge =
-    Math.exp(-(((d - crest) / 6.5) ** 2)) + 0.55 * Math.exp(-(((d - crest + 11) / 5) ** 2))
+    Math.exp(-(((d - crest) / 7.5) ** 2)) + 0.6 * Math.exp(-(((d - crest + 11) / 5.5) ** 2))
   const fade = smoothstep(2, 7, d) * (1 - smoothstep(30, 38, d))
   const along = 0.62 + 0.38 * fbm(x / 36, z / 36, SEED + 5, 3)
   const blow = smoothstep(0.18, 0.42, noise2(x / 62, z / 62, SEED + 13))
   const lobe = 0.7 * blow * Math.exp(-(((d - crest + 12) / 6) ** 2))
   // Hummocks: the wind piles sand round each clump of grass.
   const hummock = 0.8 + 0.4 * fbm(x / 11, z / 11, SEED + 19, 2)
-  return (1.3 + 3.2 * wild) * (ridge * along * hummock * (1 - 0.85 * blow) + lobe) * fade
+  return (1.3 + 4.9 * wild) * (ridge * along * hummock * (1 - 0.85 * blow) + lobe) * fade
+}
+
+/**
+ * Older dunes inland of the beach on the wild shores, grassed over: a hummocky field up to
+ * about 4 m high, `-d` meters behind the coast line, fading out into the fields.
+ */
+export function backDunes(d: number, x: number, z: number, wild: number): number {
+  if (d > 0 || d < -60 || wild <= 0) return 0
+  const field = Math.max(0, 0.15 + fbm(x / 28, z / 28, SEED + 31, 3))
+  const band = smoothstep(-60, -38, d) * (1 - smoothstep(-12, 0, d))
+  return 4.6 * wild * field ** 1.3 * band
+}
+
+/** Whether dune grass grows at (x, z), `d` meters seaward: on the dune crests of sandy shores, in patches. */
+export function duneGrassAt(f: Frame, x: number, z: number, d: number): boolean {
+  if (d < 4 || d > 36 || sandAt(f.coast, x, z) < 0.7) return false
+  return duneHeight(d, x, z, wildness(f, x, z)) >= 0.3 && fbm(x / 18, z / 18, 61, 2) >= -0.1
 }
 
 /** Sandy shore `d` meters seaward of the coast line. */
@@ -153,5 +170,6 @@ export function natural(f: Frame, x: number, z: number): number {
   }
   // A sandy shore eases down to the top of the beach over the last 140 m inland.
   const eased = 0.1 + (top - 0.1) * smoothstep(0, 140, -d)
-  return lakeHollow(LAKE, x, z, top + (eased - top) * sand)
+  const dunes = backDunes(d, x, z, wildness(f, x, z))
+  return lakeHollow(LAKE, x, z, top + (eased + dunes - top) * sand)
 }
