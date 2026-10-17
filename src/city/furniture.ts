@@ -43,7 +43,12 @@ function plan(len: number, r: () => number, busy: boolean): [FurnitureKind, numb
   else out.push(['bench', len * 0.4], ['bin', len * 0.4 + 1.6])
   // No meter under the shelter's roof.
   const free = (t: number) => !bus || Math.abs(t - len * 0.5) > SHELTER_CLEAR
-  if (busy) for (let t = 16; t < len - 10; t += 9) if (free(t)) out.push(['meter', t + r()])
+  if (busy) {
+    for (let t = 16; t < len - 10; t += 9) {
+      const at = t + r()
+      if (free(at)) out.push(['meter', at])
+    }
+  }
   if (r() < 0.5) out.push(['sign', len * 0.75])
   return out
 }
