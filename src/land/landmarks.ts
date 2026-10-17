@@ -47,6 +47,7 @@ export function outerLandmarks(land: Land): Record<string, P3> {
     riverMouth: ground(bank),
     riverBridge: { x: span.x, y: span.y + SURFACE, z: span.z },
     lake: { ...dock, y: dock.y + 0.02 },
-    canalMouth: ground({ x: north.x0 - 2.5, z: north.z0 + 4 }),
+    // Inland of where the west breakwater's rubble begins, 6 m in from the shore.
+    canalMouth: ground({ x: north.x0 - 2.5, z: north.z0 + 12 }),
   }
 }
