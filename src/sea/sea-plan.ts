@@ -5,7 +5,8 @@ import { heightAt } from '../city/terrain'
 import { gridRect } from '../land/grid'
 import type { Land } from '../land/plan'
 import { bakeSeaField, type SeaField } from './field'
-import { planReefs, type ReefPlan } from './reef-plan'
+import { planReefs, REEF_GAP, type ReefPlan } from './reef-plan'
+import { sandyShore } from '../land/beach-props'
 
 /** Reefs and the baked sea field: plain data the terrain and water shaders both need first. */
 export interface SeaData {
@@ -65,9 +66,7 @@ export function planSeaData(c: Land): SeaData {
     {
       depth: (x, z) => SEA_LEVEL - floor(x, z),
       floor,
-      x0: c.land.x1,
-      z0: grid.z0,
-      z1: grid.z1,
+      shore: sandyShore(c, REEF_GAP),
     },
     SEA_LEVEL,
   )

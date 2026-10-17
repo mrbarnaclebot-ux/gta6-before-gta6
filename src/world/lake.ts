@@ -38,13 +38,13 @@ export function buildLake(ctx: WorldCtx, normals: THREE.Texture): (dt: number) =
   const ripples = normals.clone()
   ripples.wrapS = ripples.wrapT = THREE.RepeatWrapping
   const material = new THREE.MeshStandardMaterial({
-    color: 0x1e4c46,
+    color: 0x123a33,
     roughness: 0.05,
     metalness: 0.15,
     normalMap: ripples,
     normalScale: new THREE.Vector2(0.18, 0.18),
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.93,
   })
   const mesh = new THREE.Mesh(disc(), material)
   mesh.receiveShadow = true

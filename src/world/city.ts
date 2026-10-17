@@ -10,6 +10,8 @@ import type { Ambient } from '../render/sky'
 import { WIND } from '../render/foliage'
 import { buildBeach } from '../scenery/beach'
 import { plantDuneGrass } from '../scenery/dune-grass'
+import { plantReeds } from '../scenery/reeds'
+import { plantWrack } from '../scenery/wrack'
 import { buildHouses } from '../scenery/houses'
 import { buildRoads } from '../scenery/roads'
 import { buildTerrain } from '../scenery/terrain'
@@ -125,6 +127,8 @@ async function buildPlants(
     await plantVegetation(ctx, layout, flora.palms, load, gl),
     await buildForest(ctx, gl, load, layout, flora),
     plantDuneGrass(ctx, layout),
+    plantReeds(ctx, layout),
+    plantWrack(ctx, layout),
     plantGrass(ctx, layout, flora.clear),
     plantLawn(ctx, layout, flora.clear),
   ]

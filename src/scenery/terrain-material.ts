@@ -42,6 +42,7 @@ vec2 gdx;
 vec2 gdy;
 vec3 gdx3;
 vec3 gdy3;
+float rippleMask;
 
 // Wet where the swash covers the sand now or did in the last few seconds, drying behind it;
 // always damp just above the still waterline.
@@ -115,6 +116,13 @@ vec3 tint = grassTint * grass + vec3(1.0) * (dirt + rock) + vec3(1.3, 1.26, 1.18
 float depth = ${SEA_LEVEL.toFixed(2)} - vGroundPos.y;
 float wet = sandWetness(depth) * sand;
 tint *= mix(vec3(1.0), vec3(0.44, 0.4, 0.35), wet);
+// The wrack line: a ragged band of darker, damp sand where the high tide stopped.
+float aboveSea = -depth + 0.1 * (mottle - 0.5);
+float wrack = smoothstep(0.22, 0.3, aboveSea) * (1.0 - smoothstep(0.42, 0.55, aboveSea));
+tint *= mix(vec3(1.0), vec3(0.74, 0.68, 0.58), wrack * sand * (1.0 - wet));
+// Ripples on the wet sand and the shallow seabed, near the camera only (they would shimmer far off).
+rippleMask = sand * smoothstep(-0.35, 0.0, depth) * (1.0 - smoothstep(1.2, 2.8, depth))
+  * (1.0 - smoothstep(22.0, 40.0, distance(vGroundPos.xz, cameraPosition.xz)));
 tint *= mix(vec3(1.0), vec3(0.55, 0.72, 0.7), smoothstep(0.3, 6.0, depth));
 // Shade and leaf litter under tree crowns: the forest floor reads darker than the fields.
 tint *= mix(vec3(1.0), vec3(0.4, 0.44, 0.32), clamp(vSplat.z, 0.0, 1.0));
@@ -130,6 +138,19 @@ const NORMAL = /* glsl */ `
   vec3 T = normalize(vec3(1.0, 0.0, 0.0) - groundN * groundN.x);
   vec3 B = cross(T, groundN);
   vec3 worldN = normalize(T * tn.x + B * tn.y + groundN * max(tn.z, 0.2));
+  if (rippleMask > 0.01) {
+    // Crests run along the shore: across the gradient of the baked shore distance.
+    vec2 p = vGroundPos.xz;
+    float s0 = seaFieldAt(p).y;
+    vec2 g = vec2(seaFieldAt(p + vec2(2.0, 0.0)).y - s0, seaFieldAt(p + vec2(0.0, 2.0)).y - s0);
+    g /= max(length(g), 1e-4);
+    vec4 n2 = textureGrad(groundAlbedo, vec3(p / 9.0, 3.0), gdx / 9.0, gdy / 9.0);
+    // Bend the crests and break them into patches, so they never read as corduroy.
+    g = normalize(g + vec2(n2.g - 0.5, n2.b - 0.5) * 0.9);
+    float ph = dot(p, g) * 15.0 + n2.r * 11.0;
+    float patchy = smoothstep(0.3, 0.6, n2.g);
+    worldN = normalize(worldN + vec3(g.x, 0.0, g.y) * cos(ph) * 0.22 * rippleMask * patchy);
+  }
   normal = normalize((viewMatrix * vec4(worldN, 0.0)).xyz);
 }
 `

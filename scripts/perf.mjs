@@ -77,6 +77,14 @@ for (const [name, yaw, at] of [
   ['forest', 0.5],
   // The forest from the Hillside lookout, looking west over the woods.
   ['forest-hill', 1.2, 'hillside'],
+  // The island's coasts and waters: cliff top over the north sea, the west beach out to sea,
+  // the river mouth's bank looking out of the estuary, the lake from its jetty, and the
+  // north canal mouth from its quay, out between the breakwaters.
+  ['northCoast', 0],
+  ['westBeach', Math.PI / 2],
+  ['riverMouth', Math.PI],
+  ['lake', Math.PI / 2],
+  ['canalMouth', 0],
 ]) {
   if (!wanted(name)) continue
   await g(

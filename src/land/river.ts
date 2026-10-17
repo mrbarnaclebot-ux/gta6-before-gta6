@@ -1,7 +1,7 @@
 import { SEA_LEVEL } from '../city/layout'
 import { CELL, type HeightGrid } from './grid'
-import { smoothstep } from './noise'
-import { spline, stations, type P2 } from './polyline'
+import { fbm, smoothstep } from './noise'
+import { spline, stations, tangent, type P2 } from './polyline'
 
 /*
  * The river: from a valley head at the foot of the hills south through the residential
@@ -26,8 +26,10 @@ const CTRL: P2[] = [
   { x: -1322, z: 1060 },
 ]
 
+/** Seeded meanders: how far they swing and over what length. */
+const MEANDER = { amp: 22, length: 160 }
 /** Half the channel's width and its bed height, at the head and at the mouth. */
-const HALF = { head: 7, mouth: 30 }
+const HALF = { head: 8, mouth: 34 }
 const BED = { head: SEA_LEVEL - 1.1, mouth: SEA_LEVEL - 3.4 }
 /** The muddy bank runs from the waterline up to this height over this many meters. */
 const BANK = { top: 0.5, run: 7 }
@@ -42,14 +44,26 @@ export interface River {
 }
 
 export function planRiver(): River {
-  const pts = spline(CTRL, 4)
-  const st = stations(pts)
+  const line = spline(CTRL, 4)
+  const st = stations(line)
   const total = st[st.length - 1]
-  // Widens and deepens toward the sea, most of it in the last third.
+  // Small seeded meanders on the hand-placed bends, fading out at the mouth.
+  const pts = line.map((p, i) => {
+    const t = tangent(line, i)
+    const k =
+      MEANDER.amp *
+      fbm(st[i] / MEANDER.length, 3.7, 83, 2) *
+      (1 - smoothstep(0.85, 1, st[i] / total))
+    return { x: p.x - t.z * k, z: p.z + t.x * k }
+  })
+  // Widens and deepens toward the sea, most of it in the last third; the width wanders a little.
   const t = st.map((s) => smoothstep(0, 1, s / total) ** 1.6)
   return {
     pts,
-    half: t.map((k) => HALF.head + (HALF.mouth - HALF.head) * k),
+    half: t.map(
+      (k, i) =>
+        (HALF.head + (HALF.mouth - HALF.head) * k) * (1 + 0.22 * fbm(st[i] / 70, 9.1, 87, 2)),
+    ),
     bed: t.map((k) => BED.head + (BED.mouth - BED.head) * k),
   }
 }

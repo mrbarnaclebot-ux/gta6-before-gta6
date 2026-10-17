@@ -29,19 +29,22 @@ export const HILLS: Hill[] = [
 
 type Profile = [distance: number, height: number][]
 
-// Wide and gentle like Miami Beach: dry sand to a berm at about 47 m, a steeper face down
-// to the waterline at 62 m, a low terrace the surf breaks on, then the shelf.
+// Wide and gentle like Miami Beach: dry sand rising to a berm crest at 45 m that the high
+// tides built, a beach face falling about 1 in 7 to the waterline at 60 m, a low terrace the
+// surf breaks on, then the shelf.
 const BEACH: Profile = [
   [0, 0.1],
-  [38, 0.22],
-  [46, 0.45],
-  [51, 0.32],
-  [62, -1.2],
-  [80, -1.8],
+  [36, 0.25],
+  [45, 0.62],
+  [48, 0.56],
+  [60, -1.2],
+  [78, -1.8],
   [130, -3.6],
   [250, -8],
   [400, -12],
 ]
+/** Meters seaward of the coast line where the high tide leaves its line of wrack. */
+export const TIDE_LINE = 57.5
 
 export function sample(p: Profile, d: number): number {
   for (let i = 1; i < p.length; i++) {
@@ -79,7 +82,9 @@ export function duneHeight(d: number, x: number, z: number, wild: number): numbe
   const along = 0.62 + 0.38 * fbm(x / 36, z / 36, SEED + 5, 3)
   const blow = smoothstep(0.18, 0.42, noise2(x / 62, z / 62, SEED + 13))
   const lobe = 0.7 * blow * Math.exp(-(((d - crest + 12) / 6) ** 2))
-  return (1.3 + 2.4 * wild) * (ridge * along * (1 - 0.85 * blow) + lobe) * fade
+  // Hummocks: the wind piles sand round each clump of grass.
+  const hummock = 0.8 + 0.4 * fbm(x / 11, z / 11, SEED + 19, 2)
+  return (1.3 + 3.2 * wild) * (ridge * along * hummock * (1 - 0.85 * blow) + lobe) * fade
 }
 
 /** Sandy shore `d` meters seaward of the coast line. */

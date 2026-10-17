@@ -21,10 +21,10 @@ export type BeachProp = {
 }
 
 /** A point on a sandy stretch of the coast line and the way out to sea from it. */
-type Shore = { x: number; z: number; nx: number; nz: number }
+export type Shore = { x: number; z: number; nx: number; nz: number }
 
 /** Points every `gap` meters along the coast line where the shore is sandy. */
-function sandyShore(land: Land, gap: number): Shore[] {
+export function sandyShore(land: Land, gap: number): Shore[] {
   const { coast } = land.frame
   const line = coast.line
   const out: Shore[] = []

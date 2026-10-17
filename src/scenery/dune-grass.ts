@@ -48,7 +48,7 @@ function bladeTexture(): THREE.CanvasTexture {
 }
 
 /** Three crossed cards, 1 m tall, normals leaning up so the clump lights like a tuft. */
-function clump(): THREE.BufferGeometry {
+export function clump(): THREE.BufferGeometry {
   const cards = [0, 1, 2].map((k) => {
     const q = new THREE.PlaneGeometry(1.1, 1).translate(0, 0.5, 0).rotateY((k * Math.PI) / 3)
     const n = q.attributes.normal as THREE.BufferAttribute
