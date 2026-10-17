@@ -248,3 +248,32 @@ Same setup as above (M4, 1920x1080, DSF2, Medium, `scripts/perf.mjs` on `vite pr
   - `pnpm lint` is clean.
   - `pnpm test`: 55 files, 196 tests passed. The new test checks that the current is at full strength all along the grid's edge.
   - `pnpm test:e2e`: 15 passed (14.9 min).
+
+## Review fixes, round 2
+
+Screenshots are in `.planning/phases/013b-screens/` with the prefix `fix2-`.
+
+### Blocker
+- **The canalMouth landmark stood inside breakwater rubble** (`src/land/landmarks.ts`, `src/land/shore-rocks.ts`, `src/land/landmarks.test.ts`)
+  - The landmark is now 12 m in from the north mouth's shore (z −662), inland of where the west breakwater's rubble begins. The perf frame again shows the canal mouth: the player on the quay-side grass, the channel and the east breakwater ahead (`fix2-perf-medium-canalMouth.jpg`, `fix2-canalMouth.jpg`).
+  - Each kind of shore rock now draws from its own random stream: riprap and outcrops on 651 (so they did not move), groynes on 652, breakwaters on 653, river stones on 654. Editing one kind no longer reshuffles the others. Groynes, breakwater rocks and river stones were reshuffled once by this change. The breakwaters keep the same rock count (82 to 85 each); see `fix2-aerial-north-mouth.jpg` and `fix2-north-moles.jpg`.
+  - A new test checks that no rock (radius `s * ROCK_SPREAD`, plus the player's 0.35 m) covers any outer landmark. It fails on the old spot.
+
+### Notes taken
+- **The offshore current on boats** (`src/sea/offshore.ts` `setOnHull`, `src/boat/forces.ts`)
+  - The water now moves shoreward at 3 m/s and drags the hull toward that speed. The push is capped at 8 m/s² (the old constant) and never pulls outward.
+  - Measured in game: from 470 m off the west coast, heading west at full throttle, the boat drifts back at 1.9 m/s, easing to 1 m/s as it nears the weaker inner edge. With the engine off it drifts back at 3.1 m/s. A boat leaving the coast at full throttle peaks at 16.7 m/s, slows to a stop over about 7 s once in the current, then holds a 1 to 1.6 m/s drift back. Off the north coast at full strength, full throttle drifts back at 2.0 m/s. Before, the boat was driven back at up to 15.8 m/s.
+  - A unit test steps one hull through the current at full throttle and checks it ends up drifting back at 1.5 to 3 m/s.
+- **Quay keep-out** (`src/land/shore-rocks.ts`): a rock now stays out of a quay by its own size (at least the old 2 m), so big boulders and bedrock no longer overhang a quay edge. The dredged channels keep the 2 m margin on rock centres, because the breakwaters' rows edge them on purpose.
+- **Coast line traced once** (`src/land/plan.ts`, `src/land/coast.ts`): `frameOf` passes its coast line to `bakeCoast`.
+
+### Not done
+- The breakwaters' inner row of rocks has always fallen inside the dredged channel's keep-out. So each breakwater shows a bare sand strip about 2.5 m wide along its channel side (`fix2-north-moles.jpg`). This is unchanged by this round. I left it, because closing it would let rocks into the boat channel.
+- The lake's stepped rim from above, and the plain bridge parapets and quay walls, are unchanged (owner-accept list).
+- The terrain shader cost note: no change. Perf held (below).
+
+### Measurements after round 2
+Same setup (M4, 1920x1080, DSF2, Medium, `scripts/perf.mjs` on `vite preview`). Load average was 13.6 when the run started and 1.7 when it ended.
+- **Every perf scene holds 60 fps:** p99 16.8 ms and no frame over 50 ms in all 18 scenes. The 40 m/s highway drive also held 60 fps (p99 16.8 ms, no frame over 50 ms). canalMouth draws 271 calls.
+- **Cold load:** 26.6 MB transferred (unchanged), play to first frame 2.37 s.
+- **Gates:** `pnpm build` passes, `pnpm lint` is clean, `pnpm test` passes (56 files, 198 tests), and `pnpm test:e2e` passes (15 tests in 13.2 min, with nothing else running).
