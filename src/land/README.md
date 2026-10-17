@@ -3,12 +3,12 @@
 The island around the city as pure, seeded data: no three.js. `src/scenery` turns it into meshes and colliders.
 
 - `world-plan.ts` runs `plan-worker.ts` in a Web Worker from the title screen (main-thread fallback); `make-plan.ts` is what it runs: the land, flora, sea field, and terrain splat
-- `splat.ts` terrain splat inputs per grid vertex: sand, dirt, crown shade, variation
-- `plan.ts` entry point `generateLand(seed, size)`: the city plan plus every road, house, and villa outside it, and the baked heightmap
-- `coast.ts` the island's coastline: a hand-placed outline, smoothed and wobbled, baked to signed distance and sandiness
-- `shape.ts` natural ground: rolling fields and the hills inland; beaches (berm, face, dunes with blowouts) and rocky shores with low cliffs at the coast
+- `splat.ts` terrain splat inputs per grid vertex: sand, dirt (and lake mud), crown and dune-grass shade, variation
+- `plan.ts` entry point `generateLand(seed, size)`: the city plan plus every road, house, and villa outside it, and the baked heightmap over a grid that reaches 520 m past the outermost coast
+- `coast.ts` the island's coastline: a hand-placed outline, smoothed and wobbled, baked to signed distance and sandiness; `shoreline()` and `seaNormal()` give the way out to sea
+- `shape.ts` natural ground: rolling fields and the hills inland; beaches (berm, face, dunes with blowouts, grassed back dunes) and rocky shores with cliffs of varied lean and knolls on top; the shelf falls to open-sea depth by 500 m out
 - `waterways.ts` cuts every waterway in after the roads: `channels.ts` the canal's walled mouths, breakwaters, and branch; `river.ts` the sea-level river and its valley; `lake.ts` the forest lake (its own level), its basin, and its jetty
-- `shore-rocks.ts` breakwater rubble, groynes, riprap, cliff-foot boulders, outcrops, and river stones
+- `shore-rocks.ts` breakwater rubble, groynes, riprap heaped by noise, cliff-foot boulders, bedrock in the cliff faces, outcrops, and river stones
 - `noise.ts` seeded gradient noise, fractal and ridged sums
 - `grid.ts` the heightmap grid (Rapier's column-major layout) and bilinear sampling
 - `stamp.ts` cuts and fills the ground to roads and building pads
