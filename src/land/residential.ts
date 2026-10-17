@@ -26,9 +26,23 @@ type Ground = (x: number, z: number) => number
 export const avenueZ = (x: number) =>
   AVENUE_Z + 45 * Math.sin((CURVE_FROM - x) / 170) * smoothstep(CURVE_FROM, CURVE_FROM - 120, x)
 
-/** A cul-de-sac turning circle at the street's end, as a ring road. */
+/** A cul-de-sac turning circle around the street's end, as a ring road. */
 function bulb(end: P3, name: string): Path {
   return path(name, 'loop', lift(arc(end.x, end.z, BULB, 0, Math.PI * 2).slice(0, -1), end.y), true)
+}
+
+/**
+ * A street and the turning circle at its end. The street stops where it meets the ring's
+ * centerline: run on to the circle's middle, its asphalt poked into the grass island.
+ */
+function deadEnd(name: string, kind: 'street' | 'avenue', pts: P3[]): [Path, Path] {
+  const end = pts[pts.length - 1]
+  const off = (p: P3) => Math.hypot(p.x - end.x, p.z - end.z)
+  const k = pts.findIndex((p) => off(p) < BULB)
+  const [a, b] = [pts[k - 1], pts[k]]
+  const t = (off(a) - BULB) / (off(a) - off(b))
+  const meet = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t }
+  return [path(name, kind, [...pts.slice(0, k), meet]), bulb(end, `${name} circle`)]
 }
 
 function sideStreet(ground: Ground, at: P3, len: number, dir: 1 | -1, sway: number, name: string) {
@@ -40,8 +54,7 @@ function sideStreet(ground: Ground, at: P3, len: number, dir: 1 | -1, sway: numb
     4,
   )
   const y = profile(pts, ground, { grade: 0.08, window: 60, start: at.y })
-  const street = path(name, 'street', lift(pts, y))
-  return [street, bulb(street.pts[street.pts.length - 1], `${name} circle`)]
+  return deadEnd(name, 'street', lift(pts, y))
 }
 
 /** A house: center, footprint (w across the front, d deep), yaw (front faces local +z), and pad height. */
@@ -106,7 +119,7 @@ function clear(houses: House[], roads: Path[]): House[] {
 export interface Residential {
   roads: Path[]
   houses: House[]
-  /** The end of the westmost north street, where the forest trail comes in. */
+  /** The north side of the westmost north street's turning circle, where the forest trail comes in. */
   trailhead: P3
 }
 
@@ -119,12 +132,12 @@ export function buildResidential(ground: Ground, cityX: number): Residential {
     }),
     4,
   )
-  const avenue = path(
+  const roads: Path[] = deadEnd(
     'Palm Avenue',
     'avenue',
     lift(line, profile(line, ground, { grade: 0.06, window: 120, start: 0 })),
   )
-  const roads: Path[] = [avenue, bulb(avenue.pts[avenue.pts.length - 1], 'Palm Avenue circle')]
+  const avenue = roads[0]
   STREETS_X.forEach((x, k) => {
     const at = avenue.pts[closest(avenue.pts, { x, z: avenueZ(x) }).i]
     const sway = (k % 2 ? 1 : -1) * 22
@@ -135,6 +148,8 @@ export function buildResidential(ground: Ground, cityX: number): Residential {
   const streets = roads.filter((rd) => rd.kind !== 'loop')
   // Houses face the avenue only west of the highway's ramps.
   const all = streets.flatMap((rd) => lotsAlong(rd, r)).filter((h) => h.x < CURVE_FROM - 20)
-  const north = roads.find((rd) => rd.name === `Street ${STREETS_X.length} North`)!
-  return { roads, houses: clear(all, roads), trailhead: north.pts[north.pts.length - 1] }
+  // The trail comes in from the north and meets the westmost north circle's ring there.
+  const ring = roads.find((rd) => rd.name === `Street ${STREETS_X.length} North circle`)!
+  const trailhead = ring.pts.reduce((a, b) => (b.z < a.z ? b : a))
+  return { roads, houses: clear(all, roads), trailhead }
 }
