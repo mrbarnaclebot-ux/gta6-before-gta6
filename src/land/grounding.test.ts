@@ -131,10 +131,26 @@ describe('grounding', () => {
     const r = rng(5)
     // Every bush: a corner lot's hedge once ran on into the side street.
     const sample = Array.from({ length: 1500 }, () => trees[Math.floor(r() * trees.length)])
+    // A bounding box per road skips most of the ~34k plants x road points pairs, which timed out on CI.
+    const roads = land.paths
+      .filter((q) => q.kind !== 'trail')
+      .map((p) => {
+        const h = p.width / 2
+        const xs = p.pts.map((q) => q.x)
+        const zs = p.pts.map((q) => q.z)
+        const box = [
+          Math.min(...xs) - h,
+          Math.max(...xs) + h,
+          Math.min(...zs) - h,
+          Math.max(...zs) + h,
+        ]
+        return { p, h, box }
+      })
     for (const s of [...sample, ...flora.bushes]) {
       expect(s.y!).toBeGreaterThan(-1)
-      for (const p of land.paths.filter((q) => q.kind !== 'trail')) {
-        const near = p.pts.some((q) => Math.hypot(q.x - s.x, q.z - s.z) < p.width / 2)
+      for (const { p, h, box } of roads) {
+        if (s.x < box[0] || s.x > box[1] || s.z < box[2] || s.z > box[3]) continue
+        const near = p.pts.some((q) => (q.x - s.x) ** 2 + (q.z - s.z) ** 2 < h * h)
         if (near) throw new Error(`plant on ${p.name} at ${s.x}, ${s.z}`)
       }
     }
