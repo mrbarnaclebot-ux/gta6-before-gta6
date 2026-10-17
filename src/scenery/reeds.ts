@@ -34,7 +34,7 @@ function reedTexture(): THREE.CanvasTexture {
     const top = 6 + r() * 70
     const grad = g.createLinearGradient(0, 256, 0, top)
     grad.addColorStop(0, `hsl(${85 + r() * 15}, 28%, ${26 + r() * 8}%)`)
-    grad.addColorStop(1, `hsl(${48 + r() * 10}, 34%, ${46 + r() * 10}%)`)
+    grad.addColorStop(1, `hsl(${50 + r() * 12}, 30%, ${36 + r() * 9}%)`)
     g.strokeStyle = grad
     g.lineWidth = 1.6 + r() * 1.6
     g.beginPath()
