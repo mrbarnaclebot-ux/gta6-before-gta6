@@ -103,6 +103,17 @@ function avenue(
 const turned = (g: [number, number][][]) =>
   g.map((t) => t.map(([du, dv]) => [-du, -dv] as [number, number]))
 
+/** Bay stations split where a driveway left a gap: each run is painted on its own. */
+function runs(us: number[]): number[][] {
+  const pitch = Math.min(...us.slice(1).map((u, k) => u - us[k]))
+  const out: number[][] = []
+  for (const [k, u] of us.entries()) {
+    if (k && u - us[k - 1] < pitch * 1.5) out[out.length - 1].push(u)
+    else out.push([u])
+  }
+  return out
+}
+
 /** Double yellow, the parking lanes' lines, and a tick at each end of every bay. */
 function street(
   p: Paint,
@@ -121,22 +132,13 @@ function street(
     const v = side * (STREET.lane * 2 + 0.05)
     const curb = side * (SECTION.street.half - 0.5)
     const us = bays.map((b) => closest(line, b).s).sort((a, b) => a - b)
-    p.band(
-      line,
-      us[0] - BAY_LENGTH / 2,
-      us[us.length - 1] + BAY_LENGTH / 2,
-      v - LINE / 2,
-      v + LINE / 2,
-      WHITE,
-      step,
-    )
-    const ticks = [
-      us[0] - BAY_LENGTH / 2,
-      ...us.slice(1).map((u, k) => (u + us[k]) / 2),
-      us[us.length - 1] + BAY_LENGTH / 2,
-    ]
-    for (const u of ticks)
-      p.band(line, u - LINE / 2, u + LINE / 2, Math.min(v, curb), Math.max(v, curb), WHITE)
+    for (const run of runs(us)) {
+      const [a, b] = [run[0] - BAY_LENGTH / 2, run[run.length - 1] + BAY_LENGTH / 2]
+      p.band(line, a, b, v - LINE / 2, v + LINE / 2, WHITE, step)
+      const ticks = [a, ...run.slice(1).map((u, k) => (u + run[k]) / 2), b]
+      for (const u of ticks)
+        p.band(line, u - LINE / 2, u + LINE / 2, Math.min(v, curb), Math.max(v, curb), WHITE)
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateLand } from '../land/plan'
 import { CURB_H } from './layout'
-import { parkingSpots } from './parking'
+import { BAY_LENGTH, curbBays, parkingSpots } from './parking'
 import { surfaceAt, waterSurfaceAt } from './terrain'
 import { closest } from '../land/polyline'
 import { STREET } from './streets'
@@ -36,5 +36,16 @@ describe('parkingSpots', () => {
       expect((s.x - near.c.at.x) * right.x + (s.z - near.c.at.z) * right.z).toBeGreaterThan(0)
     }
     expect(spots.some((s) => surfaceAt(city, s.x, s.z) === CURB_H)).toBe(true)
+  })
+  it('keeps every curb bay off the driveways', () => {
+    const bays = city.net.segments.flatMap((s, i) =>
+      s.kind === 'street' ? [...curbBays(city, i, 1), ...curbBays(city, i, -1)] : [],
+    )
+    expect(bays.length).toBeGreaterThan(1000)
+    for (const b of bays) {
+      for (const d of city.driveways) {
+        expect(Math.hypot(b.x - d.x, b.z - d.z)).toBeGreaterThan(d.w / 2 + BAY_LENGTH / 2)
+      }
+    }
   })
 })

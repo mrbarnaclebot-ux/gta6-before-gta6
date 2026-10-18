@@ -29,7 +29,7 @@ const LOT_CARS = 8
 
 type Spot = { x: number; z: number; yaw: number }
 
-/** The parking lane's bays along one side of a street segment, in travel order. */
+/** The parking lane's bays along one side of a street segment, in travel order, none across a driveway. */
 export function curbBays(c: Land, seg: number, side: 1 | -1): Spot[] {
   const s = c.net.segments[seg]
   const len = segLength(s)
@@ -42,12 +42,14 @@ export function curbBays(c: Land, seg: number, side: 1 | -1): Spot[] {
   const lane = slice(line, from, from + (s1 - s0))
   const n = Math.floor((s1 - s0) / BAY_LENGTH)
   const st = stations(lane)
+  const clear = (p: Spot) =>
+    c.driveways.every((d) => Math.hypot(p.x - d.x, p.z - d.z) > d.w / 2 + BAY_LENGTH / 2)
   return Array.from({ length: n }, (_, k) => {
     const u = ((k + 0.5) * (s1 - s0)) / n
     const i = Math.min(lane.length - 2, Math.max(0, st.findIndex((v) => v >= u) - 1))
     const yaw = Math.atan2(lane[i + 1].x - lane[i].x, lane[i + 1].z - lane[i].z)
     return { ...at(lane, u), yaw }
-  })
+  }).filter(clear)
 }
 
 /** Every curbside bay on the city's streets, dry and off the canal's humps. */
