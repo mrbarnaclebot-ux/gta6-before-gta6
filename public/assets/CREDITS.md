@@ -24,7 +24,7 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 
 ## Built for this project in Blender (assets-src/blender), owned by the project owner
 Made by headless Blender 5.4 Python scripts in this repo (no downloads, no paid tools): every mesh, material, and texture comes from the scripts.
-- models/vehicle/car_sedan.glb, car_suv.glb, car_pickup.glb, car_van.glb - the traffic and parked cars, with a low-detail level each; car_sports.glb and car_police.glb are built too but not loaded.
+- models/vehicle/car_sedan.glb, car_suv.glb, car_pickup.glb, car_van.glb - the traffic and parked cars, with a low-detail level each. The Blender library also builds car_sports.glb and car_police.glb (in assets-src), which do not ship.
 - models/houses/houses.glb - six Miami houses (ranch, Mediterranean, modern, art deco, Key West, Spanish revival) with low-detail levels.
 - models/props/street_kit.glb, awnings.glb, lifeguard_tower.glb - benches, bins, hydrants, kiosks, bus shelters, AC units, water tanks, and more; three shop awnings; the beach lifeguard tower.
 

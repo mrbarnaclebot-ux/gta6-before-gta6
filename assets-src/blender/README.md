@@ -59,7 +59,7 @@ Integration notes:
 - **Glass** is `alphaMode: BLEND`, alpha 0.72, double-sided, dark tint, so the interior shows. If the game keeps its opaque mirror glass (`reflectiveOut`), set `transparent = false` on `glass` and the interior simply stops showing.
 - **Wheels.** `wheel_fl` holds the mesh; the other three are instances, the right-hand ones turned 180 degrees about y so the rim faces out. That is the layout `wheel-batch.ts` already expects: axle along x, rim face towards +x, origin at the hub. Take one wheel's primitives (tyre, rim, disc) for the instanced batch and the four node positions as the hubs. There is no brake caliper because it would spin with the wheel node.
 - **LOD1** has no shut lines, handles, exhausts, or interior detail, a 24-sided arch cut and 18-sided wheels; switch at around 60 to 80 m.
-- Phase 13d loads the sedan, SUV, pickup, and van. The sports car and police cruiser kept their generated bodies (`sports_car.glb`, `police.glb`): side by side in the game they looked more detailed than these two (see `.planning/phases/013d-SUMMARY.md`).
+- Phase 13d loads the sedan, SUV, pickup, and van. The sports car and police cruiser kept their generated bodies (`sports_car.glb`, `police.glb`): side by side in the game they looked more detailed than these two (see `.planning/phases/013d-SUMMARY.md`). `car_sports.glb` and `car_police.glb` stay in `assets-src` but do not ship: `compress-assets.mjs` skips them (`UNSHIPPED`) and `check-glb.mjs` leaves them out.
 
 ## Houses: `models/houses/houses.glb`
 

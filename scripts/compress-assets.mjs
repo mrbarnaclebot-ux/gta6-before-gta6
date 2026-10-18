@@ -116,6 +116,9 @@ function walk(dir) {
 }
 
 const PLANT_MAX = 1024
+// The Blender sports car and cruiser looked worse in the game than the generated bodies
+// (Phase 13d): their sources stay in assets-src, but they do not ship.
+const UNSHIPPED = ['car_sports.glb', 'car_police.glb']
 
 /** Re-encodes one glb texture as WebP, shrunk to `max` px; skipped when it would not help. */
 function toWebp(doc, texture, max) {
@@ -169,7 +172,8 @@ async function models() {
     'meshopt.encoder': MeshoptEncoder,
   })
   const bush = (f) => BUSHES.some((b) => f.endsWith(`${b}.glb`))
-  for (const file of walk(join(SRC, 'models')).filter((f) => f.endsWith('.glb') && !bush(f))) {
+  const skip = (f) => bush(f) || UNSHIPPED.some((u) => f.endsWith(u))
+  for (const file of walk(join(SRC, 'models')).filter((f) => f.endsWith('.glb') && !skip(f))) {
     const max = file.includes('vegetation') ? PLANT_MAX : 4096
     await compress(io, await io.read(file), file.replace(SRC, OUT), max)
   }

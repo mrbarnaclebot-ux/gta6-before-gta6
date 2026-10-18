@@ -6,8 +6,9 @@ import { getBounds, NodeIO } from '@gltf-transform/core'
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions'
 import { MeshoptDecoder } from 'meshoptimizer'
 
+// The sports car and cruiser are built but not shipped (compress-assets.mjs UNSHIPPED).
 const FILES = [
-  ...['sports', 'police', 'sedan', 'suv', 'pickup', 'van'].map((c) => `vehicle/car_${c}.glb`),
+  ...['sedan', 'suv', 'pickup', 'van'].map((c) => `vehicle/car_${c}.glb`),
   'houses/houses.glb',
   'props/street_kit.glb',
   'props/awnings.glb',
