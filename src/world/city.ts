@@ -161,7 +161,10 @@ async function buildPlants(
     plantGrass(ctx, layout, flora.clear),
     plantLawn(ctx, layout, flora.clear),
   ]
-  return (eye: THREE.Vector3, reach: number) => updates.forEach((u) => u(eye, reach))
+  return (eye: THREE.Vector3, reach: number) => {
+    WIND.value = performance.now() / 1000
+    updates.forEach((u) => u(eye, reach))
+  }
 }
 
 /** The player's start: the plan's spawn spot, set on the ground. */
@@ -171,10 +174,10 @@ function spawnPoint(c: Land): THREE.Vector3 {
 }
 
 /**
- * The city: streets, signals, canal, buildings, shopfronts, furniture, and billboards.
- * Returns the per-frame updates of the signal lights and the models drawn near the camera.
+ * The city: streets, signals, canal, buildings, shopfronts, furniture, billboards, and the
+ * lights after dark. Returns the per-frame update of the lights and the models near the camera.
  */
-function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit) {
+function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit, light: Ambient) {
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   const signals = buildSignals(ctx, layout)
@@ -184,12 +187,14 @@ function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit) {
   const awnings = buildAwnings(ctx, layout, kit)
   const furniture = buildFurniture(ctx, layout, kit)
   buildBillboards(ctx, layout)
-  const near = (eye: THREE.Vector3) => {
+  const night = buildNightLights(ctx, layout)
+  return (eye: THREE.Vector3) => {
+    night(light.night, light.day, eye)
+    signals()
     roofs(eye)
     furniture(eye)
     awnings(eye)
   }
-  return { signals, near }
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
@@ -199,11 +204,10 @@ export async function buildCity(
   light: Ambient,
   gl: THREE.WebGLRenderer,
 ): Promise<City> {
-  const plan = await planWorld()
+  // The props load while the worker plans the world.
+  const [plan, kit] = await Promise.all([planWorld(), loadPropKit(load)])
   const { land: layout, flora } = plan
-  const kit = await loadPropKit(load)
-  const streets = buildStreets(ctx, layout, kit)
-  const night = buildNightLights(ctx, layout)
+  const streets = buildStreets(ctx, layout, kit, light)
   const scenery = await buildScenery(ctx, plan, load, kit)
   const sea = await buildSea(ctx, layout, light, load, scenery.sea)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
@@ -222,10 +226,7 @@ export async function buildCity(
       return sea.underwater.depth
     },
     update(dt, camera, swimmer = null) {
-      WIND.value = performance.now() / 1000
-      night(light.night, light.day, camera.position)
-      streets.signals()
-      streets.near(camera.position)
+      streets(camera.position)
       plants(camera.position, reach)
       scenery.houses(camera.position)
       sea.update(dt, camera, swimmer)
