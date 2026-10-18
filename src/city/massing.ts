@@ -4,9 +4,9 @@ import { range, type Rand } from './rng'
 
 /*
  * The skyline of one block: how tall each building is, in what style and color. The tallest
- * picks go to the corners (corner towers); neighbours never share a style and height or a
- * color; tall glass and residential buildings often stand as a slim tower on a podium that
- * fills the lot.
+ * picks go to the corners (corner towers); same-style neighbours never share a color or come
+ * within a floor of each other; tall glass and residential buildings often stand as a slim
+ * tower on a podium that fills the lot.
  */
 
 /** A fitted footprint and where its cell sits in the block: -1 west/north edge, 1 east/south, 0 inside. */
@@ -17,8 +17,8 @@ export interface Cell {
   j: number
 }
 
-/** Palette sizes per style in world/buildings.ts: neighbours must differ in both. */
-const PALETTES = [5, 8]
+/** Wall palette sizes per style in world/buildings.ts: same-style neighbours must differ in color. */
+const PALETTE: Record<Style, number> = { deco: 8, residential: 5, glass: 5 }
 /** Footprints closer than this are neighbours. */
 const NEAR = 6
 
@@ -36,16 +36,24 @@ function choose(mix: Mix, r: Rand): { style: Style; floors: number } {
 const gap = (a: Building, b: Building) =>
   Math.max(Math.abs(a.x - b.x) - (a.w + b.w) / 2, Math.abs(a.z - b.z) - (a.d + b.d) / 2)
 
-/** Nudges a building away from its neighbours' looks: another color, another height. */
+/** Same-style buildings within NEAR of b. */
+const lookalikes = (b: Building, others: Building[]) =>
+  others.filter((o) => o.style === b.style && gap(b, o) <= NEAR)
+
+/**
+ * Moves a building off every same-style neighbour's color and height at once: the nearest
+ * free color, then the nearest height at least two floors from each of them.
+ */
 function vary(b: Building, others: Building[], r: Rand): void {
-  for (const o of others) {
-    if (gap(b, o) > NEAR) continue
-    for (let k = 0; k < 8 && PALETTES.some((n) => b.tint % n === o.tint % n); k++)
-      b.tint = (b.tint + 1) % 64
-    if (o.style === b.style && Math.abs(o.floors - b.floors) < 2) {
-      const step = 2 + Math.floor(r() * 3)
-      b.floors = b.floors - step >= 2 && r() < 0.5 ? b.floors - step : b.floors + step
-    }
+  const near = lookalikes(b, others)
+  const n = PALETTE[b.style]
+  const used = new Set(near.map((o) => o.tint % n))
+  for (let k = 0; k < 64 && used.has(b.tint % n); k++) b.tint = (b.tint + 1) % 64
+  const clash = (f: number) => near.some((o) => Math.abs(o.floors - f) < 2)
+  const dir = r() < 0.5 ? 1 : -1
+  for (let d = 0; d < 64 && clash(b.floors); d++) {
+    const f = [b.floors + dir * d, b.floors - dir * d].find((x) => x >= 2 && !clash(x))
+    if (f !== undefined) b.floors = f
   }
 }
 
@@ -91,9 +99,12 @@ export function massing(cells: Cell[], district: District, p: Profile, r: Rand):
       seed: Math.floor(r() * 2 ** 30) * 2,
     }
     if (district === 'beachfront' && b.style === 'residential') b.seaward = true
-    vary(b, out, r)
     const tall = b.style !== 'deco' && b.floors >= 16 && b.w >= 24 && b.d >= 24
-    out.push(...(tall && r() < p.podium ? podium(b, c, r) : [b]))
+    const [ground, tower] = tall && r() < p.podium ? podium(b, c, r) : [b]
+    // The street sees the podium, so that is what must differ from the neighbours.
+    vary(ground, out, r)
+    if (tower) Object.assign(tower, { tint: ground.tint, base: ground.floors })
+    out.push(ground, ...(tower ? [tower] : []))
   })
   return out
 }

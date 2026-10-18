@@ -99,6 +99,25 @@ describe('generateCity', () => {
     }
   })
 
+  it('never lets two neighbours of one style share a color or come within a floor', () => {
+    // NEAR and the palette sizes of massing.ts and world/buildings.ts.
+    const palette = { deco: 8, residential: 5, glass: 5 }
+    const gap = (a: Building, b: Building) =>
+      Math.max(Math.abs(a.x - b.x) - (a.w + b.w) / 2, Math.abs(a.z - b.z) - (a.d + b.d) / 2)
+    let pairs = 0
+    for (let i = 0; i < ground.length; i++) {
+      for (let j = i + 1; j < ground.length; j++) {
+        const [a, b] = [ground[i], ground[j]]
+        if (a.style !== b.style || gap(a, b) > 6) continue
+        pairs++
+        const n = palette[a.style]
+        expect(a.tint % n, `${a.x},${a.z} and ${b.x},${b.z}`).not.toBe(b.tint % n)
+        expect(Math.abs(a.floors - b.floors), `${a.x},${a.z} and ${b.x},${b.z}`).toBeGreaterThan(1)
+      }
+    }
+    expect(pairs).toBeGreaterThan(100)
+  })
+
   it('never plants a palm or a streetlight inside a building', () => {
     const fps = buildings.map(footprint)
     for (const s of [...city.palms, ...city.lights]) {
