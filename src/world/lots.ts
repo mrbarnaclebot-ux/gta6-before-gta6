@@ -1,12 +1,14 @@
 import * as THREE from 'three'
 import { CURB_H, type Rect } from '../city/layout'
-import { area, bounds, rectInside, rectRing, type Ring } from '../city/polygon'
+import { contains, rectRing, type Ring } from '../city/polygon'
+import { POOL_WATER, poolsOf } from '../city/pools'
+import { UNDER_CITY } from '../city/terrain'
 import type { Land } from '../land/plan'
 import { wornAsphalt } from '../render/road-wear'
 import { RAPIER } from '../physics'
 import { addMerged, rectBox, type WorldCtx } from './blocks'
 import { pbr } from './materials'
-import { flatRing } from './slabs'
+import { flatRing, skirt } from './slabs'
 import { PASTELS, umbrella } from '../scenery/beach'
 import { rng } from '../city/rng'
 import { FOUNTAIN, plazaFountain, plazaTrees } from '../city/greenery'
@@ -18,32 +20,8 @@ import { FOUNTAIN, plazaFountain, plazaTrees } from '../city/greenery'
  */
 
 const PLANTER = { r: 1.5, h: 0.45 }
-const POOL_EDGE = 2.5
 
 const OVER = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }
-
-/** A rect sunk in a plaza: the pool's water, if the plaza holds one. */
-function poolIn(plaza: Ring): Rect | null {
-  if (area(plaza) < 120) return null
-  const b = bounds(plaza)
-  const r = {
-    x0: b.x0 + POOL_EDGE,
-    x1: b.x1 - POOL_EDGE,
-    z0: b.z0 + POOL_EDGE,
-    z1: b.z1 - POOL_EDGE,
-  }
-  // Room either side for a row of umbrellas (poolside below).
-  if (r.x1 - r.x0 < 11 || r.z1 - r.z0 < 6) return null
-  // A long, narrow lap pool along the deck rather than one filling it.
-  const w = Math.min(r.x1 - r.x0 - 7, 9)
-  const pool = {
-    ...r,
-    x0: (r.x0 + r.x1 - w) / 2,
-    x1: (r.x0 + r.x1 + w) / 2,
-    z1: Math.min(r.z1, r.z0 + 22),
-  }
-  return rectInside(pool, plaza) ? pool : null
-}
 
 /** A driveway's apron across the sidewalk, as a ring. */
 function apron(d: Land['driveways'][number]): Ring {
@@ -78,20 +56,14 @@ const waterMaterial = () =>
     ...OVER,
   })
 
-/** The hotels' pools, on the beachfront's pool decks. */
-const poolsOf = (c: Land) =>
-  c.blocks
-    .filter((b) => b.district === 'beachfront')
-    .flatMap((b) => b.plazas.map(poolIn))
-    .filter((p): p is Rect => p !== null)
-
 /** Paved plazas, parking lots' asphalt, and pool water: one flat mesh each. */
 function flats(ctx: WorldCtx, c: Land, pools: Rect[]): void {
   const tiles = pbr('concrete_pavement_02', 0.3, { color: 0xeadcc4, ...OVER })
   const plazas = c.blocks.flatMap((b) => b.plazas)
+  const sunk = (p: Ring) => pools.filter((q) => contains(p, { x: q.x0, z: q.z0 })).map(rectRing)
   addMerged(
     ctx,
-    plazas.map((p) => flatRing(p, CURB_H + 0.003)),
+    plazas.map((p) => flatRing(p, CURB_H + 0.003, sunk(p))),
     tiles,
     FLAT,
   )
@@ -105,8 +77,20 @@ function flats(ctx: WorldCtx, c: Land, pools: Rect[]): void {
   )
   addMerged(
     ctx,
-    pools.map((p) => flatRing(rectRing(p), CURB_H + 0.05)),
+    pools.map((p) => flatRing(rectRing(p), POOL_WATER)),
     waterMaterial(),
+    FLAT,
+  )
+  // The basin's walls, in waterline tile, down to the hidden floor the water stands on.
+  const tile = new THREE.MeshStandardMaterial({
+    color: 0x4a9cba,
+    roughness: 0.35,
+    side: THREE.DoubleSide,
+  })
+  addMerged(
+    ctx,
+    pools.map((p) => skirt(rectRing(p), UNDER_CITY, CURB_H + 0.003)),
+    tile,
     FLAT,
   )
 }
@@ -145,41 +129,12 @@ function poolside(ctx: WorldCtx, pools: Rect[]): void {
   addMerged(ctx, geos, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 }))
 }
 
-/** Plazas, parking lots, pools, planters, and driveway aprons for every block. */
-export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
-  const pools = poolsOf(c)
-  flats(ctx, c, pools)
-  poolside(ctx, pools)
-  // Round the palms greenery.ts plants in the plazas (not the hotels' pool decks).
-  const planters = c.blocks
-    .filter((b) => b.district !== 'beachfront')
-    .flatMap((b) => b.plazas.flatMap(plazaTrees))
-  const pot = (p: { x: number; z: number }) =>
-    new THREE.CylinderGeometry(PLANTER.r, PLANTER.r + 0.1, PLANTER.h, 16).translate(
-      p.x,
-      CURB_H + PLANTER.h / 2,
-      p.z,
-    )
-  const aprons = c.driveways.map((d) => flatRing(apron(d), CURB_H + 0.002))
-  // Not on the hotels' pool decks: the pool is their water.
-  const fountains = c.blocks
-    .filter((b) => b.district !== 'beachfront')
-    .flatMap((b) => b.plazas.map(plazaFountain))
-    .filter((f) => f !== null)
-  const parts = fountains.map(fountain)
-  const all = [
-    ...pools.flatMap(coping),
-    ...aprons,
-    ...planters.map(pot),
-    ...parts.flatMap((f) => f.stone),
-  ]
-  addMerged(ctx, all, stone)
-  addMerged(
-    ctx,
-    parts.map((f) => f.water),
-    waterMaterial(),
-    FLAT,
-  )
+/** The plazas' round planters (round the palms greenery.ts plants) and fountains, with colliders. */
+function plazaStone(ctx: WorldCtx, c: Land) {
+  // Not on the hotels' pool decks: the pool is their water, and they get umbrellas instead.
+  const plazas = c.blocks.filter((b) => b.district !== 'beachfront').flatMap((b) => b.plazas)
+  const planters = plazas.flatMap(plazaTrees)
+  const fountains = plazas.map(plazaFountain).filter((f) => f !== null)
   for (const f of fountains) {
     const desc = RAPIER.ColliderDesc.cylinder(0.3, FOUNTAIN.r + 0.15)
     ctx.colliders.add(desc.setTranslation(f.x, CURB_H + 0.3, f.z))
@@ -188,4 +143,26 @@ export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
     const desc = RAPIER.ColliderDesc.cylinder(PLANTER.h / 2, PLANTER.r)
     ctx.colliders.add(desc.setTranslation(p.x, CURB_H + PLANTER.h / 2, p.z))
   }
+  const pot = (p: { x: number; z: number }) =>
+    new THREE.CylinderGeometry(PLANTER.r, PLANTER.r + 0.1, PLANTER.h, 16).translate(
+      p.x,
+      CURB_H + PLANTER.h / 2,
+      p.z,
+    )
+  const parts = fountains.map(fountain)
+  return {
+    stone: [...planters.map(pot), ...parts.flatMap((f) => f.stone)],
+    water: parts.map((f) => f.water),
+  }
+}
+
+/** Plazas, parking lots, pools, planters, and driveway aprons for every block. */
+export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
+  const pools = poolsOf(c)
+  flats(ctx, c, pools)
+  poolside(ctx, pools)
+  const aprons = c.driveways.map((d) => flatRing(apron(d), CURB_H + 0.002))
+  const plaza = plazaStone(ctx, c)
+  addMerged(ctx, [...pools.flatMap(coping), ...aprons, ...plaza.stone], stone)
+  addMerged(ctx, plaza.water, waterMaterial(), FLAT)
 }

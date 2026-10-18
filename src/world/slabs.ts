@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { bounds, centroid, clipRect, type Ring } from '../city/polygon'
+import type { Rect } from '../city/layout'
+import { bounds, centroid, clipRect, rectMinus, type Ring } from '../city/polygon'
 import { RAPIER } from '../physics'
 import type { WorldCtx } from './blocks'
 
@@ -9,13 +10,14 @@ import type { WorldCtx } from './blocks'
  * a capsule sink into cuboids hundreds of meters wide) and convex enough to collide true.
  */
 
-/** A flat top over the ring at height y, facing up, UVs in meters. */
-export function flatRing(ring: Ring, y: number): THREE.BufferGeometry {
-  const contour = ring.map((p) => new THREE.Vector2(p.x, p.z))
-  const tris = THREE.ShapeUtils.triangulateShape(contour, [])
-  const pos = new Float32Array(ring.length * 3)
-  const uv = new Float32Array(ring.length * 2)
-  ring.forEach((p, i) => {
+/** A flat top over the ring at height y, less any holes, facing up, UVs in meters. */
+export function flatRing(ring: Ring, y: number, holes: Ring[] = []): THREE.BufferGeometry {
+  const v2 = (r: Ring) => r.map((p) => new THREE.Vector2(p.x, p.z))
+  const tris = THREE.ShapeUtils.triangulateShape(v2(ring), holes.map(v2))
+  const all = [ring, ...holes].flat()
+  const pos = new Float32Array(all.length * 3)
+  const uv = new Float32Array(all.length * 2)
+  all.forEach((p, i) => {
     pos.set([p.x, y, p.z], i * 3)
     uv.set([p.x, -p.z], i * 2)
   })
@@ -23,8 +25,7 @@ export function flatRing(ring: Ring, y: number): THREE.BufferGeometry {
   for (const [a, b, c] of tris) {
     // Wind so the face points up (+y): counterclockwise seen from above is clockwise in x, z.
     const cross =
-      (ring[b].x - ring[a].x) * (ring[c].z - ring[a].z) -
-      (ring[b].z - ring[a].z) * (ring[c].x - ring[a].x)
+      (all[b].x - all[a].x) * (all[c].z - all[a].z) - (all[b].z - all[a].z) * (all[c].x - all[a].x)
     idx.push(...(cross > 0 ? [a, c, b] : [a, b, c]))
   }
   const geo = new THREE.BufferGeometry()
@@ -32,7 +33,7 @@ export function flatRing(ring: Ring, y: number): THREE.BufferGeometry {
   geo.setAttribute(
     'normal',
     new THREE.BufferAttribute(
-      new Float32Array(ring.length * 3).map((_, i) => (i % 3 === 1 ? 1 : 0)),
+      new Float32Array(all.length * 3).map((_, i) => (i % 3 === 1 ? 1 : 0)),
       3,
     ),
   )
@@ -82,9 +83,27 @@ export function pieces(ring: Ring): Ring[] {
   return out
 }
 
-/** Static colliders for a prism over the ring from y0 to y1, one convex hull per piece. */
-export function prismCollider(ctx: WorldCtx, ring: Ring, y0: number, y1: number): void {
-  for (const part of pieces(ring)) {
+/** The ring's collider pieces with the holes cut out. */
+const piecesLess = (ring: Ring, holes: Rect[]) =>
+  holes.reduce(
+    (parts, hole) =>
+      parts.flatMap((part) =>
+        rectMinus(bounds(part), hole)
+          .map((r) => clipRect(part, r))
+          .filter((q) => q.length >= 3),
+      ),
+    pieces(ring),
+  )
+
+/** Static colliders for a prism over the ring from y0 to y1, less any holes, one convex hull per piece. */
+export function prismCollider(
+  ctx: WorldCtx,
+  ring: Ring,
+  y0: number,
+  y1: number,
+  holes: Rect[] = [],
+) {
+  for (const part of piecesLess(ring, holes)) {
     const c = centroid(part)
     const pts = new Float32Array(part.length * 6)
     part.forEach((p, i) => {

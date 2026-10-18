@@ -1,13 +1,14 @@
 import * as THREE from 'three'
 import { CURB_H, lawnsOf, type Rect } from '../city/layout'
 import { PARK_TOP, UNDER_CITY } from '../city/terrain'
-import { insetRing, type Ring } from '../city/polygon'
+import { contains, insetRing, rectMinus, rectRing, type Ring } from '../city/polygon'
+import { poolsOf } from '../city/pools'
 import type { Driveway } from '../city/parking-lots'
 import type { SideKind } from '../city/faces'
 import type { Land } from '../land/plan'
 import { addMerged, rectCollider, type WorldCtx } from './blocks'
 import { pbr } from './materials'
-import { wornAsphalt, wornPaving } from '../render/road-wear'
+import { patchyLawn, wornAsphalt, wornPaving } from '../render/road-wear'
 import { canalBridges } from './canal-bridges'
 import { curbGeometry, CURB_W } from './curb-mesh'
 import { flatRing, prismCollider, skirt } from './slabs'
@@ -33,20 +34,25 @@ interface Raised {
   ring: Ring
   sides?: SideKind[]
   drives: Driveway[]
+  /** Hotel pools sunk through this face. */
+  pools: Rect[]
 }
 
 /** Every raised face, with the driveways cut into its curb. */
 function raised(c: Land): Raised[] {
   const near = (ring: Ring) => (d: Driveway) =>
     ring.some((p) => Math.hypot(p.x - d.x, p.z - d.z) < 60)
+  const pools = poolsOf(c)
+  const none = { drives: [], pools: [] }
   return [
     ...c.blocks.map((b) => ({
       ring: b.curb,
       sides: b.sides,
       drives: c.driveways.filter(near(b.curb)),
+      pools: pools.filter((p) => contains(b.curb, { x: p.x0, z: p.z0 })),
     })),
-    ...[...c.walks, ...c.islands].map((f) => ({ ring: f.curb, sides: f.sides, drives: [] })),
-    ...c.medians.map((m) => ({ ring: m.ring, drives: [] })),
+    ...[...c.walks, ...c.islands].map((f) => ({ ring: f.curb, sides: f.sides, ...none })),
+    ...c.medians.map((m) => ({ ring: m.ring, ...none })),
   ]
 }
 
@@ -62,13 +68,15 @@ function streets(ctx: WorldCtx, c: Land): THREE.BufferGeometry[] {
     cast: false,
     receive: true,
   })
-  for (const r of halves) rectCollider(ctx, r, UNDER_CITY, 0)
+  // The hotel pools go down through it to the hidden floor.
+  const solid = poolsOf(c).reduce((rs, p) => rs.flatMap((r) => rectMinus(r, p)), halves)
+  for (const r of solid) rectCollider(ctx, r, UNDER_CITY, 0)
   return humps.stone
 }
 
 /** Lawns a step above the paving, with their colliders. */
 function lawns(ctx: WorldCtx, c: Land): void {
-  const grass = pbr('aerial_grass_rock', 0.2, { color: 0xb4cc8c })
+  const grass = patchyLawn(pbr('aerial_grass_rock', 0.2, { color: 0xb4cc8c }))
   const list = lawnsOf(c)
   addMerged(
     ctx,
@@ -85,7 +93,7 @@ export function buildGround(ctx: WorldCtx, c: Land): void {
   const faces = raised(c)
   addMerged(
     ctx,
-    faces.map((f) => flatRing(insetRing(f.ring, CURB_W), CURB_H)),
+    faces.map((f) => flatRing(insetRing(f.ring, CURB_W), CURB_H, f.pools.map(rectRing))),
     paving,
   )
   addMerged(
@@ -95,6 +103,6 @@ export function buildGround(ctx: WorldCtx, c: Land): void {
   )
   addMerged(ctx, bridgeStone, curb)
   buildLots(ctx, c, curb)
-  for (const f of faces) prismCollider(ctx, f.ring, UNDER_CITY, CURB_H)
+  for (const f of faces) prismCollider(ctx, f.ring, UNDER_CITY, CURB_H, f.pools)
   lawns(ctx, c)
 }

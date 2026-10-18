@@ -184,3 +184,16 @@ export function rectInside(r: Rect, ring: Ring): boolean {
 /** True if the rects overlap by more than a sliver. */
 export const overlaps = (a: Rect, b: Rect, by = 0) =>
   a.x0 < b.x1 - by && b.x0 < a.x1 - by && a.z0 < b.z1 - by && b.z0 < a.z1 - by
+
+/** What is left of rect r with the hole cut out: up to four rects. */
+export function rectMinus(r: Rect, hole: Rect): Rect[] {
+  if (!overlaps(r, hole)) return [r]
+  const x0 = Math.max(r.x0, hole.x0)
+  const x1 = Math.min(r.x1, hole.x1)
+  return [
+    { ...r, x1: hole.x0 },
+    { ...r, x0: hole.x1 },
+    { x0, x1, z0: r.z0, z1: hole.z0 },
+    { x0, x1, z0: hole.z1, z1: r.z1 },
+  ].filter((q) => q.x1 - q.x0 > 1e-6 && q.z1 - q.z0 > 1e-6)
+}

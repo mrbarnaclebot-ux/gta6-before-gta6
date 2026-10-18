@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateCity, type Building, type Rect } from './layout'
-import { area, contains, overlaps, rectInside } from './polygon'
+import { area, contains, overlaps, rectInside, rectMinus } from './polygon'
+import { poolsOf, poolWaterAt, POOL_WATER } from './pools'
 import { closest, length } from '../land/polyline'
 import { SECTION } from './streets'
 
@@ -116,6 +117,19 @@ describe('generateCity', () => {
       }
     }
     expect(pairs).toBeGreaterThan(100)
+  })
+
+  it('sinks hotel pools into the decks, cut out of the ground beneath them', () => {
+    const pools = poolsOf(city)
+    expect(pools.length).toBeGreaterThan(5)
+    const size = (r: Rect) => (r.x1 - r.x0) * (r.z1 - r.z0)
+    const left = pools.reduce((rs, p) => rs.flatMap((r) => rectMinus(r, p)), [city.land])
+    const sum = (rs: Rect[]) => rs.reduce((a, r) => a + size(r), 0)
+    expect(sum(left)).toBeCloseTo(size(city.land) - sum(pools), 3)
+    for (const p of pools) {
+      expect(poolWaterAt(pools, (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)).toBe(POOL_WATER)
+      expect(left.some((r) => overlaps(r, p))).toBe(false)
+    }
   })
 
   it('never plants a palm or a streetlight inside a building', () => {
