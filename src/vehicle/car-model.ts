@@ -106,7 +106,10 @@ export class CarModels {
     // A generated body keeps the procedural wheels it was made with.
     if (batch && !(model instanceof THREE.Mesh)) {
       const levels = model.wheels.map((geometry) => [{ geometry, material: wheelMaterial! }])
-      this.scene.remove(...batch.setLevels(levels))
+      const old = batch.setLevels(levels)
+      this.scene.remove(...old)
+      // Frees only the instance buffers: the old wheel geometry may be shared.
+      old.forEach((mesh) => mesh.dispose())
       this.scene.add(...batch.meshes)
     }
     for (const m of this.made) if (m.kind === kind) this.dress(m, model)

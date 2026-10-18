@@ -23,6 +23,8 @@ export class WheelBatch {
   /** Meshes per level, nearest first. */
   levels: THREE.InstancedMesh[][] = []
   private readonly hubs: Hub[] = []
+  /** Wheels per level this frame, kept so `sync` allocates nothing. */
+  private counts: number[] = []
 
   constructor(levels: Part[][]) {
     this.setLevels(levels)
@@ -31,6 +33,7 @@ export class WheelBatch {
   /** Swaps in new wheel models (the glb's, once loaded); returns the old meshes to remove. */
   setLevels(levels: Part[][]): THREE.InstancedMesh[] {
     const old = this.meshes
+    this.counts = levels.map(() => 0)
     this.levels = levels.map((parts, k) =>
       parts.map(({ geometry, material }) => {
         const mesh = new THREE.InstancedMesh(geometry, material, CAPACITY)
@@ -58,7 +61,7 @@ export class WheelBatch {
 
   /** Runs after three has updated world matrices and before it collects objects to draw. */
   sync(eye: THREE.Vector3): void {
-    const counts = this.levels.map(() => 0)
+    const counts = this.counts.fill(0)
     const far = this.levels.length - 1
     for (const { pivot, car, flip } of this.hubs) {
       if (!car.visible || !car.parent) continue
