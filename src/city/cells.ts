@@ -102,6 +102,14 @@ export function hotel(fitted: Rect, r: Rand, out: Parcels): Rect {
   const deep = range(r, 18, 26)
   if (fitted.x1 - fitted.x0 < deep + 12) return fitted
   const slab = { ...fitted, x0: fitted.x1 - deep }
-  out.plazas.push(rectRing({ ...fitted, x1: slab.x0 - 2 }))
+  // A deep lot keeps a pool deck by the hotel and parks the guests' cars behind it, by the alley.
+  const deck = Math.max(fitted.x0, slab.x0 - 2 - DECK)
+  if (deck - fitted.x0 > 14) out.parking.push(rectRing({ ...fitted, x1: deck - 1 }))
+  out.plazas.push(
+    rectRing({ ...fitted, x0: deck - fitted.x0 > 14 ? deck : fitted.x0, x1: slab.x0 - 2 }),
+  )
   return slab
 }
+
+/** The widest a hotel's pool deck gets. */
+const DECK = 24
