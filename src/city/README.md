@@ -11,8 +11,8 @@ Pure, seeded city plan: plain data, no three.js or physics. `src/world` turns it
 - `junctions.ts` traffic control per junction (lights, all-way stop, none), each street's mouth, signal phases, and where crosswalks and stop bars sit
 - `medians.ts` the planted avenue medians, stopping short of turn bays and humps
 - `curbs.ts` a face's curb broken into runs along each street; lamps, palms, furniture, and driveways are placed along them
-- `lots.ts`, `cells.ts`, `massing.ts` what stands on a lot: cells set back from the street and fitted to cut lots, gardens, plazas, parking lots, beachfront hotels with pool decks; then heights, corner towers, podiums with towers, and neighbours that never match
-- `parking.ts` curbside bays in the streets' parking lanes and cars in the lots and drives; `parking-lots.ts` lot bays, their paint, and driveways
+- `lots.ts`, `cells.ts`, `massing.ts` what stands on a lot: cells set back from the street and fitted to cut lots, gardens, plazas, parking lots, beachfront hotels with pool decks; then heights, corner towers, podiums with towers, and same-style neighbours that never match in color or height; `pools.ts` the hotels' sunken pools and their water level
+- `parking.ts` curbside bays in the streets' parking lanes (clear of driveways) and cars in the lots and drives; `parking-lots.ts` lot bays, their paint, and driveways
 - `promenade.ts` the lawn strips where the beach promenade widens
 - `signal-posts.ts` where mast-arm traffic signals and stop signs stand
 - `canal-bridge.ts` the humped street bridges over the canal: which streets, and their rise

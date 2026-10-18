@@ -104,16 +104,16 @@ export const PROFILE: Record<District, Profile> = {
       [0.2, 'deco', 3, 6],
     ],
   },
-  // Low and pastel: a street wall of two to five floors.
+  // Low and pastel: a near-continuous street wall of two to five floors, few lots between.
   deco: {
     cell: 22,
     front: [0.4, 1.6],
-    gap: 1.2,
-    garden: 0.06,
+    gap: 0.3,
+    garden: 0.04,
     plaza: 0.02,
-    parking: 0.08,
+    parking: 0.04,
     courtyard: 0.7,
-    merge: 0.15,
+    merge: 0.35,
     podium: 0,
     mix: [
       [0.85, 'deco', 2, 5],
