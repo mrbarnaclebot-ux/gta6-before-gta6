@@ -11,15 +11,13 @@ import { pbr } from './materials'
 import { flatRing, skirt } from './slabs'
 import { PASTELS, umbrella } from '../scenery/beach'
 import { rng } from '../city/rng'
-import { FOUNTAIN, plazaFountain, plazaTrees } from '../city/greenery'
+import { FOUNTAIN, PLANTER, plazaFountain, plazaTrees } from '../city/greenery'
 
 /*
  * What lies flat on the lots: paved plazas with round planters, surface parking lots,
  * hotel pools on the beachfront decks, and the concrete aprons of driveways across the
  * sidewalk. A handful of draw calls for the whole city.
  */
-
-const PLANTER = { r: 1.5, h: 0.45 }
 
 const OVER = { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }
 

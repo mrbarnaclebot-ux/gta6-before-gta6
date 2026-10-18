@@ -33,7 +33,9 @@ import { ROOM_LIGHT } from './interior'
 import { buildMarkings } from './markings'
 import { buildSignals } from './signals'
 import { buildBillboards } from './billboards'
+import { buildAwnings } from './awnings'
 import { buildFurniture } from './furniture'
+import { loadPropKit, type PropKit } from './prop-kit'
 import { buildNeon } from './neon'
 import { buildShopfronts } from './shopfronts'
 import { placeProps } from './props'
@@ -125,18 +127,21 @@ function buildNightLights(ctx: WorldCtx, c: Land) {
   }
 }
 
-/** Everything outside the city grid: terrain, roads, homes, and the beach. Returns the sea plan. */
-async function buildScenery(ctx: WorldCtx, plan: WorldPlan): Promise<SeaPlan> {
+/**
+ * Everything outside the city grid: terrain, roads, homes, and the beach. Returns the sea
+ * plan and the houses' per-frame level-of-detail update.
+ */
+async function buildScenery(ctx: WorldCtx, plan: WorldPlan, load: Load, kit: PropKit) {
   const layout = plan.land
   // The sea field comes first: the terrain shader draws the swash and caustics from it.
-  const sea = planSea(plan.sea)
+  const sea: SeaPlan = planSea(plan.sea)
   await buildTerrain(ctx, layout, plan.splat, sea.uniforms)
   buildRoads(ctx, layout)
-  buildHouses(ctx, layout)
+  const houses = await buildHouses(ctx, layout, load)
   buildVillas(ctx, layout)
-  buildBeach(ctx, layout)
+  buildBeach(ctx, layout, kit)
   buildQuays(ctx, layout)
-  return sea
+  return { sea, houses }
 }
 
 /** Every plant: palms, ferns, the forest, bushes, rocks, dune grass, and grass. Returns their per-frame update. */
@@ -165,17 +170,21 @@ function spawnPoint(c: Land): THREE.Vector3 {
   return new THREE.Vector3(x, surfaceAt(c, x, z) + 0.05, z)
 }
 
-/** The city: streets, signals, canal, buildings, shopfronts, furniture, and billboards. Returns the lights' update. */
-function buildStreets(ctx: WorldCtx, layout: Land) {
+/**
+ * The city: streets, signals, canal, buildings, shopfronts, furniture, and billboards.
+ * Returns the signal lights' and the rooftop models' per-frame updates.
+ */
+function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit) {
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
   const signals = buildSignals(ctx, layout)
   buildCanal(ctx, layout)
-  buildBuildings(ctx, layout)
+  const roofs = buildBuildings(ctx, layout, kit)
   buildShopfronts(ctx, layout)
-  buildFurniture(ctx, layout)
+  buildAwnings(ctx, layout, kit)
+  buildFurniture(ctx, layout, kit)
   buildBillboards(ctx, layout)
-  return signals
+  return { signals, roofs }
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
@@ -187,10 +196,11 @@ export async function buildCity(
 ): Promise<City> {
   const plan = await planWorld()
   const { land: layout, flora } = plan
-  const signals = buildStreets(ctx, layout)
+  const kit = await loadPropKit(load)
+  const streets = buildStreets(ctx, layout, kit)
   const night = buildNightLights(ctx, layout)
-  const seaPlan = await buildScenery(ctx, plan)
-  const sea = await buildSea(ctx, layout, light, load, seaPlan)
+  const scenery = await buildScenery(ctx, plan, load, kit)
+  const sea = await buildSea(ctx, layout, light, load, scenery.sea)
   const plants = await buildPlants(ctx, layout, flora, load, gl)
   let reach = 1
   return {
@@ -209,8 +219,10 @@ export async function buildCity(
     update(dt, camera, swimmer = null) {
       WIND.value = performance.now() / 1000
       night(light.night, light.day, camera.position)
-      signals()
+      streets.signals()
+      streets.roofs(camera.position)
       plants(camera.position, reach)
+      scenery.houses(camera.position)
       sea.update(dt, camera, swimmer)
     },
     setDetail(plants, reflection) {

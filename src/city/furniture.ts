@@ -8,7 +8,8 @@ import { rng } from './rng'
  * are in world/furniture-models.ts. Nothing lands within reach of a palm or streetlight.
  */
 
-export type FurnitureKind = 'bench' | 'bin' | 'hydrant' | 'meter' | 'news' | 'bus' | 'sign'
+export type FurnitureKind =
+  'bench' | 'bin' | 'hydrant' | 'meter' | 'news' | 'bus' | 'sign' | 'kiosk'
 
 export interface Furniture {
   kind: FurnitureKind

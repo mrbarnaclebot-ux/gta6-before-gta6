@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { heightAt } from '../city/terrain'
+import { HOUSE_DESIGNS, VILLA_DESIGNS } from '../land/house-designs'
 import type { Villa } from '../land/hillside'
 import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
@@ -7,40 +8,13 @@ import { addMerged, metricBox, tinted, type WorldCtx } from '../world/blocks'
 import { pbr } from '../world/materials'
 
 /*
- * Modern hillside villas: two white boxes, the upper one cantilevered, glass across the
- * back where the view is, a pool on the terrace, and a stone retaining wall where the
- * terrace stands out from the slope. Local space: terrace floor at y = 0, front (+z)
- * facing the road uphill, the view down at -z.
+ * The hillside villas' terraces: a paved pad, a stone retaining wall where the terrace stands
+ * out from the slope, and a pool for a house model that has none of its own (the houses
+ * themselves are the Blender models, placed with the rest in houses.ts). Local space:
+ * terrace floor at y = 0, front (+z) facing the road uphill, the view down at -z.
  */
 
-type Box = { w: number; h: number; d: number; x: number; y: number; z: number }
-
 const STONE = 0xcdb99a
-const WHITE = 0xf5f3ee
-const FRAME = 0x2c2e31
-
-function volumes(v: Villa): Box[] {
-  const flip = v.seed % 2 ? 1 : -1
-  return [
-    { w: 18, h: 3.4, d: 11, x: 0, y: 0, z: 2.5 },
-    { w: 14, h: 3.2, d: 10, x: flip * 2.5, y: 3.4, z: 1 },
-  ]
-}
-
-const toBox = (b: Box) => metricBox(b.w, b.h, b.d).translate(b.x, b.y + b.h / 2, b.z)
-
-/** Glass across the back of each floor, set just proud of the wall. */
-const backGlass = (b: Box) =>
-  metricBox(b.w - 1.2, b.h - 0.9, 0.06).translate(b.x, b.y + b.h / 2, b.z - b.d / 2 - 0.04)
-
-/** Dark frames around and across a w x h pane every 2.4 m or less, so it reads as glazing. */
-function mullions(w: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry[] {
-  const n = Math.max(1, Math.round(w / 2.4))
-  const bars = [-1, 1].map((s) => metricBox(w + 0.08, 0.08, 0.1).translate(x, y + (s * h) / 2, z))
-  for (let k = 0; k <= n; k++)
-    bars.push(metricBox(0.08, h, 0.1).translate(x - w / 2 + (k * w) / n, y, z))
-  return bars.map((g) => tinted(g, FRAME))
-}
 
 /** The retaining wall along the terrace's downhill edge and sides, from the ground up to waist height. */
 function terraceWall(land: Land, v: Villa): THREE.BufferGeometry[] {
@@ -60,78 +34,43 @@ function terraceWall(land: Land, v: Villa): THREE.BufferGeometry[] {
 }
 
 interface Parts {
-  white: THREE.BufferGeometry[]
   stone: THREE.BufferGeometry[]
-  glass: THREE.BufferGeometry[]
   pool: THREE.BufferGeometry[]
 }
 
 function villaParts(land: Land, v: Villa, p: Parts): void {
-  const start = {
-    white: p.white.length,
-    stone: p.stone.length,
-    glass: p.glass.length,
-    pool: p.pool.length,
-  }
-  for (const b of volumes(v)) {
-    p.white.push(tinted(toBox({ ...b, y: b.y - 0.6, h: b.h + 0.6 }), WHITE))
-    p.white.push(
-      tinted(metricBox(b.w + 1.2, 0.3, b.d + 1.2).translate(b.x, b.y + b.h + 0.15, b.z), WHITE),
-    )
-    p.glass.push(backGlass(b))
-    p.stone.push(...mullions(b.w - 1.2, b.h - 0.9, b.x, b.y + b.h / 2, b.z - b.d / 2 - 0.1))
-  }
-  p.stone.push(...mullions(3, 2.4, -3, 1.3, 8.1), ...mullions(5, 1.2, 4, 2.0, 8.1))
-  p.glass.push(
-    metricBox(3, 2.4, 0.06).translate(-3, 1.3, 8.04),
-    metricBox(5, 1.2, 0.06).translate(4, 2.0, 8.04),
-  )
+  const start = { stone: p.stone.length, pool: p.pool.length }
   p.stone.push(...terraceWall(land, v).map((g) => tinted(g, STONE)))
   // Top 4 cm above the pad the terrain is flattened to, so the two never z-fight.
   p.stone.push(tinted(metricBox(v.w - 1, 0.3, v.d - 1).translate(0, -0.11, 0), 0xe7e1d4))
-  p.stone.push(tinted(metricBox(9, 0.4, 4.6).translate(-4, 0.1, -7.5), 0xf0ece4))
-  p.pool.push(new THREE.PlaneGeometry(8, 3.8).rotateX(-Math.PI / 2).translate(-4, 0.31, -7.5))
+  if (!HOUSE_DESIGNS[VILLA_DESIGNS[v.seed % VILLA_DESIGNS.length]].pool) {
+    p.stone.push(tinted(metricBox(9, 0.4, 4.6).translate(-4, 0.1, -7.5), 0xf0ece4))
+    p.pool.push(new THREE.PlaneGeometry(8, 3.8).rotateX(-Math.PI / 2).translate(-4, 0.31, -7.5))
+  }
   const place = (list: THREE.BufferGeometry[], from: number) => {
     for (let i = from; i < list.length; i++) list[i].rotateY(v.yaw).translate(v.x, v.y, v.z)
   }
-  place(p.white, start.white)
   place(p.stone, start.stone)
-  place(p.glass, start.glass)
   place(p.pool, start.pool)
 }
 
 function collide(ctx: WorldCtx, v: Villa): void {
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), v.yaw)
-  const rot = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyQuaternion(q)
-  for (const b of volumes(v)) {
-    const at = rot(b.x, b.z)
-    const desc = RAPIER.ColliderDesc.cuboid(b.w / 2, b.h / 2, b.d / 2)
-      .setTranslation(v.x + at.x, v.y + b.y + b.h / 2, v.z + at.z)
-      .setRotation(q)
-    ctx.physics.createCollider(desc)
-  }
-  const back = rot(0, -v.d / 2)
+  const back = new THREE.Vector3(0, 0, -v.d / 2).applyQuaternion(q)
   const wall = RAPIER.ColliderDesc.cuboid(v.w / 2, 0.5, 0.25)
     .setTranslation(v.x + back.x, v.y + 0.5, v.z + back.z)
     .setRotation(q)
   ctx.physics.createCollider(wall)
 }
 
-/** Every villa merged by material (they are few), with colliders for the house and the terrace wall. */
+/** Every villa terrace merged by material (they are few), with a collider for the terrace wall. */
 export function buildVillas(ctx: WorldCtx, land: Land): void {
-  const p: Parts = { white: [], stone: [], glass: [], pool: [] }
+  const p: Parts = { stone: [], pool: [] }
   for (const v of land.villas) {
     villaParts(land, v, p)
     collide(ctx, v)
   }
-  const relief = new THREE.Vector2(2, 2)
-  addMerged(ctx, p.white, pbr('white_stucco', 0.5, { vertexColors: true, normalScale: relief }))
   addMerged(ctx, p.stone, pbr('white_stucco', 0.35, { vertexColors: true, roughness: 0.95 }))
-  addMerged(
-    ctx,
-    p.glass,
-    new THREE.MeshStandardMaterial({ color: 0x3d5563, roughness: 0.05, metalness: 0.5 }),
-  )
   const water = new THREE.MeshStandardMaterial({
     color: 0x31b9cf,
     roughness: 0.04,

@@ -1,15 +1,19 @@
 import * as THREE from 'three'
+import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import type { Grounded } from '../city/layout'
 import { heightAt } from '../city/terrain'
+import { HOUSE_DESIGNS, VILLA_DESIGNS } from '../land/house-designs'
 import type { Land } from '../land/plan'
 import type { House } from '../land/residential'
 import type { P3 } from '../land/polyline'
 import { RAPIER } from '../physics'
 import { addMerged, tinted, type WorldCtx } from '../world/blocks'
 import { groupByChunk } from '../world/chunks'
+import { instanceByDistance } from '../world/lod-instances'
 import { pbr } from '../world/materials'
 import { trimeshCollider } from './bridges'
-import { FLOOR_H, houseParts, type HouseParts } from './house-parts'
+import { loadHouses } from './house-models'
 import { strip, sweep, type Section } from './sweep'
 
 // A 14 cm block garden wall: thick enough to shade its own side and catch the stucco normal map.
@@ -22,33 +26,48 @@ const FENCE: Section = [
 ]
 const FENCE_TINT = 0xc4bcae
 const YARD = 11
+/** Past this many meters a house draws its low-detail model. */
+const HOUSE_LOD = 100
+const VILLA_FORWARD = 0.8
+/** Wall paints: Miami pastels, kept below white so the tone mapper never clips them flat in sun. */
+const PAINTS = [0xf1ece2, 0xeedcc0, 0xe6cda6, 0xcde3d6, 0xf0dfa4, 0xefc4b0, 0xcfdeea, 0xe2d4e8]
 
-/** Rows of rounded clay or shingle courses, grey, tinted per house by vertex color. */
-function roofTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas')
-  c.width = c.height = 256
-  const g = c.getContext('2d')!
-  g.fillStyle = '#9a9a9a'
-  g.fillRect(0, 0, 256, 256)
-  for (let row = 0; row < 8; row++) {
-    for (let col = 0; col < 9; col++) {
-      const x = col * 32 - (row % 2) * 16
-      const grad = g.createLinearGradient(x, 0, x + 32, 0)
-      grad.addColorStop(0, '#7a7a7a')
-      grad.addColorStop(0.5, '#e6e6e6')
-      grad.addColorStop(1, '#7a7a7a')
-      g.fillStyle = grad
-      g.fillRect(x + 1, row * 32 + 2, 30, 29)
-    }
-    g.fillStyle = '#444'
-    g.fillRect(0, row * 32 + 30, 256, 2)
-  }
-  const t = new THREE.CanvasTexture(c)
-  t.wrapS = t.wrapT = THREE.RepeatWrapping
-  t.repeat.set(0.5, 0.5)
-  t.colorSpace = THREE.SRGBColorSpace
-  t.anisotropy = 8
-  return t
+/**
+ * Solid parts of each design for the player to bump into, in the model's space (garage at +x):
+ * center x and z, width, depth, height. Low garden walls and fences count; porches and
+ * pool decks are left open to walk on.
+ */
+const BOXES: [number, number, number, number, number][][] = [
+  [[0, 0, 14, 10, 4.5]],
+  [
+    [0, 0, 13, 10, 7],
+    [-0.7, 5.6, 3, 1.2, 7],
+  ],
+  [[0, 0, 13, 11, 6.8]],
+  [
+    [0, 0, 12, 10, 4.2],
+    [-3.55, 11, 5.9, 0.3, 0.75],
+    [1.45, 11, 1.3, 0.3, 0.75],
+  ],
+  [
+    [0, 0, 12, 9, 4.8],
+    [-4.55, 10.5, 3.9, 0.1, 1],
+    [0.5, 10.5, 3, 0.1, 1],
+  ],
+  [
+    [-2.75, 0, 8.5, 11, 6.8],
+    [4.25, -1, 5.5, 9, 3.4],
+    [-4.9, 11.5, 5.2, 0.3, 0.9],
+    [0.7, 11.5, 3.8, 0.3, 0.9],
+  ],
+]
+
+/** A model house standing somewhere: its design, center on the ground, yaw, and mirroring. */
+export interface Placed extends P3 {
+  design: number
+  yaw: number
+  flip: boolean
+  tint: number
 }
 
 /** Points every 2 m along a local-space polyline, turned and placed with the house, on the ground. */
@@ -99,52 +118,85 @@ function driveway(land: Land, h: House): THREE.BufferGeometry {
   return sweep(pts, strip(1.7, -1.7, 0.06))
 }
 
-function collide(ctx: WorldCtx, h: House): void {
-  const height = h.floors * FLOOR_H
-  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), h.yaw)
-  const desc = RAPIER.ColliderDesc.cuboid(h.w / 2, height / 2, h.d / 2)
-    .setTranslation(h.x, h.y + height / 2, h.z)
-    .setRotation(q)
-  ctx.colliders.add(desc)
+/** The design's boxes as colliders, turned and mirrored with the house. */
+export function collideHouse(ctx: WorldCtx, p: Placed): void {
+  const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw)
+  const cos = Math.cos(p.yaw)
+  const sin = Math.sin(p.yaw)
+  for (const [bx, bz, w, d, h] of BOXES[p.design]) {
+    const x = p.flip ? -bx : bx
+    const desc = RAPIER.ColliderDesc.cuboid(w / 2, h / 2, d / 2)
+      .setTranslation(p.x + x * cos + bz * sin, p.y + h / 2, p.z - x * sin + bz * cos)
+      .setRotation(q)
+    ctx.colliders.add(desc)
+  }
 }
 
-/** Every house, merged per 250 m chunk and material, with drives, back-yard fences, and colliders. */
-export function buildHouses(ctx: WorldCtx, land: Land): void {
-  // The stucco map is about 0.85 grey; times the pastel vertex tint, walls stay below the clip in sun.
+/** Every residential house and hillside villa as placed models: the garage on the left is a mirror. */
+function placements(land: Land): Placed[] {
+  return [
+    ...land.houses.map((h) => ({ ...h, flip: h.garage < 0 })),
+    ...land.villas.map((v) => ({
+      ...v,
+      // Forward of the pad's middle, so the pool decks behind stop inside the retaining wall.
+      x: v.x + Math.sin(v.yaw) * VILLA_FORWARD,
+      z: v.z + Math.cos(v.yaw) * VILLA_FORWARD,
+      design: VILLA_DESIGNS[v.seed % VILLA_DESIGNS.length],
+      flip: v.seed % 2 === 1,
+      tint: v.seed,
+    })),
+  ]
+}
+
+/**
+ * Every house and villa as the Blender models, instanced per design with two levels of
+ * detail, painted per house, with colliders; the residential drives and back-yard fences
+ * too. Returns the per-frame level-of-detail update.
+ */
+export async function buildHouses(
+  ctx: WorldCtx,
+  land: Land,
+  load: (url: string) => Promise<GLTF>,
+): Promise<(eye: THREE.Vector3) => void> {
+  const models = await loadHouses(load)
+  const placed = placements(land)
+  const updates = HOUSE_DESIGNS.map((_, k) => {
+    const spots: Grounded[] = placed
+      .filter((p) => p.design === k)
+      .map((p) => ({ ...p, s: 1, r: p.yaw, tint: PAINTS[p.tint % PAINTS.length] }))
+    return instanceByDistance(ctx, models[k], spots, {
+      scale: () => 1,
+      ranges: [HOUSE_LOD],
+      // The houses lie in a few hundred meters of the west and the hills: few, big batches.
+      chunk: 1000,
+    })
+  })
+  placed.forEach((p) => collideHouse(ctx, p))
+  buildYards(ctx, land)
+  return (eye) => updates.forEach((u) => u(eye))
+}
+
+/** Drives and back-yard fences, merged per 250 m chunk, the fences with a trimesh collider. */
+function buildYards(ctx: WorldCtx, land: Land): void {
+  // The stucco map is about 0.85 grey; times the vertex tint, walls stay below the clip in sun.
   const wall = pbr('white_stucco', 0.5, {
     vertexColors: true,
     normalScale: new THREE.Vector2(2, 2),
   })
-  const roof = new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: 0.78,
-    side: THREE.DoubleSide,
-  })
-  roof.map = roof.bumpMap = roofTexture()
-  roof.bumpScale = 2
-  // Sky-reflecting panes: dark enough to read as glass, light enough not to look like holes.
-  const glass = new THREE.MeshStandardMaterial({
-    color: 0x4f6878,
-    roughness: 0.06,
-    metalness: 0.35,
-  })
-  const trim = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 })
   const paving = pbr('concrete_pavement_02', 0.5, { color: 0xeae4da })
   for (const group of groupByChunk(land.houses).values()) {
-    const p: HouseParts = { wall: [], roof: [], glass: [], trim: [] }
-    for (const h of group) houseParts(h, p)
     const fences = group.map((h) => fence(land, h))
     trimeshCollider(ctx, mergeGeometries(fences))
-    addMerged(ctx, [...p.wall, ...fences.map((f) => tinted(f, FENCE_TINT))], wall)
-    addMerged(ctx, p.roof, roof)
-    addMerged(ctx, p.glass, glass)
-    addMerged(ctx, p.trim, trim)
+    addMerged(
+      ctx,
+      fences.map((f) => tinted(f, FENCE_TINT)),
+      wall,
+    )
     addMerged(
       ctx,
       group.map((h) => driveway(land, h)),
       paving,
       { cast: false, receive: true },
     )
-    group.forEach((h) => collide(ctx, h))
   }
 }
