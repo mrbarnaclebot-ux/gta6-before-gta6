@@ -10,8 +10,25 @@ import { TURN_SPEED } from './lanes'
  * serves, through a connector curve. Edges that lead only to dead ends are dropped.
  */
 
-const serves = (s: Serves, turn: string) =>
-  turn !== 'hairpin' && (s === 'all' || (s === 'left' ? turn === 'left' : turn !== 'left'))
+function serves(s: Serves, turn: string): boolean {
+  if (turn === 'hairpin') return false
+  if (s === 'straight' || s === 'left') return turn === s
+  return s === 'all' || turn !== 'left'
+}
+
+type Lane = { pts: unknown[]; serves: Serves; id: number }
+
+/**
+ * The lanes of the way out that a connector may lead into, one group per start point: the
+ * inner lane on its own, every other variant from the outer lane. Only straight on reaches
+ * the inner lane, and a car already in it keeps to it first (the first listed is likeliest).
+ */
+function targets<T extends Lane>(from: Serves, to: T[], turn: string): T[][] {
+  const inner = to.filter((t) => t.serves === 'straight')
+  const outer = to.filter((t) => t.serves !== 'straight')
+  if (turn !== 'straight' || !inner.length) return [outer]
+  return from === 'straight' ? [inner, outer] : [outer, inner]
+}
 
 /** The heading a way arrives at its far junction with, and the one it leaves its near one by. */
 function headings(c: City, w: Way) {
@@ -49,11 +66,11 @@ export function cityLaneGraph(c: City): LaneEdge[] {
         .filter((x) => serves(v.serves, x.turn) && lanes[all.indexOf(x.o)].length)
         .sort((a, b) => +(a.turn !== 'straight') - +(b.turn !== 'straight'))
       for (const { o, turn } of order) {
-        const to = lanes[all.indexOf(o)]
-        const pts = connector(c, v.pts, to[0].pts, turn)
         const limit = turn === 'straight' ? SECTION[c.net.segments[o.seg].kind].speed : TURN_SPEED
-        const id = edges.push({ pts, limit, next: to.map((t) => t.id) }) - 1
-        edges[v.id].next.push(id)
+        for (const to of targets(v.serves, lanes[all.indexOf(o)], turn)) {
+          const pts = connector(c, v.pts, to[0].pts, turn)
+          edges[v.id].next.push(edges.push({ pts, limit, next: to.map((t) => t.id) }) - 1)
+        }
       }
     }
   })

@@ -10,8 +10,9 @@ import { at, type P2, type P3 } from '../land/polyline'
  * The city's traffic lanes as a directed graph, the same shape as the highway's: right-hand
  * lanes along every street segment, each ending at its junction's stop bar (where the lights
  * or the stop sign hold it), joined across the junction by curves into every street that
- * leads on. On avenues traffic keeps to the outer lane; a car turning left moves over into
- * the turn lane where the median gives way. No U-turns, no dead ends.
+ * leads on. Avenues carry an outer lane for every maneuver and an inner lane for straight on;
+ * a car turning left moves over into the turn lane where the median gives way. No U-turns,
+ * no dead ends.
  */
 
 /** The stop waypoint sits this far short of the bar, so a car stopping 4 m behind it noses up to the bar. */
@@ -29,8 +30,8 @@ interface Way {
 }
 
 type Turn = 'straight' | 'right' | 'left' | 'hairpin'
-/** A lane variant: the maneuvers it serves at its far end. */
-type Serves = 'through' | 'left' | 'all'
+/** A lane variant: the maneuvers it serves at its far end ('through' is straight or right). */
+type Serves = 'through' | 'straight' | 'left' | 'all'
 
 const ways = (c: City): Way[] =>
   c.net.segments.flatMap((s, seg) =>
@@ -70,7 +71,7 @@ function lane(c: City, line: P2[], u0: number, u1: number, off: (u: number) => n
   })
 }
 
-/** The lane variants of a way: one per street; on avenues a through lane and, if needed, a left-turn lane. */
+/** The lane variants of a way: one per street; on avenues an outer lane, an inner one, and, if needed, a left-turn lane. */
 function variants(c: City, w: Way, hasLeft: boolean): { pts: P3[]; serves: Serves }[] {
   const [u0, u1] = span(c, w)
   if (u1 - u0 < 2 || c.junctions[w.to].control === 'end') return []
@@ -81,6 +82,7 @@ function variants(c: City, w: Way, hasLeft: boolean): { pts: P3[]; serves: Serve
   const held = c.junctions[w.to].control === 'signal' || c.junctions[w.to].control === 'stop'
   const out: { pts: P3[]; serves: Serves }[] = [
     { pts: lane(c, line, u0, u1, () => outer), serves: held ? 'through' : 'all' },
+    { pts: lane(c, line, u0, u1, () => AVENUE.lanes[0]), serves: 'straight' },
   ]
   if (held && hasLeft) {
     // Over into the turn lane once past the median's nose, by 10 m short of the stop bar.
