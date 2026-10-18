@@ -26,9 +26,9 @@ const LIT = [
   new THREE.Color(0.35, 4.2, 1.6),
 ]
 const OFF = [
-  new THREE.Color(0.14, 0.03, 0.03),
-  new THREE.Color(0.14, 0.1, 0.02),
-  new THREE.Color(0.03, 0.12, 0.07),
+  new THREE.Color(0.05, 0.012, 0.01),
+  new THREE.Color(0.05, 0.035, 0.008),
+  new THREE.Color(0.01, 0.04, 0.025),
 ]
 const LIGHTS: Light[] = ['red', 'amber', 'green']
 

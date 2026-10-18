@@ -85,6 +85,20 @@ describe('generateCity', () => {
     }
   })
 
+  it('labels each stretch of a curb with the street beyond it', () => {
+    for (const b of city.blocks) {
+      b.curb.forEach((p, i) => {
+        const seg = b.segs[i]
+        if (seg < 0) return
+        const q = b.curb[(i + 1) % b.curb.length]
+        const mid = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 }
+        const s = city.net.segments[seg]
+        expect(b.sides[i]).toBe(s.kind)
+        expect(closest(s.pts, mid).d).toBeCloseTo(SECTION[s.kind].half, 1)
+      })
+    }
+  })
+
   it('never plants a palm or a streetlight inside a building', () => {
     const fps = buildings.map(footprint)
     for (const s of [...city.palms, ...city.lights]) {

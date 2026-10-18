@@ -91,4 +91,11 @@ describe('GPS road graph', () => {
     expect(path.some((p) => closest(highway.pts, p).d < 1)).toBe(true)
     expect(route(g, north, south).length).toBeGreaterThan(2)
   })
+
+  it('cuts across the city by the diagonal boulevard', () => {
+    const diag = land.net.lines.find((l) => l.name === 'diagonal')!.pts
+    const path = route(g, { x: -440, z: 490 }, { x: -10, z: 60 })
+    const on = path.filter((p) => closest(diag, p).d < 1).length
+    expect(on / path.length).toBeGreaterThan(0.6)
+  })
 })

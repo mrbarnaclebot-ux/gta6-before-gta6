@@ -43,6 +43,11 @@ function fillRing(g: CanvasRenderingContext2D, o: Base, ring: Ring, color: strin
 /** The paved city: streets as the ground, blocks over them on a dark casing, parks, buildings, the canal. */
 function paintCity(g: CanvasRenderingContext2D, o: Base, c: Land): void {
   fillRect(g, o, c.land, MAP_COLORS.road)
+  // The canal under the streets that hump over it.
+  fillRect(g, o, c.canal, MAP_COLORS.shallows)
+  for (const b of c.bridges) {
+    fillRect(g, o, { ...c.canal, z0: b.z - b.half, z1: b.z + b.half }, MAP_COLORS.road)
+  }
   const raised = [...c.blocks, ...c.walks, ...c.islands].map((f) => f.curb)
   g.lineJoin = 'round'
   for (const ring of [...raised, ...c.medians.map((m) => m.ring)]) {
@@ -62,7 +67,6 @@ function paintCity(g: CanvasRenderingContext2D, o: Base, c: Land): void {
       )
     }
   }
-  fillRect(g, o, c.canal, MAP_COLORS.shallows)
 }
 
 const ROAD_COLOR: Partial<Record<Kind, string>> = {

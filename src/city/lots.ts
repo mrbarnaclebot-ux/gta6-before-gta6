@@ -84,8 +84,8 @@ export const PROFILE: Record<District, Profile> = {
     merge: 0.3,
     podium: 0.65,
     mix: [
-      [0.6, 'glass', 18, 66],
-      [0.4, 'residential', 14, 42],
+      [0.45, 'glass', 18, 66],
+      [0.55, 'residential', 14, 44],
     ],
   },
   midtown: {

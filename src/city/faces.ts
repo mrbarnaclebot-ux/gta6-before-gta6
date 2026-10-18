@@ -111,9 +111,15 @@ export function faceOutline(
   const off = kinds.map(inset)
   const corners = lines.map((_, k) => corner(lines, kinds, off, k, round ? shrink : -1))
   const out: Outline = { ring: [], sides: [], segs: [] }
+  // A point's label is for the stretch leaving it: a repeated point takes the later label.
   const push = (p: P2, kind: SideKind, seg: number) => {
-    const last = out.ring[out.ring.length - 1]
-    if (last && Math.hypot(last.x - p.x, last.z - p.z) < 0.02) return
+    const n = out.ring.length
+    const last = out.ring[n - 1]
+    if (last && Math.hypot(last.x - p.x, last.z - p.z) < 0.02) {
+      out.sides[n - 1] = kind
+      out.segs[n - 1] = seg
+      return
+    }
     out.ring.push(p)
     out.sides.push(kind)
     out.segs.push(seg)
