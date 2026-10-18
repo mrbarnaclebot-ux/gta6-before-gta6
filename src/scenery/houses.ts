@@ -219,6 +219,8 @@ function buildYards(ctx: WorldCtx, land: Land): void {
       { cast: false, receive: true },
     )
   }
+  // Warm brick pavers, so a villa's drive reads apart from its pale terrace from the air.
+  const pavers = pbr('concrete_pavement_02', 0.5, { color: 0xc49a7a })
   const drives = land.villas.map((v) => villaDrive(land, v))
-  addMerged(ctx, drives, paving, { cast: false, receive: true })
+  addMerged(ctx, drives, pavers, { cast: false, receive: true })
 }
