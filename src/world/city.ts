@@ -2,6 +2,8 @@ import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { SEA_LEVEL } from '../city/layout'
 import { outerLandmarks } from '../land/landmarks'
+import { at as along, length } from '../land/polyline'
+import { SECTION } from '../city/streets'
 import type { Land } from '../land/plan'
 import { buildingHeight } from '../city/lots'
 import { surfaceAt } from '../city/terrain'
@@ -66,6 +68,24 @@ export interface City {
   setDetail(plants: number, reflection: number): void
 }
 
+/** Sidewalk spots beside the diagonal boulevard and the coast road, a share of the way along each. */
+function streetViews(c: Land): Record<string, Point> {
+  const beside = (name: string, share: number, side: number) => {
+    const pts = c.net.lines.find((l) => l.name === name)!.pts
+    const s = length(pts) * share
+    const p = along(pts, s)
+    const q = along(pts, s + 1)
+    // Positive `side` is to the right of the line's direction (x, z left-hand turn).
+    const x = p.x - (q.z - p.z) * side
+    const z = p.z + (q.x - p.x) * side
+    return { x, y: surfaceAt(c, x, z), z }
+  }
+  return {
+    boulevard: beside('diagonal', 0.62, SECTION.avenue.half + 2.5),
+    oceanDrive: beside('coast road', 0.36, -(SECTION.avenue.half + 2.5)),
+  }
+}
+
 function landmarks(c: Land): Record<string, Point> {
   const at = (x: number, z: number, lift = 0) => ({ x, y: surfaceAt(c, x, z) + lift, z })
   // The city's middle street is at z = 0.
@@ -76,6 +96,7 @@ function landmarks(c: Land): Record<string, Point> {
     .reduce((a, b) => (buildingHeight(b) > buildingHeight(a) ? b : a))
   return {
     ...outerLandmarks(c),
+    ...streetViews(c),
     beach: at(c.land.x1 + 30, mid + 20),
     canal: at(c.canal.x0 - 1.5, mid + 30),
     // On the sidewalk east of the street at x = -410, looking north at the downtown superblock.
