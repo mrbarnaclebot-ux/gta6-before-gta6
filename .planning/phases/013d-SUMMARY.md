@@ -15,12 +15,12 @@ Status: built and verified on branch `phase-13d-assets` (from `main` at 5f71d05,
   - LOD: past 70 m a car draws the low-detail level, with its glass merged in as opaque (one draw call per distant car).
   - Wheels: the glb's own wheel (tyre, rim, disc), one instanced batch per kind and level (`wheel-batch.ts`), near and far. Far wheels cast no shadow.
   - Physics: each kind's body box, wheel hubs, radius, and seat come from the Blender specs in meters (`car-specs.ts`). The van and pickup sit higher and longer, so the chase camera now rises and pulls back with the car's roof height (`camera/follow-camera.ts` `carRig`).
-- **Sports car and police cruiser: kept the old ones.** Side by side in the game (screens `traffic-police.jpg`, `sports-generated.jpg` against the Blender pair), the generated (AssetHub) bodies look clearly more detailed: the Blender sports car read as a plain 90s coupe next to the generated supercar, and the Blender cruiser as a toy next to the Charger-like one. So these two kinds keep their generated bodies, procedural wheels, sizes, and shader (`generated-paint.ts`, the old `car-paint.ts`). `car_sports.glb` and `car_police.glb` still ship from the Blender library but are not loaded.
+- **Sports car and police cruiser: kept the old ones.** Side by side in the game (screens `traffic-police.jpg`, `sports-generated.jpg` against the Blender pair), the generated (AssetHub) bodies look clearly more detailed: the Blender sports car read as a plain 90s coupe next to the generated supercar, and the Blender cruiser as a toy next to the Charger-like one. So these two kinds keep their generated bodies, procedural wheels, sizes, and shader (`generated-paint.ts`, the old `car-paint.ts`). Their Blender glbs (`car_sports.glb`, `car_police.glb`) stay in `assets-src` and do not ship.
 
 ### Houses (`src/scenery/houses.ts`, `house-models.ts`, `villas.ts`, `src/land/house-designs.ts`)
 - The procedural houses (`house-parts.ts`, deleted) are replaced by the six Blender houses: ranch, Mediterranean, modern, art deco, Key West, and Spanish revival.
 - **Residential:** each lot picks a design (`land/residential.ts`), and the lot takes that design's footprint, so the pad, driveway, hedges, and parked car all line up with the model's garage. Houses with the garage on the left are the model mirrored.
-- **Hillside** (changed in review: modern and Spanish only, with a drive to the road): the 15 villas use the modern, Spanish, and Mediterranean designs on their terraces (`VILLA_DESIGNS`), moved 0.8 m forward so the pool decks stay inside the retaining wall. The terrace, retaining wall, and (for the Mediterranean, which has none of its own) the pool stay procedural.
+- **Hillside** (changed in review): the 15 villas use the modern and Spanish designs on their terraces (`VILLA_DESIGNS`), both with their own pool, moved 0.8 m forward so the pool decks stay inside the retaining wall, and each with a paved drive from its garage to the road. The terrace and retaining wall stay procedural.
 - **Drawing:** one batch per design per level of detail (LOD1 past 100 m), instanced through `lod-instances.ts`. Each design is baked into one mesh drawn by one material (`house-models.ts`): the stucco, clay tile, and standing-seam metal textures from the glb are picked per vertex. Mirrored houses are drawn double-sided with the face direction flipped in the shader, so one batch holds both.
 - **Paint:** each house's walls take one of eight Miami pastels (instance color on the stucco only); roofs, trim, doors, and pools keep the model's colors.
 - **Colliders:** boxes per design for the main block and wing, plus the low garden walls and picket fences. Porches and pool decks stay open.
@@ -172,3 +172,24 @@ In the interleaved runs the branch is within about -50 to +90 of main per scene:
   - CPU per frame was 3.3 to 6.3 ms: spawn 4.5, hillside 5.7, beach 6.3.
   - Draw calls: spawn 479, downtown 429, canal 480, residential 419, oceanDrive 522, beach 835, marina 768, hillside 737.
   - Cold transfer 27.7 MB, play to first frame 2.4 s, no page errors.
+
+## Review fixes, round 2
+
+### Blocker: the kiosk's striped awning was invisible from the front and above (fixed)
+- **Cause:** `awning_striped()` in `assets-src/blender/props_structures.py` wound the canvas, the scalloped valance, and the left cheek so their normals pointed down, back, and in. The shop awnings hid it because `awnings.ts` draws them double-sided; the kiosk goes through `kit-furniture.ts` with the single-sided `pbrMaterial()`, so the outer faces were culled.
+- **Fix:** the canvas now faces up and out, the valance +z, and each cheek outward (normals checked with a Newell sum before the build). `awning_striped(..., lined=True)` also adds the canvas's underside, and the kiosk uses it, so you see the stripes standing under it at the hatch. The shop awnings go without the lining (they are double-sided already), so their triangle count is unchanged.
+- Rebuilt in Blender, recompressed, `check-glb.mjs` ok. The kiosk is 294 triangles (from 220); `awnings.glb` keeps 162 for the striped one.
+- Screenshots (`013d-screens/`): `rf2-kiosk-s.jpg` (the repro camera: the awning and valance now show), `rf2-kiosk-top.jpg` (from above), `rf2-kiosk-under.jpg` (the lined underside from the hatch), `rf2-kiosk-w.jpg` (from the side), `rf2-shop-striped.jpg` (a striped shop awning, unchanged).
+
+### Non-blocking notes
+- **Dead `envMapIntensity`:** removed from `carGlass()` (`car-paint.ts`), `generated-paint.ts`, `boat-model.ts`, and the pool water in `lots.ts`. three r186 replaces it with `scene.environmentIntensity` whenever a material has no `envMap` of its own (`WebGLRenderer.js` 2736), which is true for all four, so nothing changes on screen.
+- **Plaza kiosks face their benches** (`plaza-furniture.ts` `kioskYaw`): the hatch turns, square to the plaza, toward the sum of directions to the plaza's benches; with benches all round or none, the old place hash picks the side. On the (-370, 450) plaza the hatch already faced the two benches (they are on its +z side; `r2-kiosk-n.jpg` looks at the back wall from the north with the benches beyond the kiosk). The (-170, 150) plaza's kiosk had its back to three benches and now faces them (`rf2-kiosk2-n.jpg`). New test: every kiosk with benches in its plaza has its hatch toward them on balance; it fails on the old yaw.
+- **Villa drives** are warm brick pavers (0xc49a7a on the same paving texture), so they read apart from the pale terrace from the air (`rf2-villa-aerial.jpg`). Same draw call, its own material.
+- **Summary:** the two stale lines (cars still shipping, the Mediterranean villa and its pool) are corrected above.
+- **Draw calls:** not cut further. In the quiet run below the city scenes read spawn 528, downtown 490, beach 920, canal 563, boulevard 510, oceanDrive 574, downtown-night 612. None of this round's changes add a draw call (the kiosk and villa drive keep their batches), so the spread against the earlier runs is traffic and pedestrians in view. The gap to main stays as documented, about +40 to 80 in the city scenes, more at night here.
+
+### Gates after round 2
+- `pnpm build`: built. `pnpm lint`: clean. `pnpm test`: 57 files, 213 tests passed.
+- `pnpm test:e2e`: 15 passed (17.1 min), phone and touch specs included. The load rose to 16 during the run (three workers); no timeouts.
+- `node assets-src/blender/check-glb.mjs`: every node ok.
+- **Perf, quiet machine** (`scripts/perf.mjs`, Medium, 1920x1080, DSF2, production build on `vite preview`, load 1.9 to 2.6): every scene held 60 fps with p99 16.8 ms and no frame over 50 ms, including the ones the review saw drop under load (beach, westBeach, riverMouth, boulevard, oceanDrive, downtown-night). CPU per frame 3.6 to 6.4 ms (beach 6.4, marina 6.1). The highway drive: 60 fps, p99 16.8 ms, no frame over 50 ms. Cold transfer 27.7 MB, play to first frame 2.4 s, no page errors.
