@@ -20,7 +20,7 @@ Status: built and verified on branch `phase-13d-assets` (from `main` at 5f71d05,
 ### Houses (`src/scenery/houses.ts`, `house-models.ts`, `villas.ts`, `src/land/house-designs.ts`)
 - The procedural houses (`house-parts.ts`, deleted) are replaced by the six Blender houses: ranch, Mediterranean, modern, art deco, Key West, and Spanish revival.
 - **Residential:** each lot picks a design (`land/residential.ts`), and the lot takes that design's footprint, so the pad, driveway, hedges, and parked car all line up with the model's garage. Houses with the garage on the left are the model mirrored.
-- **Hillside:** the 15 villas use the modern, Spanish, and Mediterranean designs on their terraces (`VILLA_DESIGNS`), moved 0.8 m forward so the pool decks stay inside the retaining wall. The terrace, retaining wall, and (for the Mediterranean, which has none of its own) the pool stay procedural.
+- **Hillside** (changed in review: modern and Spanish only, with a drive to the road): the 15 villas use the modern, Spanish, and Mediterranean designs on their terraces (`VILLA_DESIGNS`), moved 0.8 m forward so the pool decks stay inside the retaining wall. The terrace, retaining wall, and (for the Mediterranean, which has none of its own) the pool stay procedural.
 - **Drawing:** one batch per design per level of detail (LOD1 past 100 m), instanced through `lod-instances.ts`. Each design is baked into one mesh drawn by one material (`house-models.ts`): the stucco, clay tile, and standing-seam metal textures from the glb are picked per vertex. Mirrored houses are drawn double-sided with the face direction flipped in the shader, so one batch holds both.
 - **Paint:** each house's walls take one of eight Miami pastels (instance color on the stucco only); roofs, trim, doors, and pools keep the model's colors.
 - **Colliders:** boxes per design for the main block and wing, plus the low garden walls and picket fences. Porches and pool decks stay open.
@@ -106,8 +106,8 @@ In the interleaved runs the branch is within about -50 to +90 of main per scene:
 
 ## Known gaps
 - **Perf gate under load.** See Measurements: no clean full run was possible on a busy machine. Worth a rerun on a quiet machine before merging.
-- **Blender sports car and cruiser not used.** They looked worse than the generated bodies in the game. Their glbs (0.3 MB) ship but are not loaded. To use them later, the Blender scripts need far more shaping (a wedge supercar silhouette, panel detail).
-- **Paint.** The environment map is the sky alone, so black and navy paint reads bluish on the Blender cars, even at the lowered reflection strength (0.7).
+- **Blender sports car and cruiser not used.** They looked worse than the generated bodies in the game. Since the review, their glbs stay in `assets-src` and no longer ship. To use them later, the Blender scripts need far more shaping (a wedge supercar silhouette, panel detail).
+- **Paint.** Fixed in review, see Review fixes.
 - **Pop-in.** The Blender street furniture appears at 90 to 220 m and the awnings at 260 m. Past that, those items are not drawn at all; the old procedural ones were drawn everywhere in their chunk. Rooftop units switch from stand-in to model at 150 m.
 - **Houses:**
   - Windows are flat dark glass with no rooms behind them and no lights at night (the interior shader needs a per-pane variant).
@@ -135,3 +135,40 @@ In the interleaved runs the branch is within about -50 to +90 of main per scene:
   - `lifeguard-tower.jpg`
   - `rooftops.jpg` (AC units and tanks)
   - `night-street.jpg` (the awnings at night)
+
+## Review fixes
+
+### Blocker: black and navy paint read blue (fixed)
+- **Cause, verified in game:** the sky environment map's specular reflection, on both the base layer and the clear coat. Turning the environment term off on the paint parts alone took a black van from royal blue to black; the diffuse and SSR terms were not involved (SSR is High and Ultra only, and the repro is Medium).
+- **Why the 0.7 did nothing:** three.js (r186, `WebGLRenderer`) overwrites `envMapIntensity` with `scene.environmentIntensity` whenever a material uses `scene.environment`, so the material's own value never applied. It is gone.
+- **Fix** (`src/vehicle/car-paint.ts`): on the `paint` parts only, the environment reflection is weakened (base 0.55, coat 0.6) and greyed (30% of its color kept). The sky stands in for the street and walls a real car would mirror, so a grey, weaker reflection is closer to life. Other parts (glass, chrome, trim, lamps) are unchanged.
+- **Navy** (`car-specs.ts`) is darker and less saturated, from 0x1b2b4a to 0x141b2c. It now reads as navy rather than royal blue; black reads as black or charcoal with a cool sheen on the roof and hood.
+- Light paints keep their gloss: white and silver cars look the same as before.
+- Screenshots (`013d-screens/`): `review-black-van-suv.jpg` shows a black van and a black SUV at 12:30, Medium; `review-navy-suv.jpg` shows the navy SUV the review flagged (`G.cars()[6]` and `[7]`).
+
+### Non-blocking notes
+- **buildCity length** (`src/world/city.ts`): 39 lines, from 43. The night lights now fold into `buildStreets`' per-frame update, and the wind clock into the plants' update.
+- **Prop kit off the critical path:** `loadPropKit` now loads while the worker plans the world (`Promise.all` with `planWorld`).
+- **Load fallbacks:** a prop file that fails to load (`street_kit`, `awnings`, `lifeguard_tower`) is skipped with a warning, and every consumer goes without those props (beach towers and their colliders included). A failed `houses.glb` warns and leaves the lots empty (drives and fences stay). Checked in game with the three files blocked: the world streams, no page errors, three warnings.
+- **Plaza kiosks** (`src/city/plaza-furniture.ts`): the kiosk spot is chosen first, and benches within 4 m of it are skipped (`KIOSK_CLEAR`). `plaza-furniture.test.ts` now checks it, and fails without the fix (a bench 2.97 m from a kiosk). Screenshot: `review-plaza-kiosk.jpg`, the plaza at (-370, 450) from above.
+- **Unused car glbs:** `car_sports.glb` and `car_police.glb` no longer ship. `compress-assets.mjs` skips them (`UNSHIPPED`), `check-glb.mjs` leaves them out, and the sources stay in `assets-src`. The deploy is 0.3 MB smaller. Cold transfer is unchanged at 27.7 MB, because the game never requested them.
+- **Villas:** `VILLA_DESIGNS` is now modern and Spanish only (both have their own pool), so the procedural stand-in pool in `villas.ts` is gone. Each villa gets a paved drive straight out of its garage from the terrace edge to the road (`houses.ts` `villaDrive`, `hillside.ts` `VILLA_ROAD`). Screenshots: `review-villa.jpg`, `review-villas-aerial.jpg`.
+- **Lifeguard tower:** the ramp rails are a little thicker and stand on four posts each (`props_structures.py`), rebuilt in Blender and recompressed. `check-glb.mjs` passes. Screenshot: `review-lifeguard-tower.jpg`.
+- **Wheel batches:** `sync` reuses one counts array, and `CarModels.swap` disposes the replaced instanced meshes (instance buffers only; the old geometry may be shared).
+- **Neon tube across the shop signs** (from before this phase): the deco ring was at the ground floor's eyebrow height, but the ground floor has shops and no eyebrow. It now runs along the first upper floor's eyebrow (`neon.ts`). Screenshot: `review-night-street.jpg`.
+- **Not done:**
+  - House windows (flat blue, no interior, dark at night) and the opaque glass balustrades. Both need a per-pane interior variant and a see-through pass, which is more than a cheap fix. They stay in Known gaps.
+  - Draw calls are not cut further. The brief's figures stand.
+
+### Gates after the fixes
+- `pnpm build`: built.
+- `pnpm lint`: clean.
+- `pnpm test`: 57 files, 212 tests passed.
+- `pnpm test:e2e`: 15 passed (13.8 min), including the phone and touch specs.
+- `node assets-src/blender/check-glb.mjs`: every node ok.
+- **Perf** (`scripts/perf.mjs`, Medium, 1920x1080, DSF2, production build on `vite preview`): this is the quiet full run the review asked for, at load 1.7 to 2.3.
+  - Every scene held 60 fps with p99 16.8 ms and no frame over 50 ms: spawn, downtown, beach, shore, canal, marina, hillside, flyover, residential, forest, forest-hill, northCoast, westBeach, riverMouth, lake, canalMouth, boulevard, oceanDrive, underwater, and downtown-night.
+  - The highway drive: 60 fps, p99 16.8 ms, no frames over 50 ms.
+  - CPU per frame was 3.3 to 6.3 ms: spawn 4.5, hillside 5.7, beach 6.3.
+  - Draw calls: spawn 479, downtown 429, canal 480, residential 419, oceanDrive 522, beach 835, marina 768, hillside 737.
+  - Cold transfer 27.7 MB, play to first frame 2.4 s, no page errors.
