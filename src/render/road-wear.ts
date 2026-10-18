@@ -4,6 +4,7 @@ import type * as THREE from 'three'
  * Wear on the roads, drawn procedurally in world space so it costs no texture: darker
  * repair patches, cast-iron manhole covers, and oil stains on the asphalt, lane paint
  * worn thin in places, and weathered sidewalk paving. Patches and covers fade out by 140 m, where their edges would shimmer.
+ * City lawns get the same treatment, so their grass texture does not tile from the air.
  */
 
 const VERTEX_PARS = /* glsl */ `
@@ -88,6 +89,21 @@ const PAVING = /* glsl */ `
 }
 `
 
+// Lawn: a second, rotated sample of the grass at another scale, blended in by slow noise,
+// breaks the texture's repeat; drier and lusher patches over tens of meters vary the green.
+const LAWN = /* glsl */ `
+#ifdef USE_MAP
+{
+  vec2 p = vRoadPos.xz;
+  vec2 q = mat2(0.8, -0.6, 0.6, 0.8) * vMapUv * 0.43 + 0.37;
+  float mixing = smoothstep(0.3, 0.7, rwNoise(p * 0.05));
+  diffuseColor *= mix(texture2D(map, vMapUv), texture2D(map, q), mixing);
+  float macro = rwNoise(p * 0.021) * 0.65 + rwNoise(p * 0.093) * 0.35;
+  diffuseColor.rgb *= mix(vec3(1.1, 1.05, 0.84), vec3(0.84, 0.97, 0.86), macro);
+}
+#endif
+`
+
 function patch<T extends THREE.Material>(
   m: T,
   key: string,
@@ -127,3 +143,7 @@ export const wornPaint = <T extends THREE.Material>(m: T): T =>
 /** Sidewalk paving with weathering and the odd stained slab. */
 export const wornPaving = <T extends THREE.Material>(m: T): T =>
   patch(m, 'worn-paving', NOISE, [['#include <map_fragment>', PAVING]])
+
+/** Lawn grass without a visible repeat, in patches of drier and lusher green. */
+export const patchyLawn = <T extends THREE.Material>(m: T): T =>
+  patch(m, 'patchy-lawn', NOISE, [['#include <map_fragment>', LAWN]])
