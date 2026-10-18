@@ -6,7 +6,8 @@ import { area, centroid, contains, insetRing, type Ring } from './polygon'
 /*
  * Somewhere to sit in the plazas: a bench on the inner side of every other palm planter
  * and four round the fountain, each facing into the plaza with a bin beside some, and a
- * kiosk in the middle of the bigger plazas without a fountain. Pure data, like furniture.ts.
+ * kiosk in the middle of the bigger plazas without a fountain, its hatch toward the benches.
+ * Pure data, like furniture.ts.
  */
 
 /** Plazas at least this big get a kiosk in the middle, if it is clear. */
@@ -63,6 +64,20 @@ function kioskSpot(plaza: Ring, trees: P[], fountain: P | null): P | null {
   return !fountain && open && fits ? mid : null
 }
 
+/** The kiosk's yaw, square to the plaza: its hatch toward the benches, as they face it. */
+function kioskYaw(k: P, items: Furniture[]): number {
+  let x = 0
+  let z = 0
+  for (const b of items.filter((f) => f.kind === 'bench')) {
+    const d = Math.hypot(b.x - k.x, b.z - k.z)
+    x += (b.x - k.x) / d
+    z += (b.z - k.z) / d
+  }
+  // Benches all round (or none): any side will do, picked by place so kiosks vary.
+  if (Math.hypot(x, z) < 0.5) return (Math.round(k.x + k.z) % 4) * (Math.PI / 2)
+  return Math.round(facing(k, { x: k.x + x, z: k.z + z }) / (Math.PI / 2)) * (Math.PI / 2)
+}
+
 /** Benches, bins, and kiosks in every plaza off the beachfront (the hotels' decks have loungers). */
 export function plazaFurniture(c: CityLayout): Furniture[] {
   const out: Furniture[] = []
@@ -72,10 +87,9 @@ export function plazaFurniture(c: CityLayout): Furniture[] {
       const trees = plazaTrees(plaza)
       const fountain = plazaFountain(plaza)
       const kiosk = kioskSpot(plaza, trees, fountain)
-      out.push(...seats(plaza, trees, fountain, kiosk))
-      if (!kiosk) continue
-      const r = (Math.round(kiosk.x + kiosk.z) % 4) * (Math.PI / 2)
-      out.push({ kind: 'kiosk', ...kiosk, y: CURB_H, r, v: 0 })
+      const around = seats(plaza, trees, fountain, kiosk)
+      out.push(...around)
+      if (kiosk) out.push({ kind: 'kiosk', ...kiosk, y: CURB_H, r: kioskYaw(kiosk, around), v: 0 })
     }
   }
   return out

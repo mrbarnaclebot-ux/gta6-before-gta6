@@ -23,3 +23,22 @@ test('plaza benches, bins, and kiosks stand inside a plaza, clear of planters, f
       expect(Math.hypot(k.x - f.x, k.z - f.z)).toBeGreaterThan(KIOSK_CLEAR)
   }
 })
+
+test('a kiosk turns its hatch toward the benches in its plaza', () => {
+  const city = generateLand(7, 1000)
+  const items = plazaFurniture(city)
+  const plazas = city.blocks.flatMap((b) => b.plazas)
+  let checked = 0
+  for (const k of items.filter((f) => f.kind === 'kiosk')) {
+    const plaza = plazas.find((p) => contains(p, k))!
+    const benches = items.filter((f) => f.kind === 'bench' && contains(plaza, f))
+    if (!benches.length) continue
+    const toward = benches.reduce(
+      (s, b) => s + Math.sin(k.r) * (b.x - k.x) + Math.cos(k.r) * (b.z - k.z),
+      0,
+    )
+    expect(toward).toBeGreaterThan(0)
+    checked++
+  }
+  expect(checked).toBeGreaterThan(3)
+})
