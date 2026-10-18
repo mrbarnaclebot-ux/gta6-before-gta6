@@ -9,9 +9,9 @@ Builds the three.js meshes and Rapier colliders for the city plan from `src/city
 - `buildings.ts` facades, trim, roofs, merged per chunk; box colliders
 - `facades.ts` procedural PBR window textures per building style; `interior.ts` the rooms seen through every window (interior mapping), lit at night
 - `shopfronts.ts` the owner's shopfront pictures on ground floors; `sign-material.ts` the material that draws them and the billboards from the sign atlas
-- `furniture.ts`, `furniture-models.ts` benches, bins, hydrants, bus shelters, and kiosks (the Blender kit), meters, newspaper boxes, and signs on the sidewalks and in the plazas (placed by `src/city/furniture.ts` and `plaza-furniture.ts`)
+- `furniture.ts`, `furniture-models.ts` benches, bins, hydrants, bus shelters, and kiosks, meters, newspaper boxes, and signs on the sidewalks and in the plazas (placed by `src/city/furniture.ts` and `plaza-furniture.ts`); `kit-furniture.ts` instances the Blender ones near the camera
 - `prop-kit.ts` loads the Blender street kit, awnings, and lifeguard tower, each baked into one geometry; `bake-parts.ts` bakes a model's meshes into one geometry with its materials per vertex, and the material that reads them
-- `awnings.ts` the Blender awnings over the shops under an upper floor
+- `awnings.ts` the Blender awnings over the shops under an upper floor, instanced near the camera
 - `billboards.ts` parody billboards on low-rise roofs and on poles by the highway (placed by `src/land/billboards.ts`), with colliders for the picture, catwalk, legs and pole
 - `rooftops.ts` where AC units, water tanks, and antennas go (antennas merged into each chunk's trim); `roof-props.ts` the Blender AC units and tanks instanced, plain blocks past 150 m
 - `late-textures.ts` the room and sign atlases, loaded after the first frame

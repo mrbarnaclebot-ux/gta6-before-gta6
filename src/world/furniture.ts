@@ -8,6 +8,7 @@ import { addMerged, type WorldCtx } from './blocks'
 import { groupByChunk } from './chunks'
 import { FURNITURE_HALF, furniturePieces, type Mat } from './furniture-models'
 import { DETAIL_LAYER } from './instancing'
+import { instanceKitFurniture } from './kit-furniture'
 import type { PropKit } from './prop-kit'
 import { signMaterial } from './sign-material'
 
@@ -18,26 +19,25 @@ import { signMaterial } from './sign-material'
  */
 function materials(): Record<Mat, THREE.Material> {
   const solid = pbrMaterial()
-  // The bus shelters' panes: clear glass, so the bench and the street show through.
-  const clear = pbrMaterial({ transparent: true, opacity: 0.3, depthWrite: false })
-  return { metal: solid, paint: solid, wood: solid, glass: solid, clear, sign: signMaterial() }
+  return { metal: solid, paint: solid, wood: solid, glass: solid, sign: signMaterial() }
 }
 
 const turn = new THREE.Matrix4()
 
 /**
  * Benches, bins, hydrants, meters, newspaper boxes, bus stops, and signs on the sidewalks,
- * and benches and kiosks in the plazas, merged per chunk and material (a handful of draw
- * calls), each with a small box collider.
+ * and benches and kiosks in the plazas, each with a small box collider: the procedural ones
+ * merged per chunk and material (a handful of draw calls), the Blender ones instanced near
+ * the camera. Returns their per-frame update.
  */
-export function buildFurniture(ctx: WorldCtx, c: Land, kit: PropKit): void {
+export function buildFurniture(ctx: WorldCtx, c: Land, kit: PropKit) {
   const items = [...furnitureFor(c, [...c.palms, ...c.lights]), ...plazaFurniture(c)]
   const mats = materials()
   for (const list of groupByChunk(items).values()) {
     const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>()
     for (const f of list) {
       turn.makeRotationY(f.r).setPosition(f.x, f.y, f.z)
-      for (const p of furniturePieces(f.kind, f.v, kit)) {
+      for (const p of furniturePieces(f.kind, f.v)) {
         const mat = mats[p.mat]
         const bucket = buckets.get(mat) ?? buckets.set(mat, []).get(mat)!
         if (!p.geo.attributes.pbr && p.mat !== 'sign') withPbr(p.geo, 0.5, 0.3)
@@ -52,4 +52,5 @@ export function buildFurniture(ctx: WorldCtx, c: Land, kit: PropKit): void {
     const desc = RAPIER.ColliderDesc.cuboid(hx, hy, hz).setTranslation(f.x, f.y + hy, f.z)
     ctx.colliders.add(desc.setRotation({ x: 0, y: Math.sin(f.r / 2), z: 0, w: Math.cos(f.r / 2) }))
   }
+  return instanceKitFurniture(ctx, items, kit)
 }

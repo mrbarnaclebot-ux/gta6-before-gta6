@@ -172,7 +172,7 @@ function spawnPoint(c: Land): THREE.Vector3 {
 
 /**
  * The city: streets, signals, canal, buildings, shopfronts, furniture, and billboards.
- * Returns the signal lights' and the rooftop models' per-frame updates.
+ * Returns the per-frame updates of the signal lights and the models drawn near the camera.
  */
 function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit) {
   buildGround(ctx, layout)
@@ -181,10 +181,15 @@ function buildStreets(ctx: WorldCtx, layout: Land, kit: PropKit) {
   buildCanal(ctx, layout)
   const roofs = buildBuildings(ctx, layout, kit)
   buildShopfronts(ctx, layout)
-  buildAwnings(ctx, layout, kit)
-  buildFurniture(ctx, layout, kit)
+  const awnings = buildAwnings(ctx, layout, kit)
+  const furniture = buildFurniture(ctx, layout, kit)
   buildBillboards(ctx, layout)
-  return { signals, roofs }
+  const near = (eye: THREE.Vector3) => {
+    roofs(eye)
+    furniture(eye)
+    awnings(eye)
+  }
+  return { signals, near }
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
@@ -220,7 +225,7 @@ export async function buildCity(
       WIND.value = performance.now() / 1000
       night(light.night, light.day, camera.position)
       streets.signals()
-      streets.roofs(camera.position)
+      streets.near(camera.position)
       plants(camera.position, reach)
       scenery.houses(camera.position)
       sea.update(dt, camera, swimmer)

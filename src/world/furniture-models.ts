@@ -1,17 +1,17 @@
 import * as THREE from 'three'
 import type { FurnitureKind } from '../city/furniture'
 import { metricBox, tinted } from './blocks'
-import type { PropKit } from './prop-kit'
 import { signQuad } from './sign-material'
 
 /*
- * Street furniture, front facing +z, base at y = 0: the Blender benches, bins, hydrants,
- * kiosks, and bus shelters (prop-kit.ts), and simple procedural meters, newspaper boxes, and
- * signs. Each part names the material it is drawn with (furniture.ts merges them by material
- * per chunk). Colors are vertex colors, so one material serves many tints.
+ * Street furniture, front facing +z, base at y = 0: which kinds are Blender models (benches,
+ * bins, hydrants, kiosks, bus shelters; instanced by kit-furniture.ts), and the simple
+ * procedural meters, newspaper boxes, signs, and shelter ads. Each part names the material it
+ * is drawn with (furniture.ts merges them by material per chunk). Colors are vertex colors,
+ * so one material serves many tints.
  */
 
-export type Mat = 'metal' | 'paint' | 'wood' | 'glass' | 'clear' | 'sign'
+export type Mat = 'metal' | 'paint' | 'wood' | 'glass' | 'sign'
 export interface Piece {
   mat: Mat
   geo: THREE.BufferGeometry
@@ -43,16 +43,14 @@ function news(v: number): Piece[] {
   ]
 }
 
-/** The Blender shelter, with a picture from the sign atlas on each face of its advert panel. */
-function busStop(kit: PropKit, v: number): Piece[] {
+/** Pictures from the sign atlas on both faces of the Blender shelter's advert panel. */
+function busAds(v: number): Piece[] {
   const ad = (turn: number, x: number) =>
     signQuad(1.0, 1.6, 8 + (v % 2))
       .translate(0, 0.4, 0)
       .rotateY(turn)
       .translate(x, 0, -0.05)
   return [
-    { mat: 'metal', geo: kit.get('bus_shelter')!.clone() },
-    { mat: 'clear', geo: kit.get('bus_shelter:glass')!.clone() },
     { mat: 'sign', geo: ad(Math.PI / 2, 1.835) },
     { mat: 'sign', geo: ad(-Math.PI / 2, 1.665) },
   ]
@@ -65,21 +63,24 @@ function sign(v: number): Piece[] {
   ]
 }
 
-/** The Blender models by furniture kind; the rest stay procedural. */
-const KIT: Partial<Record<FurnitureKind, string>> = {
-  bench: 'bench',
-  bin: 'bin',
-  hydrant: 'hydrant',
-  kiosk: 'kiosk',
+/**
+ * The kinds drawn as Blender models (kit-furniture.ts): the prop's name, and how far off it
+ * is still drawn, in meters (a bus shelter reads from farther than a hydrant).
+ */
+export const KIT_MODELS: Partial<Record<FurnitureKind, { name: string; reach: number }>> = {
+  bench: { name: 'bench', reach: 110 },
+  bin: { name: 'bin', reach: 90 },
+  hydrant: { name: 'hydrant', reach: 90 },
+  kiosk: { name: 'kiosk', reach: 220 },
+  bus: { name: 'bus_shelter', reach: 220 },
 }
 
-/** The pieces of one item, in its own space. */
-export function furniturePieces(kind: FurnitureKind, v: number, kit: PropKit): Piece[] {
-  const model = KIT[kind]
-  if (model) return [{ mat: 'metal', geo: kit.get(model)!.clone() }]
+/** The merged pieces of one item, in its own space: none for a Blender model but a shelter's ads. */
+export function furniturePieces(kind: FurnitureKind, v: number): Piece[] {
+  if (kind === 'bus') return busAds(v)
+  if (KIT_MODELS[kind]) return []
   if (kind === 'meter') return meter()
   if (kind === 'news') return news(v)
-  if (kind === 'bus') return busStop(kit, v)
   return sign(v)
 }
 
