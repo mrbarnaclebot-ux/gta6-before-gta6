@@ -72,8 +72,9 @@ function dress(p: Parts, b: Building): void {
   const color = COLORS[b.seed % COLORS.length]
   const h = buildingHeight(b)
   if (b.style === 'deco') {
-    // Along the outer edge of the first-floor eyebrow, like a hotel's canopy sign.
-    const eyebrow = FLOOR_H.deco * 0.76 + 0.06
+    // Along the outer edge of the lowest eyebrow, over the first upper floor's windows (the
+    // shop floor has none), like a hotel's canopy sign: lower, it crossed the shop signs.
+    const eyebrow = FLOOR_H.deco * 1.76 + 0.06
     ring(p, b, b.w + 0.95, b.d + 0.95, eyebrow, color, 'both')
     // Along the top of the 1.1 m parapet.
     ring(p, b, b.w + 0.1, b.d + 0.1, h + 1.0, color, b.floors > 2 ? 'below' : 'none')
