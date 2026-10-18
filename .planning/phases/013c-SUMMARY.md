@@ -1,6 +1,6 @@
 # Phase 13c summary: roads, lanes, and building placement
 
-Status: built and verified on branch `phase-13c-roads` (from `main` at adae4e1). Not pushed, not deployed. Awaiting review.
+Status: built and verified on branch `phase-13c-roads` (from `main` at adae4e1). Review blockers fixed (see Review fixes at the end). Not pushed, not deployed.
 
 ## What changed
 
@@ -67,7 +67,7 @@ Status: built and verified on branch `phase-13c-roads` (from `main` at adae4e1).
 ### Traffic follows the new lanes (`life/city-lanes.ts`, `life/city-lane-graph.ts`)
 - **The lane graph.** City traffic drives a directed lane graph, the same shape as the highway's: 1,628 edges.
   - Each way along a street segment gets a right-hand lane that ends at its stop bar.
-  - On avenues, traffic keeps to the outer lane. A car that will turn left takes a second variant of the lane, which moves over into the turn lane once past the median's nose.
+  - On avenues, the outer lane serves every maneuver and the inner lane serves straight on (added after review). A car that will turn left takes a third variant, which moves over into the turn lane once past the median's nose.
   - Connector curves join each lane end to every way out that its maneuver serves. Right turns hug the curb on an 8 m radius; other turns sweep wide.
   - There are no U-turns and no hairpins (past 120 degrees, at the diagonal's sharp corners). Lanes that lead only to dead ends (out of the city's edge), or that nothing leads into, are pruned.
 - **Stopping.** Cars hold short of a red light. On amber they stop if they can and carry on if they cannot. At a stop sign they halt for 0.9 s, then go.
@@ -89,7 +89,7 @@ Status: built and verified on branch `phase-13c-roads` (from `main` at adae4e1).
 - **Inner cells** with no street front are mostly courtyards (gardens or plazas), so blocks read as perimeter blocks.
 - **Plazas.** 60 paved plazas get palms in round planters on an even grid. 16 big ones get a fountain (basin, column, bowl and water).
 - **Corner towers.** Outside the deco district the tallest buildings of each block stand on its corners.
-- **Neighbours never match.** No two neighbours share a color in either palette size, and neighbours of the same style differ by at least two floors.
+- **Neighbours never match.** No two neighbours of one style within 6 m share a wall color, and they differ by at least two floors (fixed after review, see Review fixes).
 - **Podiums and towers.** 49 tall glass and residential buildings are a slim tower on a podium that fills the lot.
   - The podium is 2 to 6 floors with a terrace roof and parapet. The tower is pushed toward the block corner.
   - Towers are separate buildings with a `base`, so facades, colliders and neon work unchanged.
@@ -98,7 +98,7 @@ Status: built and verified on branch `phase-13c-roads` (from `main` at adae4e1).
   - Downtown: dense and tall, 55% white residential towers and 45% glass. The average is 20 floors and the tallest 64.
   - Midtown: averages 10 floors.
   - Deco district: low and pastel, averaging 4 floors. The palette has one white and seven pastels.
-  - Beachfront: hotels facing the sea, averaging 9 floors. Each hotel is a slab 18 to 26 m deep on the sea side of its lot, with its balconies on the east and west faces. Behind it is a pool deck: a lap pool with coping, pastel umbrellas and loungers. Deep lots also get a guest parking lot by the alley.
+  - Beachfront: hotels facing the sea, averaging 9 floors. Each hotel is a slab 18 to 26 m deep on the sea side of its lot, with its balconies on the east and west faces. Behind it is a pool deck: a sunken lap pool with coping (after review), pastel umbrellas and loungers. Deep lots also get a guest parking lot by the alley.
 - **Parking lots.** 31 surface lots on deco and midtown edge cells and behind hotels, with painted bays. Up to 8 of the parked cars stand in them, nose in.
 
 ### Everything else follows the new streets
@@ -196,11 +196,9 @@ All on an M4 at 1920x1080, DSF2, Medium, with `scripts/perf.mjs` against product
   - Left turns at lights are permissive: turners yield only to what is in front of them, not to oncoming traffic by rule.
   - City traffic still stays inside the city (13b's gap: no AI cars on Palm Avenue's river bridge). Lanes that leave by the edge are pruned.
 - **Signal timing.** All junctions run the same 38 s cycle at fixed offsets: no green wave and no pedestrian signal heads. People wait for the cross traffic's red.
-- **The inner avenue lane.** AI drives only the outer lane (and the turn lane); the inner through lane stays empty.
 - **Parking lots** are sparsely filled: 8 cars across 31 lots, because each parked car is a physics car sharing the wheel pool. Static parked cars would fill them cheaply.
 - **Alleys** have no dumpsters, back doors or fences yet (13d builds the street props).
-- **Plaza and pool-deck props.** Plazas have planters, palms and fountains but no benches of their own; street benches stay on the sidewalks. The pool water is a flat turquoise surface without caustics or depth.
-- **Lawn texture.** The tiling of the grass texture shows on the promenade's lawn strips from the air. This was already true of the old parks.
+- **Plaza and pool-deck props.** Plazas have planters, palms and fountains but no benches of their own; street benches stay on the sidewalks. The pool water is a flat, opaque turquoise surface without caustics. The pools are waist deep, for wading, not swimming.
 - **Diagonal frontage.** Buildings along the diagonal stay square to the grid, stepping back from it (as along Broadway in New York). There is no flatiron-shaped building.
 - **Avenue width at the city's edge.** Hill Road and Palm Avenue are 18 m wide inside the city and 14 m outside, and the width steps at the edge walk.
 - **Highway signals.** The signals for the approach from outside at the west exits face cars that never come, since that lane is pruned.
@@ -211,3 +209,51 @@ All on an M4 at 1920x1080, DSF2, Medium, with `scripts/perf.mjs` against product
 - **Streets:** `avenue-signals.jpg` (mast arms, turn arrows), `traffic-at-signals.jpg`, `street-junction.jpg` (rounded curbs, zebra crosswalks, stop bars, parking lanes), `crosswalk-people.jpg` (a walker on the zebra at an all-way stop), `diagonal-street.jpg` (a driveway apron), `coast-road.jpg`, `avenue-hump.jpg`, `alley.jpg`, `night-signals.jpg`.
 - **Lots:** `plaza-fountain.jpg`, `parking-lot.jpg`, `pool-deck.jpg` (pool, umbrellas, guest parking).
 - **Perf scenes at DSF2:** `perf-medium-boulevard.jpg`, `perf-medium-oceanDrive.jpg`.
+
+## Review fixes
+
+### Blocker: neighbours that matched (`city/massing.ts`)
+- The old `vary()` fixed one neighbour at a time, so a later re-tint or re-height could bring back a clash with an earlier neighbour. The first version of this summary claimed that no two neighbours matched; that was not true (on seed 7: 10 same-style pairs shared a wall color, 25 were within one floor, 3 matched on both).
+- Now each building gathers every same-style neighbour within 6 m first, then takes the nearest free palette color (deco 8, residential and glass 5) and the nearest height at least two floors from all of them at once. The loops are bounded at 64 steps.
+- The rule is per style, as the review measured it (style plus color, style plus height). A white residential slab may stand beside a white deco building, since they differ in style.
+- A podium is varied, not the tower over it: the street sees the podium. The tower takes the podium's color and base.
+- New test in `city/layout.test.ts`: no two ground buildings of one style within 6 m share a palette color or come within a floor of each other (more than 100 such pairs are checked). It fails on the old code. A throwaway sweep over seeds 1 to 30 found 0 clashes in 195 to 296 pairs per seed.
+- District averages are unchanged: deco 4.0 floors (was 4.1), midtown 10.2 (9.6), downtown 24.5 (25.8).
+
+### Sunken hotel pools (`city/pools.ts`, `world/lots.ts`, `world/ground.ts`, `world/slabs.ts`)
+- The pools were a water plane 5 cm above a deck the player walked on. Now each pool is a hole through the deck's paving, the plaza tiles, the deck's collider and the street collider under it, with tiled basin walls. The water stands 12 cm below the deck, under the coping.
+- `flatRing` takes holes, `prismCollider` takes rects to leave out, and `polygon.ts` has `rectMinus`.
+- Depth: the player wades in waist-deep water rather than swimming. The water stands on the hidden floor under the city's slabs (UNDER_CITY, -0.6 m), which the terrain heightfield also holds. Going deeper would mean carving the terrain grid under each pool. The player's water query includes the pools, so walking in slows to a wade. The camera's underwater effects still follow only the sea.
+- New test: the pools are cut out of the ground with no area lost or overlapping, and the pool water reads at its level.
+
+### Lawn tiling (`render/road-wear.ts`, `patchyLawn`)
+- City lawns now blend in a second sample of the grass, rotated and at another scale, under slow world-space noise. They also get drier and lusher patches over tens of meters. The checkerboard is gone from the aerials. No new texture, no extra draw calls.
+
+### Inner avenue lane (`life/city-lanes.ts`, `life/city-lane-graph.ts`)
+- Every avenue way now has an inner lane for straight on. Straight-on connectors lead from the outer lane into either lane; a car already in the inner lane prefers to stay in it. Turns still leave from the outer lane or the turn lane.
+- The lane graph grew from 1,628 to 1,954 edges and stays strongly connected (the existing tests pass). Over 60 s at Central Avenue: 83 car samples in inner lanes, 689 in outer lanes, 77 in turn lanes.
+
+### Smaller notes
+- **The beach range:** the new massing moves the city's random draws, and a promenade palm landed 5 cm off the line from the spawn to the middle target dummy, so the shooting e2e failed. `combat/dummy.ts` now also moves a dummy until no palm stands within 1.2 m of its line of fire.
+- **Curb bays and driveways** (`city/parking.ts`, `world/markings.ts`): bays within half a driveway plus half a bay of a cut are dropped (2,604 bays become 2,432). Paint is drawn per run of bays, so the parking line and ticks stop at the cut. New test: no curb bay near a driveway.
+- **Deco street wall** (`city/lots.ts`): the gap between neighbours went from 1.2 to 0.3 m. Merged frontages rose from 15% to 35%, and surface lots and gardens on street fronts went down. Rows read tighter, but most remaining gaps come from snapping footprints to whole 3 m window bays (`cells.ts` `snap`), so blocks are still not one continuous wall.
+- **`buildLots`** is split: `plazaStone` builds the planters and fountains with their colliders. Every function in `world/lots.ts` is now under 40 lines.
+- **`crowd.ts`**: the crosswalk check is a module function, and the crossing lookup is a loop, so no closures are made per person per frame.
+
+### Not done
+- **All-way stop order and left-turn yielding:** left as they are; the reviewer accepted them.
+- **Bare downtown plazas** (benches, more planting) and **the downtown superblock's uniform slab:** these are design work for 13d's street props and massing. Not attempted here.
+- **Pool swimming depth:** see above (the terrain grid would need carving).
+
+### Gates after the fixes
+- `pnpm build`: built. `pnpm lint`: clean.
+- `pnpm test`: 56 files, 207 tests passed (3 new: neighbours, pool cut-outs, bays off driveways).
+- `pnpm test:e2e`: 15 passed (16.7 min). The first run caught the range dummy (above); the run after that fix passed.
+- **Perf**, `scripts/perf.mjs` at Medium, 1920x1080, DSF2, production build, load 2 to 3: every scene held 60 fps with p99 16.8 ms and no frame over 50 ms. That includes beach (draw calls 906, from 816), boulevard (569) and oceanDrive (492). The highway drive ran at 59.9. Cold transfer was 26.6 MB, unchanged; play to first frame took 2.51 s. No page errors.
+
+### Screenshots (`013c-screens/`, dev build, Medium)
+- `review-pool-deck.jpg`, `review-pool-edge.jpg`: the sunken pools, with the water below the coping.
+- `review-pool-wade.jpg`: the player standing in a pool, waist deep.
+- `review-aerial-diagonal.jpg`, `review-aerial-beachfront.jpg`: the lawns without the checkerboard (compare `aerial-diagonal.jpg`).
+- `review-aerial-deco.jpg`: the tighter deco rows.
+- `review-avenue.jpg`: an avenue's median lawn.
