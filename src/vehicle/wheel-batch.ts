@@ -31,11 +31,13 @@ export class WheelBatch {
   /** Swaps in new wheel models (the glb's, once loaded); returns the old meshes to remove. */
   setLevels(levels: Part[][]): THREE.InstancedMesh[] {
     const old = this.meshes
-    this.levels = levels.map((parts) =>
+    this.levels = levels.map((parts, k) =>
       parts.map(({ geometry, material }) => {
         const mesh = new THREE.InstancedMesh(geometry, material, CAPACITY)
         mesh.count = 0
-        mesh.castShadow = mesh.receiveShadow = true
+        mesh.receiveShadow = true
+        // Past the level-of-detail range a wheel's shadow is a few pixels under the car.
+        mesh.castShadow = k === 0
         // Wheels are spread over the whole city; culling the batch as one sphere would be wrong.
         mesh.frustumCulled = false
         return mesh

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { bakeParts, type Baked } from '../world/bake-parts'
 import { CAR_CODES, carGlass, carMaterial } from './car-paint'
 import { bodyBounds, CAR_SPECS, paintOf, type CarKind, type CarSpec } from './car-specs'
@@ -119,9 +120,15 @@ export class CarModels {
     const lod = new THREE.LOD()
     model.levels.forEach((baked, i) => {
       const level = new THREE.Group()
-      level.add(new THREE.Mesh(baked.solid, paint))
-      if (baked.clear) level.add(new THREE.Mesh(baked.clear, glass))
-      level.traverse((o) => (o.castShadow = o.receiveShadow = true))
+      const body = new THREE.Mesh(baked.solid, paint)
+      body.castShadow = body.receiveShadow = true
+      level.add(body)
+      if (baked.clear) {
+        // Sun through the windows: the glass casts no shadow, which also saves its shadow passes.
+        const pane = new THREE.Mesh(baked.clear, glass)
+        pane.userData.noShadow = true
+        level.add(pane)
+      }
       lod.addLevel(level, i * CAR_LOD)
     })
     m.visual.root.remove(m.body)
@@ -172,7 +179,12 @@ export function carModel(scene: THREE.Object3D, kind: CarKind): CarModel {
   }
   const near = level(kind)
   const far = level(`${kind}_lod1`)
-  return { levels: [near.body, far.body], wheels: [near.wheel.solid, far.wheel.solid] }
+  // Far off, the dark glass reads the same drawn opaque: one draw call per distant car.
+  const solid = mergeGeometries([far.body.solid, ...(far.body.clear ? [far.body.clear] : [])])!
+  return {
+    levels: [near.body, { solid, clear: null }],
+    wheels: [near.wheel.solid, far.wheel.solid],
+  }
 }
 
 const boxPaints = new Map<number, THREE.Material>()
