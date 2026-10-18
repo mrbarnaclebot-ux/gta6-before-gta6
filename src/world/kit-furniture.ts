@@ -16,9 +16,11 @@ export function instanceKitFurniture(ctx: WorldCtx, items: Furniture[], kit: Pro
   // The bus shelters' panes: clear glass, so the bench and the street show through.
   const clear = pbrMaterial({ transparent: true, opacity: 0.3, depthWrite: false })
   const updates = Object.entries(KIT_MODELS).map(([kind, { name, reach }]) => {
+    const geometry = kit.get(name)
+    if (!geometry) return () => {}
     const spots = items.filter((f) => f.kind === kind).map((f) => ({ ...f, s: 1 }))
     const glass = kit.get(`${name}:glass`)
-    const parts = [{ geometry: kit.get(name)!, material: solid }]
+    const parts = [{ geometry, material: solid }]
     if (glass) parts.push({ geometry: glass, material: clear })
     const update = instanceByDistance(ctx, [parts], spots, {
       scale: () => 1,

@@ -29,11 +29,10 @@ export function buildAwnings(ctx: WorldCtx, c: CityLayout, kit: PropKit) {
   // Canvas is a single sheet, seen from below as much as above.
   const material = pbrMaterial({ side: THREE.DoubleSide })
   const updates = STYLES.map(([name, width], k) => {
+    const model = kit.get(name)
+    if (!model) return () => {}
     // Every shop is SHOP_W wide, so one stretched model serves a whole style.
-    const geometry = kit
-      .get(name)!
-      .clone()
-      .scale((SHOP_W - 2 * MARGIN) / width, 1, 1)
+    const geometry = model.clone().scale((SHOP_W - 2 * MARGIN) / width, 1, 1)
     const spots = shops
       .filter((s) => s.awning === k)
       .map((s) => ({

@@ -16,7 +16,8 @@ const NEAR = 150
 export function instanceRoofProps(ctx: WorldCtx, kit: PropKit, props: RoofProp[]) {
   const material = pbrMaterial()
   const updates = (['ac', 'tank'] as const).map((kind) => {
-    const geometry = kit.get(kind === 'ac' ? 'ac_unit' : 'water_tank')!
+    const geometry = kit.get(kind === 'ac' ? 'ac_unit' : 'water_tank')
+    if (!geometry) return () => {}
     const spots = props.filter((p) => p.kind === kind)
     return instanceByDistance(ctx, [[{ geometry, material }]], spots, {
       scale: (s) => s.s,

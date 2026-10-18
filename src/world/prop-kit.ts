@@ -15,14 +15,22 @@ const paintCode = (name: string) => (PAINTS.has(name) ? 1 : 0)
 
 /**
  * Prop name (bench, bin, hydrant, kiosk, bus_shelter, ac_unit, water_tank, awning_*, ...) to
- * its opaque geometry; `<name>:glass` holds its see-through panes, if it has any.
+ * its opaque geometry; `<name>:glass` holds its see-through panes, if it has any. A file that
+ * failed to load leaves its props out, and the city goes without them.
  */
 export type PropKit = Map<string, THREE.BufferGeometry>
 
 export async function loadPropKit(load: (url: string) => Promise<GLTF>): Promise<PropKit> {
   const kit: PropKit = new Map()
-  const scenes = await Promise.all(FILES.map((f) => load(`/assets/models/props/${f}.glb`)))
-  for (const { scene } of scenes) {
+  const scenes = await Promise.all(
+    FILES.map((f) =>
+      load(`/assets/models/props/${f}.glb`).catch((err: unknown) => {
+        console.warn(`${f} failed to load; the city goes without its props`, err)
+        return null
+      }),
+    ),
+  )
+  for (const { scene } of scenes.filter((s) => s !== null)) {
     scene.updateMatrixWorld(true)
     for (const root of scene.children) {
       const baked = bakeParts([root], root.matrixWorld.clone().invert(), paintCode, true)

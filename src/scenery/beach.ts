@@ -47,15 +47,16 @@ export function umbrella(color: number, r: Rand): THREE.BufferGeometry[] {
 /** Lifeguard towers (the cabin on its stilts collides; the ramp is open) and umbrellas the length of the beach. */
 export function buildBeach(ctx: WorldCtx, land: Land, kit: PropKit): void {
   const r = rng(91)
-  const things = beachProps(land, r)
+  const tower = kit.get('lifeguard_tower')?.toNonIndexed()
+  // A tower model that failed to load leaves the beach without towers, colliders too.
+  const things = beachProps(land, r).filter((t) => tower || t.kind !== 'tower')
   const material = pbrMaterial()
-  const tower = kit.get('lifeguard_tower')!.toNonIndexed()
   for (const group of groupByChunk(things).values()) {
     const geos = group.flatMap((t) => {
       const color = PASTELS[t.tint % PASTELS.length]
       const parts =
         t.kind === 'tower'
-          ? [repaint(tower, color)]
+          ? [repaint(tower!, color)]
           : umbrella(color, r).map((g) => withPbr(g, 0.7, 0))
       return parts.map((g) => g.rotateY(t.yaw).translate(t.x, t.y, t.z))
     })

@@ -158,7 +158,12 @@ export async function buildHouses(
   land: Land,
   load: (url: string) => Promise<GLTF>,
 ): Promise<(eye: THREE.Vector3) => void> {
-  const models = await loadHouses(load)
+  buildYards(ctx, land)
+  const models = await loadHouses(load).catch((err: unknown) => {
+    console.warn('houses.glb failed to load; the lots stay empty', err)
+    return null
+  })
+  if (!models) return () => {}
   const placed = placements(land)
   const updates = HOUSE_DESIGNS.map((_, k) => {
     const spots: Grounded[] = placed
@@ -172,7 +177,6 @@ export async function buildHouses(
     })
   })
   placed.forEach((p) => collideHouse(ctx, p))
-  buildYards(ctx, land)
   return (eye) => updates.forEach((u) => u(eye))
 }
 
