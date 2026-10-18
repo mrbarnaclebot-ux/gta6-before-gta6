@@ -111,7 +111,11 @@ def lifeguard_tower():
     ramp = box(1.0, 0.08, math.hypot(deck_y, ramp_len), 'wood_light').rot((1, 0, 0), -ang)
     g.add(ramp.move(0.9, deck_y / 2, -1.6 - ramp_len / 2))
     for x in (0.42, 1.38):
-        g.add(tube([(x, deck_y + 0.9, -1.6), (x, 0.9, -1.6 - ramp_len)], 0.025, 5, 'trim'))
+        g.add(tube([(x, deck_y + 0.9, -1.6), (x, 0.9, -1.6 - ramp_len)], 0.03, 6, 'trim'))
+        # Posts down to the ramp, so the rail stands on it instead of floating over it.
+        for k in range(4):
+            t = (k + 0.5) / 4
+            g.add(box(0.06, 0.9, 0.06, 'trim').move(x, deck_y * (1 - t) + 0.45, -1.6 - ramp_len * t))
     g.add(tube([(-1.0, deck_y + 2.6, 0.6), (-1.0, deck_y + 4.0, 0.6)], 0.025, 5, 'metal_light'))
     g.add(Geo([(-1.0, deck_y + 3.95, 0.6), (-1.0, deck_y + 3.95, 1.3), (-1.0, deck_y + 3.5, 1.3),
                (-1.0, deck_y + 3.5, 0.6)], [(0, 1, 2, 3)], 'flag'))
