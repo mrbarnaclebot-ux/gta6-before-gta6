@@ -63,7 +63,7 @@ const WHITE = 0xe9e9e4
 const SILVER = 0xa6aaaf
 const BLACK = 0x0c0d0f
 const GREY = 0x51555a
-const NAVY = 0x1b2b4a
+const NAVY = 0x141b2c
 
 export const CAR_SPECS: Record<CarKind, CarSpec> = {
   sports: {

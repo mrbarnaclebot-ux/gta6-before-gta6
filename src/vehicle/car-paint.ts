@@ -31,7 +31,16 @@ vec3 carHash(vec3 p) {
   p = fract(p * vec3(0.1031, 0.103, 0.0973));
   p += dot(p, p.yxz + 33.33);
   return fract((p.xxy + p.yxx) * p.zyx);
-}`
+}
+vec3 carSky(vec3 c, float k) { return mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, 0.3) * k; }`
+
+// The environment map is the sky alone, with no street or walls in it, so at full strength
+// its blue swamped dark paint (black vans read royal blue). Paint reflects the sky weaker
+// and greyer, standing in for the city it would mirror.
+const SKY = /* glsl */ `
+#include <lights_fragment_maps>
+radiance = mix(radiance, carSky(radiance, 0.55), carIs(1.0));
+clearcoatRadiance = mix(clearcoatRadiance, carSky(clearcoatRadiance, 0.6), carIs(1.0));`
 
 // Lens glow: a faint daytime glow on the head and tail lamps, the rest from `uLamps`
 // (x headlights, y tail and brake lights, z light bar: + red, - blue).
@@ -58,8 +67,6 @@ export function carMaterial(paint: number, lamps: THREE.Vector4): THREE.MeshPhys
     vertexColors: true,
     clearcoat: 1,
     clearcoatRoughness: light ? 0.16 : 0.05,
-    // The sky is the whole environment map: at full strength it turned black paint navy.
-    envMapIntensity: 0.7,
   })
   mat.customProgramCacheKey = () => 'car-part'
   mat.onBeforeCompile = (shader) => {
@@ -84,6 +91,7 @@ export function carMaterial(paint: number, lamps: THREE.Vector4): THREE.MeshPhys
         '#include <lights_physical_fragment>',
         '#include <lights_physical_fragment>\nmaterial.clearcoat *= vPbr.z;',
       )
+      .replace('#include <lights_fragment_maps>', SKY)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>${GLOW}`)
       .replace('#include <opaque_fragment>', reflectiveOut('vPbr.z * 0.35'))
   }
