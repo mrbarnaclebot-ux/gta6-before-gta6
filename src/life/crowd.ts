@@ -132,20 +132,24 @@ export class Crowd {
 
   /** At a crosswalk: some people cross, waiting for the lights where there are any. */
   private atCurb(p: Pedestrian, before: number): void {
-    const go = (c: Crossing) =>
-      !c.signal || mayCross(c.junction, c.phase, signalClock.t, CROSS_NEED)
     if (p.state === 'wait') {
       const c = p.waiting!
-      if (go(c)) p.cross(c, this.loops[c.to], c.to)
+      if (clear(c)) p.cross(c, this.loops[c.to], c.to)
       else if (p.timer > GIVE_UP) Object.assign(p, { state: 'walk', waiting: null })
       return
     }
     if (p.state !== 'walk' || p.onCrosswalk) return
-    const loop = this.loops[p.loopId]
-    const c = this.ways[p.loopId]?.find((w) => passed(before, p.station, w.s, loop.length))
+    const c = this.reached(p, before)
     if (!c || Math.random() > CROSS_CHANCE) return
-    if (go(c)) p.cross(c, this.loops[c.to], c.to)
+    if (clear(c)) p.cross(c, this.loops[c.to], c.to)
     else p.wait(c)
+  }
+
+  /** The crossing a walker passed since station `before`, if any. A loop, not find(): it runs per person per frame. */
+  private reached(p: Pedestrian, before: number): Crossing | null {
+    const length = this.loops[p.loopId].length
+    for (const w of this.ways[p.loopId] ?? []) if (passed(before, p.station, w.s, length)) return w
+    return null
   }
 
   private respawn(p: Pedestrian, focus: THREE.Vector3, near: number): void {
@@ -164,6 +168,9 @@ export class Crowd {
     p.root.visible = false
   }
 }
+
+/** True if a person may step out now: no lights, or the cars' red has long enough left. */
+const clear = (c: Crossing) => !c.signal || mayCross(c.junction, c.phase, signalClock.t, CROSS_NEED)
 
 /** True if walking from station a to b (either way, round a loop of length l) passed x. */
 function passed(a: number, b: number, x: number, l: number): boolean {
