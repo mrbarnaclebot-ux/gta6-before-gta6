@@ -1,11 +1,14 @@
 import * as THREE from 'three'
+import type { Paint } from './generated-paint'
 
 export type CarKind = 'sports' | 'police' | 'sedan' | 'suv' | 'pickup' | 'van'
 
 /**
- * Where everything sits on each Blender body (assets-src/blender/car_specs.py), in meters:
- * origin on the ground midway between the axles, nose at +z. Physics uses these numbers, so
- * a car drives the same before its glb loads; car-model.test.ts checks them against the glbs.
+ * Where everything sits on each body, in meters, nose at +z. The Blender bodies
+ * (assets-src/blender/car_specs.py) have their origin on the ground midway between the axles;
+ * the generated sports and police bodies on the ground under the body's middle. Physics uses
+ * these numbers, so a car drives the same before its glb loads; car-model.test.ts checks them
+ * against the glbs.
  */
 export interface CarSpec {
   url: string
@@ -20,9 +23,30 @@ export interface CarSpec {
   wheel: { radius: number; width: number; x: number; front: number; rear: number }
   /** Driver's feet in car space while seated: the glb's hip point less the sitting pose's 0.6 m. */
   seat: THREE.Vector3
-  /** Paint colors (sRGB), picked by variant. */
+  /** Paint colors (sRGB), picked by variant; the box stand-in's color for a generated body. */
   paints: number[]
+  /** A generated (AssetHub) body: one textured mesh, 1 unit long, drawn by generated-paint.ts. */
+  generated?: GeneratedBody
 }
+
+/**
+ * The sports and police cars keep their generated bodies: next to them the Blender sports car
+ * and cruiser looked plainer in the game (13d screenshots). Measured from the glbs' vertices.
+ */
+interface GeneratedBody {
+  /** Bounding box in model units: width, height, length. */
+  size: [number, number, number]
+  /** The bodies come out wide for their length: narrow them by this. */
+  narrow: number
+  /** Light bar's lowest point in model units, or above the roof if there is none. */
+  roofLamps: number
+  /** Window sills' height in model units: grey texels above it are glass. */
+  belt: number
+  /** Hue turn, saturation, and value per paint, in step with `paints`. */
+  paints: Paint[]
+}
+
+const generatedUrl = (name: string) => `/assets/models/vehicle/${name}.glb`
 
 const url = (name: string) => `/assets/models/vehicle/car_${name}.glb`
 const axles = (radius: number, width: number, x: number, z: number) => ({
@@ -43,18 +67,37 @@ const NAVY = 0x1b2b4a
 
 export const CAR_SPECS: Record<CarKind, CarSpec> = {
   sports: {
-    ...{ url: url('sports'), width: 2.06, height: 1.24, front: 2.365, rear: -2.235 },
+    ...{ url: generatedUrl('sports_car'), width: 2.229, height: 1.26, front: 2.3, rear: -2.3 },
     clearance: 0.11,
-    wheel: axles(0.34, 0.28, 0.88, 1.265),
-    seat: hip(0.37, 0.3, -0.3),
+    wheel: { radius: 0.34, width: 0.28, x: 0.88, front: 1.2, rear: -1.33 },
+    seat: new THREE.Vector3(0.38, -0.3, -0.2),
     paints: [0xe0623a, 0xa90a12, 0x0f9fa3, 0xd9346e, WHITE, BLACK],
+    generated: {
+      ...{ size: [0.57, 0.25, 1], narrow: 0.85, roofLamps: 1, belt: 0 },
+      // Turns from the body's own orange: orange, red, turquoise, pink, white, black.
+      paints: [
+        [0, 1, 1],
+        [-0.06, 1.05, 0.8],
+        [0.43, 0.9, 0.85],
+        [-0.15, 0.9, 1],
+        [0, 0.06, 1.55],
+        [0, 0.15, 0.22],
+      ],
+    },
   },
   police: {
-    ...{ url: url('police'), width: 1.92, height: 1.58, front: 2.4875, rear: -2.5125 },
+    ...{ url: generatedUrl('police'), width: 1.942, height: 1.67, front: 2.5, rear: -2.5 },
     clearance: 0.14,
-    wheel: axles(0.36, 0.25, 0.8, 1.4375),
-    seat: hip(0.37, 0.5, -0.15),
+    wheel: { radius: 0.36, width: 0.25, x: 0.74, front: 1.45, rear: -1.425 },
+    seat: new THREE.Vector3(0.38, -0.1, -0.1),
     paints: [BLACK],
+    generated: {
+      size: [0.457, 0.306, 1],
+      narrow: 0.85,
+      roofLamps: 0.13,
+      belt: 0.03,
+      paints: [[0, 1, 1]],
+    },
   },
   sedan: {
     ...{ url: url('sedan'), width: 1.84, height: 1.44, front: 2.47, rear: -2.38 },
@@ -97,9 +140,14 @@ export function civilian(variant: number): CarKind {
   return CIVILIAN[variant % CIVILIAN.length]
 }
 
-/** A variant's paint: the rest of the number after the kind, so kind and color vary apart. */
+/** A variant's paint index: the rest of the number after the kind, so kind and color vary apart. */
 export function paintOf(spec: CarSpec, variant: number): number {
-  return spec.paints[Math.floor(variant / CIVILIAN.length) % spec.paints.length]
+  return Math.floor(variant / CIVILIAN.length) % spec.paints.length
+}
+
+/** Meters per model unit along each axis of a generated body. */
+export function generatedScale(g: GeneratedBody, length: number): THREE.Vector3 {
+  return new THREE.Vector3(length * g.narrow, length, length)
 }
 
 /** The body's box in car space: ground at y = 0, +z forward, mirrors left out. */

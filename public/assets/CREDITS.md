@@ -6,8 +6,8 @@ All files are free-licensed, except the generated models below, which the projec
 Generated with AssetHub (Tripo 3.1 mesh, Tripo v2.5 auto-rig for the people), paid for and owned by the project owner. Shrunk with gltf-transform (textures resized and re-encoded to WebP; the palm welded and simplified to about 7.5k triangles).
 - models/character/male.glb - the player: a man in a teal floral shirt and jeans. Rigged (52 bones, A-pose, no clips); the game retargets the mannequin's clips onto it. 1024 px textures.
 - models/character/female.glb - a woman in a white tank top and denim shorts, for pedestrians. Rigged without neck or head bones. 1024 px textures.
-- models/vehicle/sports_car.glb - an orange wedge sports car body without wheels. 2048 px textures. No longer loaded since Phase 13d.
-- models/vehicle/police.glb - a black and white police sedan body without wheels, with a roof light bar. 2048 px textures. No longer loaded since Phase 13d.
+- models/vehicle/sports_car.glb - an orange wedge sports car body without wheels. 2048 px textures.
+- models/vehicle/police.glb - a black and white police sedan body without wheels, with a roof light bar. 2048 px textures.
 - models/vehicle/boat.glb - a sport speedboat (white hull, teal and orange stripe, cream seats, outboard motor), about 23k vertices. 2048 px WebP textures, 1.5 MB (from 3.7 MB). Generated for Phase 10d.
 - models/vegetation/palm.glb - a coconut palm with solid fronds. 1024 px textures.
 - models/vegetation/palm_far.glb - the same palm simplified to about 2.3k triangles with 512 px textures, drawn beyond about 110 m.
@@ -24,7 +24,7 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 
 ## Built for this project in Blender (assets-src/blender), owned by the project owner
 Made by headless Blender 5.4 Python scripts in this repo (no downloads, no paid tools): every mesh, material, and texture comes from the scripts.
-- models/vehicle/car_sports.glb, car_police.glb, car_sedan.glb, car_suv.glb, car_pickup.glb, car_van.glb - the six cars, with a low-detail level each.
+- models/vehicle/car_sedan.glb, car_suv.glb, car_pickup.glb, car_van.glb - the traffic and parked cars, with a low-detail level each; car_sports.glb and car_police.glb are built too but not loaded.
 - models/houses/houses.glb - six Miami houses (ranch, Mediterranean, modern, art deco, Key West, Spanish revival) with low-detail levels.
 - models/props/street_kit.glb, awnings.glb, lifeguard_tower.glb - benches, bins, hydrants, kiosks, bus shelters, AC units, water tanks, and more; three shop awnings; the beach lifeguard tower.
 

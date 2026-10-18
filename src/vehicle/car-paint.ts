@@ -58,7 +58,8 @@ export function carMaterial(paint: number, lamps: THREE.Vector4): THREE.MeshPhys
     vertexColors: true,
     clearcoat: 1,
     clearcoatRoughness: light ? 0.16 : 0.05,
-    envMapIntensity: 1.2,
+    // The sky is the whole environment map: at full strength it turned black paint navy.
+    envMapIntensity: 0.7,
   })
   mat.customProgramCacheKey = () => 'car-part'
   mat.onBeforeCompile = (shader) => {
