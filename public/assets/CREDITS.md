@@ -6,7 +6,7 @@ All files are free-licensed, except the generated models below, which the projec
 Generated with AssetHub (Tripo 3.1 mesh, Tripo v2.5 auto-rig for the people), paid for and owned by the project owner. Shrunk with gltf-transform (textures resized and re-encoded to WebP; the palm welded and simplified to about 7.5k triangles).
 - models/character/male.glb - the player: a man in a teal floral shirt and jeans. Rigged (52 bones, A-pose, no clips); the game retargets the mannequin's clips onto it. 1024 px textures.
 - models/character/female.glb - a woman in a white tank top and denim shorts, for pedestrians. Rigged without neck or head bones. 1024 px textures.
-- models/vehicle/sports_car.glb - an orange wedge sports car body without wheels (the game adds its own). 2048 px textures.
+- models/vehicle/sports_car.glb - an orange wedge sports car body without wheels. 2048 px textures.
 - models/vehicle/police.glb - a black and white police sedan body without wheels, with a roof light bar. 2048 px textures.
 - models/vehicle/boat.glb - a sport speedboat (white hull, teal and orange stripe, cream seats, outboard motor), about 23k vertices. 2048 px WebP textures, 1.5 MB (from 3.7 MB). Generated for Phase 10d.
 - models/vegetation/palm.glb - a coconut palm with solid fronds. 1024 px textures.
@@ -21,6 +21,12 @@ Generated 2026-10-15 by the project owner with Higgsfield (gpt_image_2_5; the tw
 - ../apple-touch-icon.png (180x180) - the same logo fitted into a square. ../favicon.svg is hand-drawn (a "6" on the logo's sunset), no generated art.
 - textures/rooms.ktx2 (6 layers, 512x512) - rooms seen through the windows (interior mapping): living room, office, hotel room, bar, bedroom, kitchen. Generated 2026-10-16 (gpt_image_2_5, 1024x1024, one-point perspective). Originals and `SOURCE.md` in `assets-src/textures/rooms/`.
 - textures/signs.ktx2 (10 layers, 1024x576) - eight fictional ground-floor shopfronts (Coastline Coffee, Salt and Swell Surf, Ocean Drive Pharmacy, Lucky 7 Pawn, Sunny Side Diner, Neon Palms Club, Iron Beach Gym, Mango Loco) and two parody billboards (Surge Rush energy drink, Vice Heights condos). Generated 2026-10-16 (gpt_image_2_5, 1344x752). All names invented. Originals and `SOURCE.md` in `assets-src/textures/signs/`.
+
+## Built for this project in Blender (assets-src/blender), owned by the project owner
+Made by headless Blender 5.4 Python scripts in this repo (no downloads, no paid tools): every mesh, material, and texture comes from the scripts.
+- models/vehicle/car_sedan.glb, car_suv.glb, car_pickup.glb, car_van.glb - the traffic and parked cars, with a low-detail level each. The Blender library also builds car_sports.glb and car_police.glb (in assets-src), which do not ship.
+- models/houses/houses.glb - six Miami houses (ranch, Mediterranean, modern, art deco, Key West, Spanish revival) with low-detail levels.
+- models/props/street_kit.glb, awnings.glb, lifeguard_tower.glb - benches, bins, hydrants, kiosks, bus shelters, AC units, water tanks, and more; three shop awnings; the beach lifeguard tower.
 
 ## Font (SIL Open Font License 1.1)
 - fonts/anton-latin-400.woff2 - Anton by Vernon Adams, https://fonts.google.com/specimen/Anton (latin subset woff2 from Fontsource, https://cdn.jsdelivr.net/npm/@fontsource/anton@5.2.5) - OFL 1.1

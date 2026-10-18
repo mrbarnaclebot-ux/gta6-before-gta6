@@ -28,7 +28,12 @@ export interface Shop {
   height: number
   /** Atlas layer. */
   kind: number
+  /** The awning over it (an index into world/awnings.ts' styles), if it has one. */
+  awning?: number
 }
+
+/** Awning styles; a building's shops share one, and two in three shops have it. */
+export const AWNING_STYLES = 3
 
 /** Meters from p along (nx, nz) to the lot line, and the kind of street beyond it there. */
 function toLotLine(block: Block, p: { x: number; z: number }, nx: number, nz: number) {
@@ -77,6 +82,8 @@ export function shopsFor(block: Block): Shop[] {
         }
         // Each slot checks its own frontage: where a diagonal cuts the lot it varies along the wall.
         if (!onStreet(block, at, w.nx, w.nz)) continue
+        // Only under an upper floor, so the awning hangs from a wall and not the roof edge.
+        const covered = b.floors > 1 && (i + b.seed) % 3 !== 0
         out.push({
           ...at,
           nx: w.nx,
@@ -84,6 +91,7 @@ export function shopsFor(block: Block): Shop[] {
           width: SHOP_W,
           height: FLOOR_H[b.style],
           kind,
+          ...(covered ? { awning: b.seed % AWNING_STYLES } : {}),
         })
       }
     }

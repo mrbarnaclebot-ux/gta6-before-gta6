@@ -26,6 +26,7 @@ import type { Boat } from './boat/boat'
 import { CarModels } from './vehicle/car-model'
 import { Driving } from './vehicle/driving'
 import { parkCars } from './vehicle/fleet'
+import type { Vehicle } from './vehicle/vehicle'
 import { underwaterLightAll } from './sea/caustics'
 import { buildCity } from './world/city'
 import { DETAIL_LAYER } from './world/instancing'
@@ -184,9 +185,10 @@ function simulate(w: World, input: Input, dt: number, acc: number): number {
 }
 
 const FORWARD = new THREE.Vector3()
-export function chase(car: { quaternion: THREE.Quaternion; speed: number; kind?: string }) {
+export function chase(car: Vehicle) {
   FORWARD.set(0, 0, 1).applyQuaternion(car.quaternion)
-  return { heading: Math.atan2(FORWARD.x, FORWARD.z), speed: car.speed, boat: car.kind === 'boat' }
+  const heading = Math.atan2(FORWARD.x, FORWARD.z)
+  return { heading, speed: car.speed, boat: car.kind === 'boat', roof: car.visual.bounds.max.y }
 }
 
 /** Main-thread time spent on frames so far (simulate, draw submission, HUD), for the perf probe. */

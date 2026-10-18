@@ -17,7 +17,7 @@ The island around the city as pure, seeded data: no three.js. `src/scenery` turn
 - `path.ts` the road record outside the grid: kind, width, centerline with heights
 - `highway.ts` the U-shaped divided highway, its two diamond interchanges, turnaround loops, coast roads
 - `hillside.ts` Hill Road, the switchbacks, villas on terraces, the lookout, the forest trail
-- `residential.ts` Palm Avenue, curving side streets with cul-de-sacs, house lots
+- `residential.ts` Palm Avenue, curving side streets with cul-de-sacs, house lots; `house-designs.ts` the six Blender house models' footprints, and which ones the villas use
 - `districts.ts` the forest area and the map labels for the outer districts
 - `lane-graph.ts` directed highway lanes for traffic, with ramps and turnarounds
 - `road-graph.ts`, `route-search.ts` the GPS graph over every road and A* by travel time

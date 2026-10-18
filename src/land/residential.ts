@@ -1,4 +1,5 @@
 import { rng, type Rand } from '../city/rng'
+import { HOUSE_DESIGNS } from './house-designs'
 import { smoothstep } from './noise'
 import { lift, path, WIDTH, type Path } from './path'
 import { arc, closest, resample, stations, tangent, type P2, type P3 } from './polyline'
@@ -26,7 +27,7 @@ const BULB = 13
 const STREET_END = BULB - WIDTH.loop / 4
 /** The street is level with its ring this far from the middle: past the flat pad and a cell more. */
 const LEVEL = BULB + 8
-/** House lots: spacing along the street, footprint range, and front setback from the curb. */
+/** House lots: spacing along the street, and front setback from the curb. */
 const LOT = { spacing: 25, setback: 8 }
 
 type Ground = (x: number, z: number) => number
@@ -74,14 +75,15 @@ function sideStreet(ground: Ground, at: P3, len: number, dir: 1 | -1, sway: numb
 
 /** A house: center, footprint (w across the front, d deep), yaw (front faces local +z), and pad height. */
 export interface House extends P3 {
+  /** Index into HOUSE_DESIGNS; w, d and floors are that model's. */
+  design: number
   w: number
   d: number
   yaw: number
   floors: 1 | 2
-  /** Which side the garage is on, and a palette pick. */
+  /** Which side the garage is on (the model is mirrored for -1), and a palette pick. */
   garage: -1 | 1
   tint: number
-  roof: number
   /** Where the driveway meets the street. */
   curb: P2
 }
@@ -96,22 +98,22 @@ function lotsAlong(road: Path, r: Rand): House[] {
     const p = road.pts[i]
     const t = tangent(road.pts, i)
     for (const side of [1, -1] as const) {
-      const w = 11 + Math.floor(r() * 4)
-      const d = 9 + Math.floor(r() * 3)
+      const design = Math.floor(r() * HOUSE_DESIGNS.length)
+      const { w, d, floors } = HOUSE_DESIGNS[design]
       const back = road.width / 2 + LOT.setback + d / 2
       const n = { x: -t.z * side, z: t.x * side }
       const c = { x: p.x + n.x * back, z: p.z + n.z * back }
       out.push({
         ...c,
         y: p.y + 0.3,
+        design,
         w,
         d,
         // Local +z must point back at the street: along -n.
         yaw: Math.atan2(-n.x, -n.z),
-        floors: r() < 0.35 ? 2 : 1,
+        floors,
         garage: r() < 0.5 ? -1 : 1,
         tint: Math.floor(r() * 64),
-        roof: Math.floor(r() * 4),
         curb: { x: p.x + n.x * (road.width / 2), z: p.z + n.z * (road.width / 2) },
       })
     }

@@ -1,4 +1,4 @@
-import { lift, path, type Path } from './path'
+import { lift, path, WIDTH, type Path } from './path'
 import { arc, chain, closest, resample, spline, type P2, type P3 } from './polyline'
 import { profile } from './profile'
 import { HILLS } from './shape'
@@ -22,6 +22,8 @@ const THETA_B = 1.4
 export const LOOKOUT_R = 46
 /** Villas: spacing along the arc, how far out from the road, and the pad size. */
 const VILLA = { spacing: 62, out: 20, w: 30, d: 22 }
+/** Meters from a villa terrace's middle, straight out of its front, to the road's edge. */
+export const VILLA_ROAD = VILLA.out - WIDTH.hill / 2
 
 export type Ground = (x: number, z: number) => number
 

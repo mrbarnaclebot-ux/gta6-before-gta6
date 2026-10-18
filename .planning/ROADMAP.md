@@ -21,7 +21,7 @@ One line per phase. The spec for each is in `PROJECT.md`; what was built and mea
 - Phase 12b, visual realism: merged. [Summary](phases/012b-SUMMARY.md)
 - Phase 13a, bugs and a play-through sweep: merged. [Summary](phases/013a-SUMMARY.md)
 - Phase 13b, the island: merged. [Summary](phases/013b-SUMMARY.md)
-- Phase 13c, roads, lanes, and building placement: built on `phase-13c-roads`, awaiting review. [Summary](phases/013c-SUMMARY.md)
-- Phase 13d, Blender assets: not started.
+- Phase 13c, roads, lanes, and building placement: merged. [Summary](phases/013c-SUMMARY.md)
+- Phase 13d, Blender assets: built on `phase-13d-assets`, awaiting review. [Summary](phases/013d-SUMMARY.md)
 - Phase 13e, life and places to see: not started.
 - Phase 13f, gap sweep: not started.

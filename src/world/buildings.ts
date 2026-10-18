@@ -7,7 +7,9 @@ import { groupByChunk } from './chunks'
 import { DETAIL_LAYER } from './instancing'
 import { facadeMaterial, tileSize } from './facades'
 import { pbr } from './materials'
-import { roofClutter } from './rooftops'
+import type { PropKit } from './prop-kit'
+import { instanceRoofProps } from './roof-props'
+import { roofClutter, type RoofProp } from './rooftops'
 
 // Miami: mostly white and cream, with art-deco pastels; glass tints stay subtle.
 const WALLS: Record<Style, number[]> = {
@@ -26,6 +28,8 @@ interface Parts {
   rails: THREE.BufferGeometry[]
   /** Boxes the player collides with: each tier and each rooftop core. */
   solids: THREE.Box3[]
+  /** Rooftop AC units and water tanks, instanced for the whole city. */
+  props: RoofProp[]
 }
 
 /** Four facade walls (no top or bottom) with UVs in window-grid tiles, so windows land on floors. */
@@ -82,6 +86,7 @@ function clutter(b: Building, p: Parts, top: number, w: number, d: number, core:
   const out = roofClutter(b, top, w, d, core)
   p.trim.push(...out.trim)
   p.solids.push(...out.solids)
+  p.props.push(...out.props)
 }
 
 function decoParts(b: Building, p: Parts, wall: number, accent: number) {
@@ -173,6 +178,7 @@ function partsFor(list: Building[]): Parts {
     roof: [],
     rails: [],
     solids: [],
+    props: [],
   }
   for (const b of list) {
     const wall = WALLS[b.style][b.tint % WALLS[b.style].length]
@@ -183,8 +189,11 @@ function partsFor(list: Building[]): Parts {
   return p
 }
 
-/** All buildings, merged per 250 m chunk and per material, with box colliders for each solid part. */
-export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
+/**
+ * All buildings, merged per 250 m chunk and per material, with box colliders for each solid
+ * part; their rooftop models instanced. Returns the rooftops' per-frame level-of-detail update.
+ */
+export function buildBuildings(ctx: WorldCtx, c: CityLayout, kit: PropKit) {
   const styles: Style[] = ['deco', 'residential', 'glass']
   const facades = new Map(styles.map((s) => [s, facadeMaterial(s)]))
   const trim = pbr('white_stucco', 0.5, { vertexColors: true })
@@ -198,8 +207,10 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
     side: THREE.DoubleSide,
   })
   const all = c.blocks.flatMap((b) => b.buildings)
+  const props: RoofProp[] = []
   for (const list of groupByChunk(all).values()) {
     const p = partsFor(list)
+    props.push(...p.props)
     for (const style of styles) addMerged(ctx, p.facade[style], facades.get(style)!)
     addMerged(ctx, p.trim, trim)
     addMerged(ctx, p.roof, roof)
@@ -212,4 +223,5 @@ export function buildBuildings(ctx: WorldCtx, c: CityLayout): void {
       ctx.colliders.add(desc.setTranslation(at.x, at.y, at.z))
     }
   }
+  return instanceRoofProps(ctx, kit, props)
 }

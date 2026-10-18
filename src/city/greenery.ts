@@ -20,6 +20,8 @@ export interface Spot {
   up?: [number, number, number]
   /** Color multiplier as 0xRRGGBB. */
   tint?: number
+  /** Mirrored across the model's own x axis (a house with its garage on the other side). */
+  flip?: boolean
 }
 
 /** A spot already set on the ground: only these get drawn. */
@@ -46,6 +48,9 @@ const palm = (r: Rand, p: { x: number; z: number }, lo = 8, hi = 13): Spot => ({
 /** Plazas bigger than this get palms in planters, on a grid this many meters apart. */
 export const PLAZA_PALM = 150
 const PLAZA_GRID = 9
+
+/** The round planter each plaza palm stands in. */
+export const PLANTER = { r: 1.5, h: 0.45 }
 
 /** A big plaza's fountain: its middle, if the plaza is big enough to hold one. */
 export const FOUNTAIN = { area: 900, r: 4 }

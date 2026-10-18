@@ -18,6 +18,6 @@ Pure, seeded city plan: plain data, no three.js or physics. `src/world` turns it
 - `canal-bridge.ts` the humped street bridges over the canal: which streets, and their rise
 - `greenery.ts` palm, bush, and streetlight spots on sidewalks, medians, islands, plazas, lawns, and sand
 - `terrain.ts` ground, water, and walkable surface heights (sidewalks, lawns, and roads found through a grid index)
-- `furniture.ts` street furniture spots along the curb runs; `shops.ts` ground-floor shop slots facing streets
+- `furniture.ts` street furniture spots along the curb runs; `plaza-furniture.ts` benches, bins, and kiosks in the plazas; `shops.ts` ground-floor shop slots facing streets, and which get an awning
 - `rng.ts` seeded random numbers (Mulberry32) and pick/range helpers
 - `*.test.ts` determinism and layout invariants: buildings on their lots and off every road, sidewalk, median, and the canal

@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { rng } from '../city/rng'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
-import { PAINT_COUNT, type CarFactory, type CarKind, type CarVisual } from '../vehicle/car-model'
-import { CAR_SPECS } from '../vehicle/car-specs'
+import type { CarFactory, CarKind, CarVisual } from '../vehicle/car-model'
+import { CAR_SPECS, civilian } from '../vehicle/car-specs'
 import { laneGraph, type LaneEdge } from '../land/lane-graph'
 import type { Land } from '../land/plan'
 import { canJack, driverWaits } from './carjack-rules'
@@ -74,13 +74,14 @@ export class Traffic {
       layout.paths.filter((p) => p.kind === 'ramp'),
     )
     this.cars = Array.from({ length: COUNT }, (_, i) =>
-      this.create(i % POLICE_EVERY === 0 ? 'police' : 'sports'),
+      this.create(i % POLICE_EVERY === 0 ? 'police' : civilian(i)),
     )
     this.stuck = this.cars.map(() => 0)
     this.ignoring = this.cars.map(() => 0)
   }
 
-  private create(kind: CarKind, visual = this.make(this.made++ % PAINT_COUNT, kind)): TrafficCar {
+  // The stride walks the variants' paints (car-specs.ts paintOf), so cars made in a row differ.
+  private create(kind: CarKind, visual = this.make(this.made++ * 5, kind)): TrafficCar {
     const car = new TrafficCar(this.physics, visual)
     car.onShot = this.onShot
     car.ground = groundProbe(this.physics)

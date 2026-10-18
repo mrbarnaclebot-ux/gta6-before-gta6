@@ -10,8 +10,8 @@ export const HOLD_RANGE = 4.5
 export const WITNESS_RANGE = 30
 
 /**
- * Stolen cars kept per kind, so the wheel pool (30 cars a kind in wheel-batch.ts, 24 sports
- * cars at startup) and the physics world stop growing.
+ * Stolen cars kept per kind, so the wheel pool (40 cars a kind in wheel-batch.ts) and the
+ * physics world stop growing.
  * ponytail: the oldest is scrapped even if it is in view; scrap only off-screen ones if the pop shows.
  */
 export const MAX_STOLEN = 4

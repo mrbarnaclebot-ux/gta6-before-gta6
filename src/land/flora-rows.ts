@@ -1,3 +1,4 @@
+import { HOUSE_DESIGNS } from './house-designs'
 import type { Grounded } from '../city/layout'
 import { range, rng } from '../city/rng'
 import { BLOCKED, clearAt, type Clearance } from './clearance'
@@ -38,7 +39,8 @@ export function hedges(land: Land, tight: Clearance, surface: Surface): Grounded
   const r = rng(661)
   const out: Grounded[] = []
   for (const h of land.houses) {
-    if (r() > 0.55) continue
+    // Houses with a garden wall or picket fence of their own get no hedge in front of it.
+    if (r() > 0.55 || HOUSE_DESIGNS[h.design].frontWall) continue
     const cos = Math.cos(h.yaw)
     const sin = Math.sin(h.yaw)
     const lz = (h.curb.x - h.x) * sin + (h.curb.z - h.z) * cos - HEDGE_BACK

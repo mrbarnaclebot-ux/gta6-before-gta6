@@ -50,12 +50,14 @@ const turn = new THREE.Quaternion()
 const tilt = new THREE.Quaternion()
 const size = new THREE.Vector3()
 const color = new THREE.Color()
+const MIRROR = new THREE.Matrix4().makeScale(-1, 1, 1)
 
-/** A grounded spot's transform: on its base height, turned by its yaw, tilted to its up vector if it has one. */
+/** A grounded spot's transform: on its base height, turned by its yaw, tilted to its up vector if it has one, mirrored if flipped. */
 export function spotMatrix(s: Grounded, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
   turn.setFromAxisAngle(UP, s.r)
   if (s.up) turn.premultiply(tilt.setFromUnitVectors(UP, at.set(s.up[0], s.up[1], s.up[2])))
-  return out.compose(at.set(s.x, s.y, s.z), turn, size.setScalar(scale))
+  out.compose(at.set(s.x, s.y, s.z), turn, size.setScalar(scale))
+  return s.flip ? out.multiply(MIRROR) : out
 }
 
 /** Per-instance tints as linear RGB, or null when no spot has one. */

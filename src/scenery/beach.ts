@@ -3,33 +3,19 @@ import { rng, range, type Rand } from '../city/rng'
 import { beachProps } from '../land/beach-props'
 import type { Land } from '../land/plan'
 import { RAPIER } from '../physics'
+import { pbrMaterial, withPbr } from '../world/bake-parts'
 import { addMerged, metricBox, tinted, type WorldCtx } from '../world/blocks'
 import { groupByChunk } from '../world/chunks'
+import { repaint, type PropKit } from '../world/prop-kit'
 
 /*
- * Beach furniture along the whole coast: Miami-style lifeguard towers on stilts in
- * pastel paint, and clusters of striped umbrellas with loungers near the water.
- * Simple procedural models merged per chunk with vertex colors: one material.
+ * Beach furniture along the whole coast: the Blender Miami lifeguard towers on stilts,
+ * each cabin in its own pastel, and clusters of procedural striped umbrellas with loungers
+ * near the water, merged per chunk with vertex colors: one material.
  */
 
 export const PASTELS = [0xf29bb2, 0x5fc6c0, 0xf6d06b, 0xf2a35e, 0x9fc3f0, 0xc7a6e8]
 const WHITE = 0xe2ded4
-
-function tower(color: number): THREE.BufferGeometry[] {
-  const parts = [-1.3, 1.3].flatMap((x) =>
-    [-1.3, 1.3].map((z) => metricBox(0.18, 2.5, 0.18).translate(x, 1.25, z)),
-  )
-  const out = parts.map((g) => tinted(g, WHITE))
-  out.push(tinted(metricBox(3.6, 0.2, 3.6).translate(0, 2.5, 0.4), WHITE))
-  out.push(tinted(metricBox(2.6, 2.2, 2.4).translate(0, 3.7, -0.2), color))
-  out.push(tinted(metricBox(2.0, 0.8, 0.06).translate(0, 4.0, 1.0), 0x26343c))
-  out.push(tinted(metricBox(3.2, 0.16, 3.2).rotateX(0.12).translate(0, 4.95, -0.2), WHITE))
-  const ramp = Math.atan2(2.5, 5)
-  out.push(
-    tinted(metricBox(1.1, 0.1, Math.hypot(2.5, 5)).rotateX(ramp).translate(0, 1.25, 4.6), WHITE),
-  )
-  return out
-}
 
 function canopy(color: number): THREE.BufferGeometry {
   const geo = new THREE.ConeGeometry(1.45, 0.45, 10, 1, true).toNonIndexed()
@@ -58,22 +44,26 @@ export function umbrella(color: number, r: Rand): THREE.BufferGeometry[] {
   return [pole, canopy(color).rotateZ(tilt), ...loungers]
 }
 
-/** Lifeguard towers and umbrellas the length of the beach. Towers collide; the rest is open. */
-export function buildBeach(ctx: WorldCtx, land: Land): void {
+/** Lifeguard towers (the cabin on its stilts collides; the ramp is open) and umbrellas the length of the beach. */
+export function buildBeach(ctx: WorldCtx, land: Land, kit: PropKit): void {
   const r = rng(91)
-  const things = beachProps(land, r)
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7 })
+  const tower = kit.get('lifeguard_tower')?.toNonIndexed()
+  // A tower model that failed to load leaves the beach without towers, colliders too.
+  const things = beachProps(land, r).filter((t) => tower || t.kind !== 'tower')
+  const material = pbrMaterial()
   for (const group of groupByChunk(things).values()) {
     const geos = group.flatMap((t) => {
       const color = PASTELS[t.tint % PASTELS.length]
       const parts =
-        t.kind === 'tower' ? tower(color).map((g) => g.toNonIndexed()) : umbrella(color, r)
+        t.kind === 'tower'
+          ? [repaint(tower!, color)]
+          : umbrella(color, r).map((g) => withPbr(g, 0.7, 0))
       return parts.map((g) => g.rotateY(t.yaw).translate(t.x, t.y, t.z))
     })
     addMerged(ctx, geos, material)
   }
   for (const t of things.filter((q) => q.kind === 'tower')) {
-    const desc = RAPIER.ColliderDesc.cuboid(1.8, 2.4, 1.8).setTranslation(t.x, t.y + 2.4, t.z)
+    const desc = RAPIER.ColliderDesc.cuboid(1.6, 2.3, 1.6).setTranslation(t.x, t.y + 2.3, t.z)
     ctx.colliders.add(desc)
   }
 }
