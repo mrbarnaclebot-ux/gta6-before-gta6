@@ -99,12 +99,12 @@ Each prop is a root `<name>` with one mesh child `<name>_mesh`. Standing props: 
 | | `water_tank` (rooftop, on a stand, ladder at +z) | 2.10 x 4.50 x 2.15 | 1,076 |
 | | `bike` (upright, centred between the axles) | 0.61 x 1.06 x 1.73 | 1,416 |
 | | `scooter` (on its stand) | 0.69 x 1.26 x 1.64 | 1,456 |
-| | `kiosk` (hatch and awning at +z) | 2.40 x 2.52 x 2.80 | 220 |
+| | `kiosk` (hatch and awning at +z; the awning canvas is lined, both faces, for a single-sided material) | 2.40 x 2.52 x 2.80 | 294 |
 | | `bus_shelter` (open side at +z, advert panel at +x) | 3.80 x 2.59 x 1.60 | 200 |
 | `props/awnings.glb` | `awning_striped` (red and white canvas, scalloped valance) | 3.00 x 0.91 x 1.10 | 162 |
 | | `awning_dome` (navy barrel awning) | 2.62 x 1.08 x 1.02 | 302 |
 | | `awning_flat` (steel canopy, tie rods, two downlights) | 3.20 x 1.03 x 1.31 | 148 |
-| `props/lifeguard_tower.glb` | `lifeguard_tower` | 3.20 x 6.20 x 6.82 | 537 |
+| `props/lifeguard_tower.glb` | `lifeguard_tower` | 3.20 x 6.20 x 6.82 | 641 |
 
 - **Awnings hang on walls:** origin at the middle of the top mounting edge on the wall face (y 0 there), reaching out towards +z and down. Mount them about 2.6 m up a shopfront; the striped one is 3 m wide (`awning_striped(w, ...)` in the script makes other widths).
 - **Lifeguard tower:** cabin front (+z) faces the sea, the ramp runs down the back to -z (it ends 5.2 m behind the origin), and the stilts go 0.5 m into the sand.

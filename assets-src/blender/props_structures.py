@@ -7,23 +7,28 @@ reaching out towards +z and down. Everything else stands on y = 0, front towards
 import math
 
 from lib.drape import text
-from lib.geo import Geo, box, cyl, extrude_x, loft, tube
+from lib.geo import Geo, box, cyl, extrude_x, flipped, loft, tube
 
 
-def awning_striped(w=3.0, out=1.1, drop=0.6, stripe=0.25):
-    """Canvas awning in red and white stripes with a scalloped valance and side cheeks."""
-    g = Geo()
+def awning_striped(w=3.0, out=1.1, drop=0.6, stripe=0.25, lined=False):
+    """Canvas awning in red and white stripes with a scalloped valance and side cheeks.
+    The canvas faces up and out; `lined` adds its underside too, for a single-sided
+    material (the shop awnings are drawn double-sided, so they go without)."""
+    c = Geo()
     n = int(round(w / stripe))
     for k in range(n):
         x0, x1 = -w / 2 + w * k / n, -w / 2 + w * (k + 1) / n
         mat = 'canvas_red' if k % 2 == 0 else 'canvas_white'
-        g.add(Geo([(x0, 0, 0), (x1, 0, 0), (x1, -drop, out), (x0, -drop, out)], [(0, 1, 2, 3)], mat))
-        lobe = [(x1 - (x1 - x0) * i / 6, -drop - 0.2 - 0.07 * math.sin(math.pi * i / 6), out)
+        c.add(Geo([(x0, 0, 0), (x0, -drop, out), (x1, -drop, out), (x1, 0, 0)], [(0, 1, 2, 3)], mat))
+        lobe = [(x0 + (x1 - x0) * i / 6, -drop - 0.2 - 0.07 * math.sin(math.pi * i / 6), out)
                 for i in range(7)]
-        g.add(Geo([(x0, -drop, out), (x1, -drop, out)] + lobe[:-1] + [(x0, -drop - 0.2, out)],
-                  [tuple(range(9))], mat))
+        c.add(Geo([(x1, -drop, out), (x0, -drop, out), (x0, -drop - 0.2, out)] + lobe[1:-1]
+                  + [(x1, -drop - 0.2, out)], [tuple(range(9))], mat))
     for x in (-w / 2, w / 2):
-        g.add(Geo([(x, 0, 0), (x, -drop, out), (x, -drop - 0.2, out)], [(0, 1, 2)], 'canvas_red'))
+        cheek = [(x, 0, 0), (x, -drop, out), (x, -drop - 0.2, out)]
+        c.add(Geo(cheek if x > 0 else cheek[::-1], [(0, 1, 2)], 'canvas_red'))
+    g = c.copy().add(flipped(c)) if lined else c
+    for x in (-w / 2, w / 2):
         g.add(tube([(x * 0.98, -drop - 0.15, 0), (x * 0.98, -drop, out)], 0.012, 5, 'metal_dark'))
     g.add(tube([(-w / 2, 0.02, 0.03), (w / 2, 0.02, 0.03)], 0.025, 6, 'metal_dark'))
     return g
@@ -58,7 +63,7 @@ def kiosk():
     g.add(box(1.9, 0.05, 0.35, 'metal_light').move(0, 0.98, 1.15))
     g.add(box(2.4, 0.12, 2.2, 'metal_white').move(0, 2.46, 0))
     g.add(box(2.3, 0.3, 0.02, 'ad').move(0, 2.25, 1.02))
-    g.add(awning_striped(2.2, 0.7, 0.35, 0.275).move(0, 2.08, 1.0))
+    g.add(awning_striped(2.2, 0.7, 0.35, 0.275, lined=True).move(0, 2.08, 1.0))
     g.add(box(2.24, 0.12, 2.04, 'metal_dark').move(0, 0.06, 0))
     return g
 
