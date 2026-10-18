@@ -23,5 +23,8 @@ export const HOUSE_DESIGNS: HouseDesign[] = [
   { name: 'spanish', w: 14, d: 11, floors: 2, pool: true, frontWall: true },
 ]
 
-/** The hillside villas' designs, picked by seed: the big ones, two with their own pool. */
-export const VILLA_DESIGNS = [2, 5, 1]
+/**
+ * The hillside villas' designs, picked by seed: the two with their own pool. The
+ * Mediterranean, with a stand-in pool, looked small and plain on a villa's big terrace.
+ */
+export const VILLA_DESIGNS = [2, 5]

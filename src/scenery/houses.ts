@@ -4,6 +4,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Grounded } from '../city/layout'
 import { heightAt } from '../city/terrain'
 import { HOUSE_DESIGNS, VILLA_DESIGNS } from '../land/house-designs'
+import { VILLA_ROAD, type Villa } from '../land/hillside'
 import type { Land } from '../land/plan'
 import type { House } from '../land/residential'
 import type { P3 } from '../land/polyline'
@@ -71,7 +72,7 @@ export interface Placed extends P3 {
 }
 
 /** Points every 2 m along a local-space polyline, turned and placed with the house, on the ground. */
-function draped(land: Land, h: House, local: [number, number][]): P3[] {
+function draped(land: Land, h: Pick<House, 'x' | 'z' | 'yaw'>, local: [number, number][]): P3[] {
   const out: P3[] = []
   const cos = Math.cos(h.yaw)
   const sin = Math.sin(h.yaw)
@@ -118,6 +119,17 @@ function driveway(land: Land, h: House): THREE.BufferGeometry {
   return sweep(pts, strip(1.7, -1.7, 0.06))
 }
 
+/** A villa's drive, straight out of its garage from the terrace's front edge to the road. */
+function villaDrive(land: Land, v: Villa): THREE.BufferGeometry {
+  const p = villaHouse(v)
+  const gx = (p.flip ? -1 : 1) * (HOUSE_DESIGNS[p.design].w / 2 - 2.2)
+  const pts = draped(land, p, [
+    [gx, v.d / 2 - 0.5 - VILLA_FORWARD],
+    [gx, VILLA_ROAD - VILLA_FORWARD],
+  ]).reverse()
+  return sweep(pts, strip(1.7, -1.7, 0.06))
+}
+
 /** The design's boxes as colliders, turned and mirrored with the house. */
 export function collideHouse(ctx: WorldCtx, p: Placed): void {
   const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.yaw)
@@ -132,20 +144,21 @@ export function collideHouse(ctx: WorldCtx, p: Placed): void {
   }
 }
 
+/** A villa's house: forward of the pad's middle, so the pool deck behind stops inside the retaining wall. */
+function villaHouse(v: Villa): Placed {
+  return {
+    ...v,
+    x: v.x + Math.sin(v.yaw) * VILLA_FORWARD,
+    z: v.z + Math.cos(v.yaw) * VILLA_FORWARD,
+    design: VILLA_DESIGNS[v.seed % VILLA_DESIGNS.length],
+    flip: v.seed % 2 === 1,
+    tint: v.seed,
+  }
+}
+
 /** Every residential house and hillside villa as placed models: the garage on the left is a mirror. */
 function placements(land: Land): Placed[] {
-  return [
-    ...land.houses.map((h) => ({ ...h, flip: h.garage < 0 })),
-    ...land.villas.map((v) => ({
-      ...v,
-      // Forward of the pad's middle, so the pool decks behind stop inside the retaining wall.
-      x: v.x + Math.sin(v.yaw) * VILLA_FORWARD,
-      z: v.z + Math.cos(v.yaw) * VILLA_FORWARD,
-      design: VILLA_DESIGNS[v.seed % VILLA_DESIGNS.length],
-      flip: v.seed % 2 === 1,
-      tint: v.seed,
-    })),
-  ]
+  return [...land.houses.map((h) => ({ ...h, flip: h.garage < 0 })), ...land.villas.map(villaHouse)]
 }
 
 /**
@@ -180,7 +193,10 @@ export async function buildHouses(
   return (eye) => updates.forEach((u) => u(eye))
 }
 
-/** Drives and back-yard fences, merged per 250 m chunk, the fences with a trimesh collider. */
+/**
+ * Drives and back-yard fences, merged per 250 m chunk, the fences with a trimesh collider;
+ * the villas' drives in one more mesh.
+ */
 function buildYards(ctx: WorldCtx, land: Land): void {
   // The stucco map is about 0.85 grey; times the vertex tint, walls stay below the clip in sun.
   const wall = pbr('white_stucco', 0.5, {
@@ -203,4 +219,6 @@ function buildYards(ctx: WorldCtx, land: Land): void {
       { cast: false, receive: true },
     )
   }
+  const drives = land.villas.map((v) => villaDrive(land, v))
+  addMerged(ctx, drives, paving, { cast: false, receive: true })
 }
