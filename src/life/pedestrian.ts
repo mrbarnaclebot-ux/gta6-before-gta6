@@ -1,12 +1,12 @@
 import * as THREE from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { easeAngle } from '../camera/orbit-math'
-import type { Rect } from '../city/layout'
 import { damageAt, hurt, type Health } from '../combat/damage'
 import type { Surface } from '../combat/effects'
 import { ACTOR_GROUPS, RAPIER, type PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
-import { loopPoint } from './places'
+import { loopPoint, type Loop } from './places'
+import type { Crossing } from './crossings'
 
 const HP = 60
 const WALK = 1.35
@@ -19,7 +19,7 @@ const RUN_CLIP_SPEED = 6
 const HALF_HEIGHT = 0.55
 const RADIUS = 0.35
 
-export type PedState = 'walk' | 'idle' | 'flee' | 'dead'
+export type PedState = 'walk' | 'idle' | 'wait' | 'flee' | 'dead'
 type Clip = 'walk' | 'run' | 'idle' | 'talk' | 'hit' | 'death'
 const CLIPS: Record<Clip, string> = {
   walk: 'Walk_Loop',
@@ -42,11 +42,19 @@ export class Pedestrian {
   timer = 0
   /** Set by the crowd: called with 'assault' or 'murder' when a bullet lands. */
   onShot: (killed: boolean) => void = () => {}
-  private loop: Rect = { x0: 0, z0: 0, x1: 1, z1: 1 }
+  private loop: Loop = { pts: [], st: [], length: 1, box: { x0: 0, z0: 0, x1: 0, z1: 0 }, face: -1 }
+  /** Which of the crowd's loops this is. */
+  loopId = -1
+  /** On a crosswalk: meters along it, and the loop it leads to. */
+  private crossing: { c: Crossing; t: number; len: number; to: Loop } | null = null
+  /** Waiting at the curb for the lights, to cross here. */
+  waiting: Crossing | null = null
+  /** Ground height under a crosswalk point (the road, then the far curb). */
+  ground: (x: number, z: number) => number = () => 0
   /** Off the sidewalk loop (a driver pulled from a car): runs straight this way instead. */
   private loose: { x: number; z: number } | null = null
   private s = 0
-  private dir: 1 | -1 = 1
+  private way: 1 | -1 = 1
   private heading = 0
   private readonly mixer: THREE.AnimationMixer
   private readonly actions = new Map<Clip, THREE.AnimationAction>()
@@ -80,9 +88,23 @@ export class Pedestrian {
     return this.state !== 'dead'
   }
 
+  /** Meters round the current loop. */
+  get station(): number {
+    return this.s
+  }
+
+  get dir(): 1 | -1 {
+    return this.way
+  }
+
+  get onCrosswalk(): boolean {
+    return this.crossing !== null
+  }
+
   /** Start walking `s` meters around `loop` (at curb height `y`), either way round. */
-  place(loop: Rect, s: number, dir: 1 | -1, y: number): void {
-    Object.assign(this, { loop, s, dir, state: 'walk', timer: 0, loose: null })
+  place(loop: Loop, id: number, s: number, dir: 1 | -1, y: number): void {
+    Object.assign(this, { loop, loopId: id, s, way: dir, state: 'walk', timer: 0, loose: null })
+    Object.assign(this, { crossing: null, waiting: null })
     this.health.hp = HP
     this.position.y = y
     this.collider.setEnabled(true)
@@ -96,12 +118,27 @@ export class Pedestrian {
   /** A shot was fired near `from`: run the way round the block that leads away from it. */
   scare(from: THREE.Vector3): void {
     if (!this.alive || this.loose) return
-    const ahead = loopPoint(this.loop, this.s + 6 * this.dir)
-    const behind = loopPoint(this.loop, this.s - 6 * this.dir)
-    const away = (p: { x: number; z: number }) => Math.hypot(p.x - from.x, p.z - from.z)
-    if (away(behind) > away(ahead)) this.dir = this.dir === 1 ? -1 : 1
     this.state = 'flee'
     this.timer = 0
+    this.waiting = null
+    // On a crosswalk, run on across it.
+    if (this.crossing) return
+    const ahead = loopPoint(this.loop, this.s + 6 * this.way)
+    const behind = loopPoint(this.loop, this.s - 6 * this.way)
+    const away = (p: { x: number; z: number }) => Math.hypot(p.x - from.x, p.z - from.z)
+    if (away(behind) > away(ahead)) this.way = this.way === 1 ? -1 : 1
+  }
+
+  /** Stop at the curb and wait to cross at `c`. */
+  wait(c: Crossing): void {
+    Object.assign(this, { state: 'wait', timer: 0, waiting: c })
+  }
+
+  /** Step off the curb and walk over the crosswalk `c` to the loop `to` (crowd loop `id`). */
+  cross(c: Crossing, to: Loop, id: number): void {
+    const len = Math.hypot(c.b.x - c.a.x, c.b.z - c.a.z)
+    Object.assign(this, { crossing: { c, t: 0, len, to }, waiting: null, loopId: id, timer: 0 })
+    if (this.state === 'wait') this.state = 'walk'
   }
 
   /** A bullet from `distance` meters lands at `point`. */
@@ -166,7 +203,7 @@ export class Pedestrian {
       this.state = 'walk'
       this.timer = 0
     }
-    if (this.state === 'walk' && this.timer > 6 && Math.random() < 0.002) {
+    if (this.state === 'walk' && !this.crossing && this.timer > 6 && Math.random() < 0.002) {
       this.state = 'idle'
       this.timer = 0
     }
@@ -180,7 +217,8 @@ export class Pedestrian {
     const hit = this.actions.get('hit')!
     if (this.current === hit && hit.time < hit.getClip().duration - FADE) return
     if (this.state === 'dead') return
-    const clip: Clip = this.state === 'flee' ? 'run' : this.state === 'walk' ? 'walk' : 'talk'
+    const s = this.state
+    const clip: Clip = s === 'flee' ? 'run' : s === 'walk' ? 'walk' : s === 'wait' ? 'idle' : 'talk'
     const action = this.actions.get(clip)!
     if (speed > 0) action.timeScale = speed / (clip === 'run' ? RUN_CLIP_SPEED : WALK_CLIP_SPEED)
     this.play(clip, FADE)
@@ -198,17 +236,37 @@ export class Pedestrian {
       this.position.z += this.loose.z * step
       return
     }
-    this.s += step * this.dir
+    if (this.crossing) return this.over(step)
+    this.s += step * this.way
     const p = loopPoint(this.loop, this.s)
     this.position.x = p.x
     this.position.z = p.z
   }
 
+  /** Along the crosswalk, down onto the road and up the far curb; then onto the far loop. */
+  private over(step: number): void {
+    const x = this.crossing!
+    x.t += step
+    const f = Math.min(1, x.t / x.len)
+    this.position.x = x.c.a.x + (x.c.b.x - x.c.a.x) * f
+    this.position.z = x.c.a.z + (x.c.b.z - x.c.a.z) * f
+    this.position.y = this.ground(this.position.x, this.position.z)
+    if (f < 1) return
+    Object.assign(this, {
+      loop: x.to,
+      s: x.c.s2,
+      crossing: null,
+      way: Math.random() < 0.5 ? 1 : -1,
+    })
+  }
+
   /** Yaw facing along the loop in the walking direction. */
   private target(): number {
     if (this.loose) return Math.atan2(this.loose.x, this.loose.z) || this.heading
+    const c = this.crossing?.c
+    if (c) return Math.atan2(c.b.x - c.a.x, c.b.z - c.a.z)
     const p = loopPoint(this.loop, this.s)
-    return Math.atan2(p.dx * this.dir, p.dz * this.dir)
+    return Math.atan2(p.dx * this.way, p.dz * this.way)
   }
 
   private play(clip: Clip, fade: number): void {

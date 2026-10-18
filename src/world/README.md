@@ -3,8 +3,9 @@
 Builds the three.js meshes and Rapier colliders for the city plan from `src/city`.
 
 - `city.ts` entry point: generates the layout, builds everything, returns spawn and landmarks
-- `ground.ts` roads, raised sidewalks with curbs, park lawns
-- `markings.ts` lane lines, crosswalks, stop lines (one draw call)
+- `ground.ts` the street surface, raised blocks, walks, islands, and medians with paving and lawns; `slabs.ts` flat tops, skirts, and prism colliders from rings; `curb-mesh.ts` chamfered curbs with gutters and curb cuts; `lots.ts` plazas with planters, parking lots, hotel pools, driveway aprons
+- `markings.ts`, `paint.ts` lane lines, turn lanes and arrows, stop bars, zebra crosswalks, parking-lane ticks, and lot bays (one draw call)
+- `signals.ts` mast-arm traffic signals whose lenses follow the lights, and stop signs
 - `buildings.ts` facades, trim, roofs, merged per chunk; box colliders
 - `facades.ts` procedural PBR window textures per building style; `interior.ts` the rooms seen through every window (interior mapping), lit at night
 - `shopfronts.ts` the owner's shopfront pictures on ground floors; `sign-material.ts` the material that draws them and the billboards from the sign atlas

@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { DECK, humpRise, humpSpan } from '../city/canal-bridge'
-import { ROAD_HALF, type CityLayout } from '../city/layout'
+import type { CityLayout } from '../city/layout'
 import { UNDER_CITY } from '../city/terrain'
 import { trimeshCollider } from '../scenery/bridges'
 import { strip, sweep } from '../scenery/sweep'
@@ -14,7 +14,6 @@ import type { WorldCtx } from './blocks'
  */
 
 const PARAPET = { w: 0.45, h: 0.95 }
-const ROAD = ROAD_HALF - PARAPET.w
 
 type Pt = P3
 
@@ -74,18 +73,19 @@ export function canalBridges(ctx: WorldCtx, c: CityLayout) {
   const stone: THREE.BufferGeometry[] = []
   const span = humpSpan(c.canal)
   const wet = (p: Pt) => p.x > c.canal.x0 && p.x < c.canal.x1
-  for (const at of c.zRoads) {
+  for (const { z: at, half } of c.bridges) {
+    const road = half - PARAPET.w
     const pts = line(c, at, span.x0, span.x1)
-    const road = sweep(pts, strip(ROAD, -ROAD, 0))
-    trimeshCollider(ctx, road)
-    asphalt.push(road)
+    const deck = sweep(pts, strip(road, -road, 0))
+    trimeshCollider(ctx, deck)
+    asphalt.push(deck)
     const foot = (p: Pt) => (wet(p) ? p.y - DECK : UNDER_CITY)
     for (const s of [-1, 1]) {
-      const wall = slab(pts, s * ROAD, s * ROAD_HALF, foot, (p) => p.y + PARAPET.h)
+      const wall = slab(pts, s * road, s * half, foot, (p) => p.y + PARAPET.h)
       trimeshCollider(ctx, wall.geo)
       stone.push(wall.flat)
     }
-    const under = slab(pts, -ROAD, ROAD, foot, (p) => p.y - 0.02)
+    const under = slab(pts, -road, road, foot, (p) => p.y - 0.02)
     trimeshCollider(ctx, under.geo)
     stone.push(under.flat)
   }

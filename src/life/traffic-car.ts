@@ -9,12 +9,16 @@ import { corners, restOnCorners } from '../land/footing'
 import { CAR_HALF } from '../city/parking'
 import { CRUISE, type Driver, type Start, type Waypoint } from './lanes'
 import { BRAKE } from './stopping'
+import { lightAt, signalClock } from './signals'
 
 const HP = 160
 const ACCEL = 3
 const EULER = new THREE.Euler()
 // Light bar flashes per second, alternating red and blue.
 const FLASH_RATE = 3
+/** Seconds a driver stands at a stop sign before going on; how far ahead it looks for one. */
+const STOP_SIGN_WAIT = 0.9
+const STOP_LOOK = 60
 
 /**
  * An AI car on rails: a kinematic body that follows lane waypoints, slows for
@@ -37,6 +41,8 @@ export class TrafficCar {
   private path: Waypoint[] = []
   private driver: Driver = { next: () => [] }
   private clock = 0
+  /** Seconds stood still at the stop sign ahead. */
+  private dwell = 0
   /** Nose-up angle on bridges and ramps, eased. */
   private pitch = 0
   /** The grade of the current path step, which `pitch` eases toward. */
@@ -108,7 +114,7 @@ export class TrafficCar {
    * `siren`: police cars flash their light bar (the player is wanted).
    */
   update(dt: number, limit: number, night: number, siren = false): void {
-    const target = this.dead ? 0 : Math.min(limit, this.curveLimit())
+    const target = this.dead ? 0 : Math.min(limit, this.curveLimit(), this.holdLimit(dt))
     const before = this.speed
     const rate = target > this.speed ? ACCEL : BRAKE
     this.speed += Math.max(-rate * dt, Math.min(rate * dt, target - this.speed))
@@ -136,6 +142,38 @@ export class TrafficCar {
       from = p
     }
     return limit
+  }
+
+  /** Speed that stops short of the next stop bar while its light is red, or until the car has halted at a stop sign. */
+  private holdLimit(dt: number): number {
+    let d = 0
+    let from: { x: number; z: number } = this.position
+    for (const p of this.path) {
+      d += Math.hypot(p.x - from.x, p.z - from.z)
+      if (d > STOP_LOOK) break
+      from = p
+      if (!p.stop) continue
+      if (p.cleared || this.mayGo(p, d, dt)) return Infinity
+      return Math.sqrt(2 * BRAKE * 0.6 * Math.max(0, d - 4))
+    }
+    return Infinity
+  }
+
+  /** Lights: green goes, amber goes only when too close to stop. Stop signs: go after a halt. */
+  private mayGo(p: Waypoint, d: number, dt: number): boolean {
+    const s = p.stop!
+    if (s.signal) {
+      const light = lightAt(s.junction, s.phase, signalClock.t)
+      const go = light === 'green' || (light === 'amber' && d < this.speed * 1.2 + 4)
+      // Once committed on amber, the driver carries on even if it turns red.
+      if (light === 'amber' && go) p.cleared = true
+      return go
+    }
+    this.dwell = this.speed < 0.4 && d < 7 ? this.dwell + dt : 0
+    if (this.dwell < STOP_SIGN_WAIT) return false
+    this.dwell = 0
+    p.cleared = true
+    return true
   }
 
   /** Advance `step` meters along the waypoints. Returns the yaw toward the next one. */

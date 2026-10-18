@@ -4,7 +4,8 @@ import { CELL, gridRect } from '../land/grid'
 import type { Kind, Path } from '../land/path'
 import type { Land } from '../land/plan'
 import { paintTerrain } from './map-terrain'
-import { roadRect } from '../world/ground'
+import { lawnsOf } from '../city/layout'
+import type { Ring } from '../city/polygon'
 
 // Dark edge drawn under each road so it reads against the blocks, in meters per side.
 const CASING = 2
@@ -31,20 +32,27 @@ function fillRect(g: CanvasRenderingContext2D, o: Base, r: Rect, color: string):
   g.fillRect(r.x0 - o.x0, r.z0 - o.z0, r.x1 - r.x0, r.z1 - r.z0)
 }
 
-const grow = (r: Rect, by: number): Rect => ({
-  x0: r.x0 - by,
-  z0: r.z0 - by,
-  x1: r.x1 + by,
-  z1: r.z1 + by,
-})
+function fillRing(g: CanvasRenderingContext2D, o: Base, ring: Ring, color: string): void {
+  g.beginPath()
+  ring.forEach((p, i) => (i ? g.lineTo(p.x - o.x0, p.z - o.z0) : g.moveTo(p.x - o.x0, p.z - o.z0)))
+  g.closePath()
+  g.fillStyle = color
+  g.fill()
+}
 
-/** The paved city: blocks, parks, buildings, and the grid roads over a dark casing. */
+/** The paved city: streets as the ground, blocks over them on a dark casing, parks, buildings, the canal. */
 function paintCity(g: CanvasRenderingContext2D, o: Base, c: Land): void {
-  fillRect(g, o, c.land, MAP_COLORS.land)
-  fillRect(g, o, c.canal, MAP_COLORS.shallows)
+  fillRect(g, o, c.land, MAP_COLORS.road)
+  const raised = [...c.blocks, ...c.walks, ...c.islands].map((f) => f.curb)
+  g.lineJoin = 'round'
+  for (const ring of [...raised, ...c.medians.map((m) => m.ring)]) {
+    fillRing(g, o, ring, MAP_COLORS.land)
+    g.lineWidth = CASING
+    g.strokeStyle = MAP_COLORS.casing
+    g.stroke()
+  }
+  for (const lawn of lawnsOf(c)) fillRing(g, o, lawn, MAP_COLORS.park)
   for (const b of c.blocks) {
-    if (b.park) fillRect(g, o, b.lot, MAP_COLORS.park)
-    for (const garden of b.gardens) fillRect(g, o, garden, MAP_COLORS.park)
     for (const h of b.buildings) {
       fillRect(
         g,
@@ -54,9 +62,7 @@ function paintCity(g: CanvasRenderingContext2D, o: Base, c: Land): void {
       )
     }
   }
-  const roads = c.roads.map(roadRect)
-  for (const r of roads) fillRect(g, o, grow(r, CASING), MAP_COLORS.casing)
-  for (const r of roads) fillRect(g, o, r, MAP_COLORS.road)
+  fillRect(g, o, c.canal, MAP_COLORS.shallows)
 }
 
 const ROAD_COLOR: Partial<Record<Kind, string>> = {
@@ -134,7 +140,7 @@ const NAMES: Record<District, string> = {
 /** District names for the full map: each city district at the middle of its blocks, then the outer areas. */
 export function districtLabels(c: Land): { name: string; x: number; z: number }[] {
   const city = (Object.keys(NAMES) as District[]).flatMap((d) => {
-    const rects = c.blocks.filter((b) => b.district === d).map((b) => b.rect)
+    const rects = c.blocks.filter((b) => b.district === d).map((b) => b.box)
     if (!rects.length) return []
     const x = rects.reduce((s, r) => s + (r.x0 + r.x1) / 2, 0) / rects.length
     // One block north of the middle, clear of the district's hospital.

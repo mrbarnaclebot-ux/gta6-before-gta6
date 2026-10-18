@@ -3,7 +3,7 @@ import type { Kind, Path } from './path'
 import { dist, type P2 } from './polyline'
 
 /*
- * GPS routes over every road on the map: the city grid and everything outside it. Road
+ * GPS routes over every road on the map: the city's streets and everything outside it. Road
  * centerlines become a graph of their vertices; a road that ends near another one is
  * joined to it. A* finds the quickest route by travel time, so the highway wins over
  * long trips. ponytail: one-way ramps are treated as two-way; good enough for a GPS line.
@@ -32,16 +32,11 @@ export interface RoadGraph {
   segs: [number, number][]
 }
 
-/** The city grid as polylines through every intersection. */
-function cityLines(c: CityLayout): { pts: P2[]; kind: 'city' }[] {
-  return c.roads.map((r) => {
-    const cross = (r.axis === 'x' ? c.xRoads : c.zRoads).filter((v) => v > r.from && v < r.to)
-    const along = [r.from, ...cross, r.to]
-    return {
-      kind: 'city',
-      pts: along.map((u) => (r.axis === 'x' ? { x: u, z: r.at } : { x: r.at, z: u })),
-    }
-  })
+/** The city's streets as polylines, one per segment between junctions (alleys left out). */
+function cityLines(c: CityLayout): { pts: P2[]; kind: 'city' | 'avenue' }[] {
+  return c.net.segments
+    .filter((s) => s.kind === 'avenue' || s.kind === 'street')
+    .map((s) => ({ kind: s.kind === 'avenue' ? 'avenue' : 'city', pts: s.pts }))
 }
 
 /** Builds the graph from the city plan and the roads outside it (the dirt trail is left out). */

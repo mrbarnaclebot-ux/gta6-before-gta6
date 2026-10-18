@@ -1,10 +1,15 @@
 import { rest, type Rest } from '../land/footing'
 import type { Land } from '../land/plan'
 import type { House } from '../land/residential'
+import { at, offset, stations } from '../land/polyline'
 import { heightAt, surfaceAt, waterSurfaceAt } from './terrain'
-import { ROAD_HALF, type Road } from './layout'
-import { humpSpan, roadRise } from './canal-bridge'
+import { roadRise } from './canal-bridge'
+import { segLength } from './faces'
+import { CROSSWALK, endOf } from './junctions'
+import { slice } from './network'
+import { lotBays } from './parking-lots'
 import { rng } from './rng'
+import { STREET } from './streets'
 
 /** A parked car: chassis origin on the ground, yaw 0 facing +z, its tilt, and a paint variant index. */
 export interface ParkingSpot extends Rest {
@@ -17,57 +22,70 @@ export interface ParkingSpot extends Rest {
 /** Half a car's wheelbase-ish length and track width: where it meets the ground. */
 export const CAR_HALF = { l: 1.9, w: 0.85 }
 
-// Center of the curb lane: half a car width plus a hand's breadth off the curb.
-const CURB_LANE = ROAD_HALF - 1.3
-// Keep clear of crosswalks and turning traffic at intersections.
-const SPOT_OFFSETS = [-22, 18]
+/** A parallel parking space is this long; spaces keep this far past the stop bar. */
+export const BAY_LENGTH = 6.5
+const CLEAR = 4
+const LOT_CARS = 8
 
-/** Every curbside spot on one road: two per side per block, skipping bridges over water. */
-type Curb = { x: number; z: number; yaw: number }
+type Spot = { x: number; z: number; yaw: number }
 
-/** On or near a humped canal bridge, with a car's length to spare. */
-const onHump = (c: Land, s: Curb) => {
-  const span = humpSpan(c.canal)
-  return (
-    roadRise(c, s.x, s.z) > 0 || (s.x > span.x0 - 3 && s.x < span.x1 + 3 && Math.abs(s.yaw) > 1)
-  )
+/** The parking lane's bays along one side of a street segment, in travel order. */
+export function curbBays(c: Land, seg: number, side: 1 | -1): Spot[] {
+  const s = c.net.segments[seg]
+  const len = segLength(s)
+  const s0 = endOf(c.junctions, c.net, seg, true).mouth + CROSSWALK.bar + CLEAR
+  const s1 = len - endOf(c.junctions, c.net, seg, false).mouth - CROSSWALK.bar - CLEAR
+  if (s1 - s0 < BAY_LENGTH) return []
+  // Right-hand traffic: the side-1 lane runs a to b with the curb on its right (offset is positive to the right).
+  const line = offset(side > 0 ? s.pts : [...s.pts].reverse(), STREET.parking)
+  const from = side > 0 ? s0 : len - s1
+  const lane = slice(line, from, from + (s1 - s0))
+  const n = Math.floor((s1 - s0) / BAY_LENGTH)
+  const st = stations(lane)
+  return Array.from({ length: n }, (_, k) => {
+    const u = ((k + 0.5) * (s1 - s0)) / n
+    const i = Math.min(lane.length - 2, Math.max(0, st.findIndex((v) => v >= u) - 1))
+    const yaw = Math.atan2(lane[i + 1].x - lane[i].x, lane[i + 1].z - lane[i].z)
+    return { ...at(lane, u), yaw }
+  })
 }
 
-function spotsAlong(c: Land, road: Road): Curb[] {
-  const crossings = (road.axis === 'z' ? c.zRoads : c.xRoads).filter(
-    (v) => v > road.from && v < road.to,
+/** Every curbside bay on the city's streets, dry and off the canal's humps. */
+function curbSpots(c: Land): Spot[] {
+  return c.net.segments.flatMap((s, seg) =>
+    s.kind !== 'street'
+      ? []
+      : [1, -1].flatMap((side) =>
+          curbBays(c, seg, side as 1 | -1).filter(
+            (p) =>
+              waterSurfaceAt(c, p.x, p.z) === null &&
+              roadRise(c, p.x, p.z) === 0 &&
+              surfaceAt(c, p.x, p.z) === 0,
+          ),
+        ),
   )
-  const out: Curb[] = []
-  for (let i = 0; i < crossings.length - 1; i++) {
-    const mid = (crossings[i] + crossings[i + 1]) / 2
-    for (const along of SPOT_OFFSETS) {
-      for (const side of [1, -1]) {
-        // Right-hand traffic: the curb is on the car's right.
-        const lateral = road.at + side * CURB_LANE
-        const spot =
-          road.axis === 'z'
-            ? { x: lateral, z: mid + along * side, yaw: side > 0 ? Math.PI : 0 }
-            : { x: mid + along * side, z: lateral, yaw: side > 0 ? Math.PI / 2 : -Math.PI / 2 }
-        if (waterSurfaceAt(c, spot.x, spot.z) === null && !onHump(c, spot)) out.push(spot)
-      }
-    }
-  }
-  return out
 }
 
 /**
- * Seeded parked cars. The first is the spot nearest the spawn, so a new player
- * sees a car right away; the rest are scattered across the map.
+ * Seeded parked cars. The first is the bay nearest the spawn, so a new player sees a car
+ * soon; the rest are scattered across the curbs, and a few stand in the parking lots.
  */
 export function parkingSpots(c: Land, count: number, variants: number): ParkingSpot[] {
   const r = rng(c.seed + 101)
-  const all = c.roads.flatMap((road) => spotsAlong(c, road))
-  const d = (s: { x: number; z: number }) => Math.hypot(s.x - c.spawn.x, s.z - c.spawn.z)
+  const all = curbSpots(c)
+  const d = (s: Spot) => Math.hypot(s.x - c.spawn.x, s.z - c.spawn.z)
   const nearest = all.reduce((a, b) => (d(b) < d(a) ? b : a))
   const others = all.filter((s) => s !== nearest)
   const picked = [nearest]
-  while (picked.length < count && others.length) {
+  while (picked.length < count && others.length)
     picked.push(others.splice(Math.floor(r() * others.length), 1)[0])
+  // A few cars in the parking lots, one or two to a lot.
+  const lots = c.blocks.flatMap((b) => b.parking).map(lotBays)
+  for (let n = 0; n < LOT_CARS && lots.length;) {
+    const bays = lots.splice(Math.floor(r() * lots.length), 1)[0]
+    for (let k = 1 + Math.floor(r() * 2); k > 0 && bays.length && n < LOT_CARS; k--, n++) {
+      picked.push(bays.splice(Math.floor(r() * bays.length), 1)[0])
+    }
   }
   const surface = (x: number, z: number) => surfaceAt(c, x, z)
   return picked.map((s) => ({

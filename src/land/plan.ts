@@ -152,7 +152,8 @@ function settleCity(c: CityLayout, surface: Surface) {
 
 /** Generates the city and everything around it, and bakes the terrain. Same seed, same world. */
 export function generateLand(seed = 7, size = 1000): Land {
-  const city = generateCity(seed, size, { west: [HILL_ROAD_Z, AVENUE_Z], beach: true })
+  // The city's street plan runs Hill Road and Palm Avenue out of its west edge at these z.
+  const city = generateCity(seed, size)
   const frame = frameOf(city)
   const waterways = planWaterways(city, frame.coast)
   const ground = (x: number, z: number) => natural(frame, x, z)
@@ -163,7 +164,7 @@ export function generateLand(seed = 7, size = 1000): Land {
     const at = { x: EAST_X, z }
     return { at, y: heightOn(boulevards, at) }
   })
-  const beachRoad = city.xRoads[city.xRoads.length - 1]
+  const beachRoad = city.net.lines.find((l) => l.name === 'coast road')!.pts[0].x
   const highway = buildHighway(
     ground,
     crossings,

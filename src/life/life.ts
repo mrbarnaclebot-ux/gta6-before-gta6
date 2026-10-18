@@ -11,6 +11,7 @@ import { Crowd } from './crowd'
 import { hospitals, nearest, type Hospital } from './places'
 import { Traffic, type Obstacle } from './traffic'
 import { clear, cool, newWanted, report, stars, type Crime } from './wanted'
+import { signalClock } from './signals'
 
 /** Gunfire is a crime only with a witness this close: a person or a driver. */
 const WITNESS = 40
@@ -74,6 +75,7 @@ export class Life {
   /** `view`: camera forward. `shot`: the shooter's latest shot. `night`: 0 to 1, for car lamps. */
   update(dt: number, view: THREE.Vector3, shot: Shot, night: number): void {
     const focus = this.driving.position
+    signalClock.t += dt
     this.crowd.update(dt, focus, !this.filled)
     const siren = stars(this.wanted) > 0
     const walker = this.driving.mode === 'walking' ? this.player.position : null

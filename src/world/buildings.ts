@@ -11,7 +11,8 @@ import { roofClutter } from './rooftops'
 
 // Miami: mostly white and cream, with art-deco pastels; glass tints stay subtle.
 const WALLS: Record<Style, number[]> = {
-  deco: [0xf6f3ec, 0xf6f3ec, 0xf3e6c8, 0xf3c4b8, 0xb8e2cf, 0xbcd6ef, 0xf5d29e, 0xd8c8ec],
+  // Art deco: mostly pastel, the odd white one. massing.ts keeps neighbours apart in color.
+  deco: [0xf6f3ec, 0xf7d9c4, 0xf3e6c8, 0xf3c4b8, 0xb8e2cf, 0xbcd6ef, 0xf5d29e, 0xd8c8ec],
   residential: [0xf7f5f0, 0xf1eee6, 0xe9e6df, 0xf3ead9, 0xe2e6ea],
   glass: [0xffffff, 0xdcebf2, 0xd5e9df, 0xece4d6, 0xcdd8ea],
 }
@@ -118,29 +119,36 @@ function balconyRails(b: Building, p: Parts, alongX: boolean, y: number) {
 function residentialParts(b: Building, p: Parts, wall: number) {
   const fh = FLOOR_H.residential
   const h = b.floors * fh
-  p.facade[b.style].push(tinted(walls(b, b.w, b.d, 0, h), wall))
-  solid(p, b, b.w, b.d, 0, h)
-  plinth(b, p, b.w, b.d, 0xcfcac0)
-  const alongX = b.seed % 2 === 0
-  for (let i = 1; i < b.floors; i++) {
+  const y0 = b.base * fh
+  p.facade[b.style].push(tinted(walls(b, b.w, b.d, y0, h), wall))
+  solid(p, b, b.w, b.d, y0, h)
+  if (!b.base) plinth(b, p, b.w, b.d, 0xcfcac0)
+  // Hotels on the beach hang their balconies off the faces that look east to the sea.
+  const alongX = !b.seaward && b.seed % 2 === 0
+  for (let i = Math.max(1, b.base + 1); i < b.floors; i++) {
     const [w, d] = alongX ? [b.w + 0.1, b.d + 2.6] : [b.w + 2.6, b.d + 0.1]
     p.trim.push(tinted(box(b, w, 0.22, d, 0, i * fh - 0.11, 0), 0xf8f7f4))
     balconyRails(b, p, alongX, i * fh + 0.11)
   }
   crownParts(b, p, b.w, b.d, h, wall)
-  p.trim.push(tinted(box(b, b.w * 0.35, 3.2, b.d * 0.35, 0, h, 0), wall))
-  solid(p, b, b.w * 0.35, b.d * 0.35, h, h + 3.2)
-  clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, 0.35)
+  // A podium's roof is a terrace under its tower: no stair core in the middle.
+  const core = b.podium ? 0 : 0.35
+  if (core) {
+    p.trim.push(tinted(box(b, b.w * core, 3.2, b.d * core, 0, h, 0), wall))
+    solid(p, b, b.w * core, b.d * core, h, h + 3.2)
+  }
+  if (!b.podium) clutter(b, p, h + 0.12, b.w - 0.6, b.d - 0.6, core)
 }
 
 function glassParts(b: Building, p: Parts, wall: number) {
   const fh = FLOOR_H.glass
   const h = b.floors * fh
+  const y0 = b.base * fh
   const setback = b.floors >= 25 && b.seed % 2 === 0 && b.w > 18 && b.d > 18
   const split = setback ? Math.round(b.floors * 0.6) * fh : h
-  p.facade.glass.push(tinted(walls(b, b.w, b.d, 0, split), wall))
-  solid(p, b, b.w, b.d, 0, split)
-  plinth(b, p, b.w, b.d, 0x5a5c5e)
+  p.facade.glass.push(tinted(walls(b, b.w, b.d, y0, split), wall))
+  solid(p, b, b.w, b.d, y0, split)
+  if (!b.base) plinth(b, p, b.w, b.d, 0x5a5c5e)
   let [w, d] = [b.w, b.d]
   if (setback) {
     crownParts(b, p, w, d, split, 0xe8e8e4)
@@ -148,6 +156,8 @@ function glassParts(b: Building, p: Parts, wall: number) {
     p.facade.glass.push(tinted(walls(b, w, d, split, h), wall))
     solid(p, b, w, d, split, h)
   }
+  // A podium's roof is a terrace with a parapet; its tower (another building) stands on it.
+  if (b.podium) return crownParts(b, p, w, d, h, 0xe8e8e4)
   p.trim.push(tinted(box(b, w + 0.4, 1.6, d + 0.4, 0, h, 0), 0xdedfdd))
   solid(p, b, w + 0.4, d + 0.4, h, h + 1.6)
   p.trim.push(tinted(box(b, w * 0.4, 4, d * 0.4, 0, h + 1.6, 0), 0xdedfdd))

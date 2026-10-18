@@ -1,19 +1,25 @@
-import { buildingsFor, type Building } from './lots'
+import { buildingsFor, type Building, type Parcels } from './lots'
 import { greenery, type Grounded, type Spot } from './greenery'
 import { pick, rng } from './rng'
+import { buildNetwork, type Network } from './network'
+import { faceOutline, type Outline, type SideKind } from './faces'
+import { area, bounds, centroid, insetRing, type Ring } from './polygon'
+import { streetPlan } from './street-plan'
+import { CANAL_HALF, SECTION } from './streets'
+import { canalBridges, type Bridge } from './canal-bridge'
+import { promenadeLawns } from './promenade'
+import { junctionPlans, type JunctionPlan } from './junctions'
+import { medians as mediansOf, type Median } from './medians'
+import { drivewaysOf, type Driveway } from './parking-lots'
 
 /*
- * Seeded city plan: pure data, no three.js. The renderer and physics both read
- * it, so what you see is exactly what you collide with. Everything is derived
- * from `size`, so a 2 km map is generateCity(seed, 2000).
+ * Seeded city plan: pure data, no three.js. The renderer and physics both read it, so what
+ * you see is exactly what you collide with. Streets are drawn by hand (street-plan.ts) and
+ * become a planar network; its faces are the blocks with their sidewalks and lots, the
+ * paved walks along the city's edge and the beach, and small traffic islands.
  */
 
-export const PITCH = 100
-export const ROAD_HALF = 8
-export const SIDEWALK = 4
-export const EDGE_WALK = 6
-export const BEACH_WALK = 8
-export const CANAL_HALF = 14
+export { CANAL_HALF }
 export const SEA_LEVEL = -1.2
 export const CURB_H = 0.15
 
@@ -26,41 +32,48 @@ export interface Rect {
 
 export type District = 'downtown' | 'midtown' | 'deco' | 'beachfront'
 
-export interface Block {
-  rect: Rect
-  lot: Rect
-  district: District
-  park: boolean
-  /** Which side of the block faces the canal, if any. Lights and curbs skip it. */
-  canalSide: 'west' | 'east' | null
-  buildings: Building[]
-  /** Empty lot cells planted as small lawns with palms. */
-  gardens: Rect[]
+/** A raised paved face: its curb line, what lies beyond each piece of it, and its bounds. */
+export interface Face {
+  curb: Ring
+  sides: SideKind[]
+  /** Network segment beyond each piece of the curb, -1 on corners. */
+  segs: number[]
+  box: Rect
 }
 
-/** A road centerline. `axis` is the direction it runs; `at` is its x (z-roads) or z (x-roads). */
-export interface Road {
-  axis: 'x' | 'z'
-  at: number
-  from: number
-  to: number
+export interface Block extends Face, Parcels {
+  /** The lot line: the curb moved in by the sidewalk. */
+  lot: Ring
+  lotSides: SideKind[]
+  district: District
+  park: boolean
 }
 
 export interface CityLayout {
   seed: number
   size: number
-  xRoads: number[]
-  zRoads: number[]
-  roads: Road[]
+  net: Network
   blocks: Block[]
-  /** Paved strips with no buildings: the island edge walks and the beach promenade. */
-  walks: Rect[]
-  /** Outer edge of the paved island; terrain and sand start here. */
+  /** Paved faces with no lots: the edge walks and the beach promenade. */
+  walks: Face[]
+  /** Small planted islands left between crossing streets. */
+  islands: Face[]
+  /** Outer edge of the paved city; terrain and sand start here. */
   land: Rect
   canal: Rect
+  /** Streets that hump over the canal. */
+  bridges: Bridge[]
+  /** Lawn strips in the beach promenade. */
+  promenade: Ring[]
+  /** Planted medians down the avenues. */
+  medians: Median[]
+  /** How each junction works: traffic control, and where each street's mouth is. */
+  junctions: JunctionPlan[]
   palms: Spot[]
   bushes: Spot[]
   lights: Spot[]
+  /** Curb cuts into parking lots and garages. */
+  driveways: Driveway[]
   spawn: { x: number; z: number }
 }
 
@@ -73,149 +86,110 @@ export const inset = (r: Rect, by: number): Rect => ({
   z1: r.z1 - by,
 })
 
-function ticks(from: number, to: number, step: number): number[] {
-  const out: number[] = []
-  for (let v = from; v <= to + 1e-6; v += step) out.push(v)
-  return out
+/** Palms and lamps a car's width either side of a driveway are left out. */
+function clearOfDriveways<T extends Record<string, Spot[]>>(g: T, cuts: Driveway[]): T {
+  const free = (p: Spot) => cuts.every((d) => Math.hypot(p.x - d.x, p.z - d.z) > d.w / 2 + 2.5)
+  return Object.fromEntries(Object.entries(g).map(([k, list]) => [k, list.filter(free)])) as T
 }
 
-function district(cx: number, isBeachfront: boolean, size: number): District {
-  if (isBeachfront) return 'beachfront'
-  if (cx > 0) return 'deco'
-  return cx > -size * 0.25 ? 'midtown' : 'downtown'
+/** Islands: faces too small for a lot. */
+const ISLAND_AREA = 400
+
+function district(o: Outline, net: Network): District {
+  const coast = o.segs.some((s) => s >= 0 && net.lines[net.segments[s].line].name === 'coast road')
+  if (coast) return 'beachfront'
+  const { x } = centroid(o.ring)
+  if (x > 0) return 'deco'
+  return x > -250 ? 'midtown' : 'downtown'
 }
 
-/** One block per grid cell; the canal column splits into a west and an east half. */
-function gridBlocks(xRoads: number[], zRoads: number[], canal: Rect, size: number) {
-  const blocks: Omit<Block, 'buildings' | 'gardens' | 'park'>[] = []
-  const last = xRoads.length - 2
-  for (let i = 0; i <= last; i++) {
-    for (let j = 0; j < zRoads.length - 1; j++) {
-      const rect = {
-        x0: xRoads[i] + ROAD_HALF,
-        z0: zRoads[j] + ROAD_HALF,
-        x1: xRoads[i + 1] - ROAD_HALF,
-        z1: zRoads[j + 1] - ROAD_HALF,
-      }
-      const d = district((rect.x0 + rect.x1) / 2, i === last, size)
-      const split = rect.x0 < canal.x0 && rect.x1 > canal.x1
-      const halves: [Rect, Block['canalSide']][] = split
-        ? [
-            [{ ...rect, x1: canal.x0 }, 'east'],
-            [{ ...rect, x0: canal.x1 }, 'west'],
-          ]
-        : [[rect, null]]
-      for (const [r, canalSide] of halves) {
-        blocks.push({ rect: r, lot: inset(r, SIDEWALK), district: d, canalSide })
-      }
+type Plain = Omit<Block, 'buildings' | 'gardens' | 'plazas' | 'parking' | 'park'>
+
+/** Curb and lot outlines for every face, sorted into blocks, walks, and islands. */
+function sortFaces(net: Network) {
+  const blocks: Plain[] = []
+  const walks: Face[] = []
+  const islands: Face[] = []
+  for (const f of net.faces) {
+    const curb = faceOutline(net, f, (k) => SECTION[k].half, true)
+    const face: Face = {
+      curb: curb.ring,
+      sides: curb.sides,
+      segs: curb.segs,
+      box: bounds(curb.ring),
+    }
+    if (curb.sides.includes('edge')) walks.push(face)
+    else if (area(curb.ring) < ISLAND_AREA) islands.push(face)
+    else {
+      const lot = faceOutline(net, f, (k) => SECTION[k].half + SECTION[k].walk, false)
+      blocks.push({ ...face, lot: lot.ring, lotSides: lot.sides, district: district(curb, net) })
     }
   }
-  return blocks
+  return { blocks, walks, islands }
 }
 
-/** Roads that leave the city: x-roads at these z continue west, and the beach road north and south. */
-export interface Exits {
-  west: number[]
-  beach: boolean
-}
-
-function roadsFor(xRoads: number[], zRoads: number[], land: Rect, exits: Exits): Road[] {
-  const xs = [xRoads[0] - ROAD_HALF, xRoads[xRoads.length - 1] + ROAD_HALF]
-  const zs = [zRoads[0] - ROAD_HALF, zRoads[zRoads.length - 1] + ROAD_HALF]
-  const beach = xRoads[xRoads.length - 1]
-  return [
-    ...xRoads.map((at): Road => {
-      const out = exits.beach && at === beach
-      return { axis: 'z', at, from: out ? land.z0 : zs[0], to: out ? land.z1 : zs[1] }
-    }),
-    ...zRoads.map((at): Road => ({
-      axis: 'x',
-      at,
-      from: exits.west.includes(at) ? land.x0 : xs[0],
-      to: xs[1],
-    })),
-  ]
-}
-
-/** Cuts gaps of a road's width out of a strip running along `axis`, at each of `cuts`. */
-function split(r: Rect, axis: 'x' | 'z', cuts: number[]): Rect[] {
-  const [lo, hi] = axis === 'x' ? (['x0', 'x1'] as const) : (['z0', 'z1'] as const)
-  const out: Rect[] = []
-  let from = r[lo]
-  for (const c of [...cuts].sort((a, b) => a - b)) {
-    out.push({ ...r, [lo]: from, [hi]: c - ROAD_HALF })
-    from = c + ROAD_HALF
-  }
-  out.push({ ...r, [lo]: from, [hi]: r[hi] })
-  return out
-}
-
-/** The strip with the canal's width taken out where the canal runs through it. */
-const pastCanal = (r: Rect, canal: Rect): Rect[] =>
-  r.x0 < canal.x0 && r.x1 > canal.x1
-    ? [
-        { ...r, x1: canal.x0 },
-        { ...r, x0: canal.x1 },
-      ]
-    : [r]
-
-function walksFor(land: Rect, xRoads: number[], zRoads: number[], exits: Exits, canal: Rect) {
-  const west = xRoads[0] - ROAD_HALF
-  const east = xRoads[xRoads.length - 1] + ROAD_HALF
-  const north = zRoads[0] - ROAD_HALF
-  const south = zRoads[zRoads.length - 1] + ROAD_HALF
-  const beach = exits.beach ? [xRoads[xRoads.length - 1]] : []
-  const edges = [
-    ...split({ x0: west, x1: east, z0: land.z0, z1: north }, 'x', beach),
-    ...split({ x0: west, x1: east, z0: south, z1: land.z1 }, 'x', beach),
-  ]
-  return [
-    ...split({ ...land, x1: west }, 'z', exits.west),
-    { ...land, x0: east },
-    ...edges.flatMap((r) => pastCanal(r, canal)),
-  ]
-}
-
-/** The canal runs north-south down the middle of the second block column, out through both city edges. */
-function canalRect(land: Rect): Rect {
-  const cx = PITCH / 2
+/** The canal runs north-south down the middle of the column east of x = 0, out through both city edges. */
+function canalRect(land: Rect, k: number): Rect {
+  const cx = 50 * k
   return { x0: cx - CANAL_HALF, x1: cx + CANAL_HALF, z0: land.z0, z1: land.z1 }
 }
 
-export function generateCity(
-  seed = 7,
-  size = 1000,
-  exits: Exits = { west: [], beach: false },
-): CityLayout {
+export function generateCity(seed = 7, size = 1000): CityLayout {
   const r = rng(seed)
   const half = size / 2
-  const beachRoad = half - 150
-  const xRoads = [...ticks(-half, beachRoad - PITCH / 2, PITCH), beachRoad]
-  const zRoads = ticks(-half, half, PITCH)
-  const land = {
-    x0: xRoads[0] - ROAD_HALF - EDGE_WALK,
-    x1: beachRoad + ROAD_HALF + BEACH_WALK,
-    z0: zRoads[0] - ROAD_HALF - EDGE_WALK,
-    z1: zRoads[zRoads.length - 1] + ROAD_HALF + EDGE_WALK,
-  }
-  const canal = canalRect(land)
-  const plain = gridBlocks(xRoads, zRoads, canal, size)
-  const parkable = plain.filter((b) => !b.canalSide && b.district !== 'beachfront')
+  const k = half / 500
+  const beachX = half - 150 * k
+  const land = { x0: -half - 14, x1: beachX + 16, z0: -half - 14, z1: half + 14 }
+  const canal = canalRect(land, k)
+  const net = buildNetwork(streetPlan(half, land, canal, beachX))
+  const sorted = sortFaces(net)
+  const parkable = sorted.blocks.filter(
+    (b) => !b.sides.includes('canal') && b.district !== 'beachfront' && area(b.lot) < 9000,
+  )
   // Duplicate picks collapse, so this makes at most round(size / 350) parks.
   const parks = new Set(Array.from({ length: Math.round(size / 350) }, () => pick(r, parkable)))
-  const blocks: Block[] = plain.map((b) => {
+  const blocks: Block[] = sorted.blocks.map((b) => {
     const park = parks.has(b)
-    const lots = park ? { buildings: [], gardens: [] } : buildingsFor(b.lot, b.district, r)
+    const lots = park ? { buildings: [], gardens: [], plazas: [], parking: [] } : buildingsFor(b, r)
     return { ...b, park, ...lots }
   })
-  const walks = walksFor(land, xRoads, zRoads, exits, canal)
-  const roads = roadsFor(xRoads, zRoads, land, exits)
-  const layout = { seed, size, xRoads, zRoads, roads, blocks, walks }
-  return {
-    ...layout,
+  const coast = net.lines.find((l) => l.name === 'coast road')!.pts
+  const promenade = promenadeLawns(coast, land)
+  const junctions = junctionPlans(net)
+  const medians = mediansOf(net, junctions)
+  const plan = {
+    blocks,
+    walks: sorted.walks,
+    islands: sorted.islands,
+    promenade,
+    medians,
     land,
-    canal,
-    ...greenery({ ...layout, land }, r),
-    spawn: { x: beachRoad + ROAD_HALF + 3, z: 40 },
+    net,
   }
+  const driveways = blocks.flatMap(drivewaysOf)
+  const spawnZ = 40 * k
+  const coastX = coast.reduce((a, p) => (Math.abs(p.z - spawnZ) < Math.abs(a.z - spawnZ) ? p : a)).x
+  return {
+    seed,
+    size,
+    ...plan,
+    junctions,
+    canal,
+    bridges: canalBridges(net, canal),
+    ...clearOfDriveways(greenery(plan, r), driveways),
+    driveways,
+    spawn: { x: coastX + SECTION.avenue.half + 3, z: spawnZ },
+  }
+}
+
+/** Every lawn a step above the sidewalk: medians, parks, gardens, traffic islands, and the promenade's strips. */
+export function lawnsOf(
+  c: Pick<CityLayout, 'blocks' | 'islands' | 'promenade' | 'medians'>,
+): Ring[] {
+  return [
+    ...c.medians.map((m) => insetRing(m.ring, 0.3)),
+    ...c.blocks.flatMap((b) => (b.park ? [b.lot] : b.gardens)),
+    ...c.islands.map((f) => insetRing(f.curb, 0.3)),
+    ...c.promenade,
+  ]
 }

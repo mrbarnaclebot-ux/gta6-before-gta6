@@ -1,4 +1,6 @@
-import { ROAD_HALF, type CityLayout, type Rect } from './layout'
+import type { Rect } from './layout'
+import type { Network } from './network'
+import { SECTION } from './streets'
 
 /*
  * Where the city's streets cross the canal they hump over it on short bridges, high enough
@@ -12,7 +14,23 @@ export const HUMP = { top: 1.65, over: 2, ramp: 22 }
 /** Deck thickness under the road over the water. */
 export const DECK = 0.5
 
-type Canal = Pick<CityLayout, 'canal' | 'zRoads'>
+/** A street crossing the canal east to west: its z and half width. */
+export interface Bridge {
+  z: number
+  half: number
+}
+
+/** Every street that crosses the canal, from the network's junctions on the canal's line. */
+export function canalBridges(net: Network, canal: Rect): Bridge[] {
+  const out: Bridge[] = []
+  for (const j of net.junctions) {
+    if (j.x < canal.x0 || j.x > canal.x1) continue
+    const roads = j.segs.map((s) => net.segments[s]).filter((s) => SECTION[s.kind].speed > 0)
+    if (roads.length)
+      out.push({ z: j.z, half: Math.max(...roads.map((s) => SECTION[s.kind].half)) })
+  }
+  return out.sort((a, b) => a.z - b.z)
+}
 
 /** The stretch of x the humps cover, ramps included. */
 export const humpSpan = (canal: Rect) => ({
@@ -29,9 +47,14 @@ export function humpRise(canal: Rect, x: number): number {
   return HUMP.top * (0.5 + 0.5 * Math.cos((Math.PI * d) / HUMP.ramp))
 }
 
-/** The street's surface height at (x, z): up on a hump where an x-road crosses the canal, else 0. */
-export function roadRise(c: Canal, x: number, z: number): number {
+/** The bridge whose deck covers (x, z), if any. */
+export function bridgeAt(c: { canal: Rect; bridges: Bridge[] }, x: number, z: number) {
   const span = humpSpan(c.canal)
-  if (x <= span.x0 || x >= span.x1) return 0
-  return c.zRoads.some((at) => Math.abs(z - at) < ROAD_HALF) ? humpRise(c.canal, x) : 0
+  if (x <= span.x0 || x >= span.x1) return null
+  return c.bridges.find((b) => Math.abs(z - b.z) < b.half) ?? null
+}
+
+/** The street's surface height at (x, z): up on a hump where a street crosses the canal, else 0. */
+export function roadRise(c: { canal: Rect; bridges: Bridge[] }, x: number, z: number): number {
+  return bridgeAt(c, x, z) ? humpRise(c.canal, x) : 0
 }

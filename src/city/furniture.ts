@@ -1,4 +1,5 @@
-import { CURB_H, type CityLayout, type Rect } from './layout'
+import { CURB_H, type CityLayout } from './layout'
+import { onRun, runs } from './curbs'
 import { rng } from './rng'
 
 /*
@@ -20,9 +21,6 @@ export interface Furniture {
   v: number
 }
 
-type Edge = 'x0' | 'x1' | 'z0' | 'z1'
-const EDGES: Edge[] = ['x0', 'x1', 'z0', 'z1']
-const OUTWARD: Record<Edge, number> = { x0: -Math.PI / 2, x1: Math.PI / 2, z0: Math.PI, z1: 0 }
 /**
  * Meters from the curb: curbside things, things that face the street from the back, and the
  * bus shelter (1.7 m deep). All stay curbward of the people walking 3 m in (life/places.ts).
@@ -53,14 +51,7 @@ function plan(len: number, r: () => number, busy: boolean): [FurnitureKind, numb
   return out
 }
 
-/** Point `along` meters down an edge of `rect`, `inward` meters in from the curb. */
-function at(rect: Rect, e: Edge, along: number, inward: number) {
-  const sign = e[1] === '0' ? 1 : -1
-  const fixed = rect[e] + sign * inward
-  return e[0] === 'z' ? { x: rect.x0 + along, z: fixed } : { x: fixed, z: rect.z0 + along }
-}
-
-/** Street furniture on every block's sidewalks, kept clear of `avoid` (palms and lights). */
+/** Street furniture on every block's sidewalks, kept clear of `avoid` (palms, lights, driveways). */
 export function furnitureFor(c: CityLayout, avoid: { x: number; z: number }[]): Furniture[] {
   const r = rng(c.seed * 31 + 5)
   const clear = (p: { x: number; z: number }, d: number) =>
@@ -68,15 +59,13 @@ export function furnitureFor(c: CityLayout, avoid: { x: number; z: number }[]): 
   const out: Furniture[] = []
   for (const b of c.blocks) {
     const busy = b.district === 'downtown' || b.district === 'midtown'
-    for (const e of EDGES) {
-      const canal = (b.canalSide === 'east' && e === 'x1') || (b.canalSide === 'west' && e === 'x0')
-      const len = e[0] === 'z' ? b.rect.x1 - b.rect.x0 : b.rect.z1 - b.rect.z0
-      if (canal || len < 30) continue
-      for (const [kind, along] of plan(len, r, busy)) {
+    for (const run of runs(b)) {
+      if ((run.kind !== 'street' && run.kind !== 'avenue') || run.length < 30) continue
+      for (const [kind, along] of plan(run.length, r, busy)) {
         const back = kind === 'bench' || kind === 'bin' || kind === 'news'
-        const p = at(b.rect, e, along, kind === 'bus' ? SHELTER : back ? BACK : CURBSIDE)
+        const p = onRun(run, along, kind === 'bus' ? SHELTER : back ? BACK : CURBSIDE)
         if (!clear(p, kind === 'bus' ? SHELTER_CLEAR : KEEP_CLEAR)) continue
-        out.push({ kind, ...p, y: CURB_H, r: OUTWARD[e], v: Math.floor(r() * 4) })
+        out.push({ kind, x: p.x, y: CURB_H, z: p.z, r: p.yaw, v: Math.floor(r() * 4) })
       }
     }
   }

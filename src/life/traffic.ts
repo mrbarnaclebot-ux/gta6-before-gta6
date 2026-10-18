@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import type { CityLayout } from '../city/layout'
 import { rng } from '../city/rng'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
@@ -8,16 +7,17 @@ import { CAR_SPECS } from '../vehicle/car-specs'
 import { laneGraph, type LaneEdge } from '../land/lane-graph'
 import type { Land } from '../land/plan'
 import { canJack, driverWaits } from './carjack-rules'
-import { highwayStart } from './highway-traffic'
-import { gridStart, randomHeading } from './lanes'
+import { laneStart } from './highway-traffic'
+import { cityLaneGraph } from './city-lane-graph'
 import { stopLimit, type Obstacle } from './stopping'
 import { TrafficCar } from './traffic-car'
 
 export type { Obstacle }
 
-// ponytail: ten cars kept within 220 m of the player, no traffic lights; intersections
-// work on "stop for whatever is in front". Lights and a density map can come later.
-const COUNT = 10
+// ponytail: a dozen cars kept within 220 m of the player; a density map per district can
+// come later. Junctions: lights and stop signs (the lane's stop waypoint), then "stop for
+// whatever is in front".
+const COUNT = 12
 // Every third car is a police cruiser: a patrol, not a pursuit.
 const POLICE_EVERY = 3
 const NEAR = 60
@@ -53,7 +53,7 @@ export class Traffic {
   readonly cars: TrafficCar[]
   private readonly stuck: number[]
   private readonly ignoring: number[]
-  private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads' | 'canal'>
+  private readonly city: LaneEdge[]
   private readonly highway: LaneEdge[]
   private readonly r = rng(4242)
   private readonly others: Obstacle[] = []
@@ -67,7 +67,7 @@ export class Traffic {
     private readonly make: CarFactory,
     private readonly onShot: () => void,
   ) {
-    this.grid = layout
+    this.city = cityLaneGraph(layout)
     const hw = layout.paths.find((p) => p.kind === 'highway')!
     this.highway = laneGraph(
       hw,
@@ -189,10 +189,7 @@ export class Traffic {
   private spawn(car: TrafficCar, focus: THREE.Vector3, view: THREE.Vector3, first: boolean): void {
     for (let tries = 0; tries < 24; tries++) {
       // Every other try is on the highway: near it, those are the ones that land in range.
-      const p =
-        tries % 2
-          ? highwayStart(this.highway, this.r)
-          : gridStart(this.grid, randomHeading(this.grid, this.r), this.r)
+      const p = tries % 2 ? laneStart(this.highway, this.r) : laneStart(this.city, this.r)
       const dx = p.x - focus.x
       const dz = p.z - focus.z
       const d = Math.hypot(dx, dz)

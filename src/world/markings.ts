@@ -1,101 +1,171 @@
 import * as THREE from 'three'
-import { humpRise, humpSpan } from '../city/canal-bridge'
-import { ROAD_HALF, type CityLayout, type Rect, type Road } from '../city/layout'
+import { segLength } from '../city/faces'
+import { CROSSWALK, endOf, type JunctionPlan } from '../city/junctions'
+import { CURB_H, type CityLayout } from '../city/layout'
+import type { Segment } from '../city/network'
+import { bayLines } from '../city/parking-lots'
+import { BAY_LENGTH, curbBays } from '../city/parking'
+import { closest } from '../land/polyline'
+import { AVENUE, SECTION, STREET } from '../city/streets'
+import type { Land } from '../land/plan'
 import { wornPaint } from '../render/road-wear'
 import type { WorldCtx } from './blocks'
+import { AHEAD, LEFT, Paint } from './paint'
+
+/*
+ * The city's road paint, one draw call: double yellow center lines, dashed lane lines on the
+ * avenues, the left-turn lane where each median gives way, turn and straight arrows, stop
+ * bars at lights and stop signs, zebra crosswalks, parking-lane lines with bay ticks, and
+ * the bays in the parking lots.
+ */
 
 const WHITE = new THREE.Color(0xe8e6df)
 const YELLOW = new THREE.Color(0xd9a520)
-const LANE = 3.6
-const EDGE = ROAD_HALF - 0.6
-const CROSSWALK = 4
+const LINE = 0.12
 
-/** Road-local rect: u along the road, v across it (offset from the centerline). */
-type Quad = [u0: number, u1: number, v0: number, v1: number, color: THREE.Color]
+type City = Land
 
-function dashes(a: number, b: number, v: number, out: Quad[]) {
-  for (let u = a + 1.5; u + 3 <= b; u += 9) out.push([u, u + 3, v - 0.07, v + 0.07, WHITE])
-}
+const held = (p: JunctionPlan) => p.control === 'signal' || p.control === 'stop'
 
-/** Paint for one stretch of road between two intersections, right-hand traffic. */
-function segment(a: number, b: number, axis: Road['axis']): Quad[] {
-  const out: Quad[] = []
-  const s = a + CROSSWALK + 1
-  const e = b - CROSSWALK - 1
-  out.push([s, e, -0.22, -0.1, YELLOW], [s, e, 0.1, 0.22, YELLOW])
-  out.push([s, e, -EDGE - 0.08, -EDGE + 0.08, WHITE], [s, e, EDGE - 0.08, EDGE + 0.08, WHITE])
-  for (const v of [-LANE, LANE]) dashes(s, e, v, out)
-  for (let v = -EDGE + 0.4; v < EDGE - 0.3; v += 1.2) {
-    out.push(
-      [a + 0.6, a + CROSSWALK, v, v + 0.6, WHITE],
-      [b - CROSSWALK, b - 0.6, v, v + 0.6, WHITE],
-    )
+/** Where paint along the segment starts and ends: past the stop bars, or right at a plain junction. */
+function paintSpan(c: CityLayout, seg: number): [number, number] {
+  const at = (start: boolean) => {
+    const s = c.net.segments[seg]
+    const plan = c.junctions[start ? s.a : s.b]
+    const end = endOf(c.junctions, c.net, seg, start)
+    return held(plan) ? end.mouth + CROSSWALK.bar + CROSSWALK.barWidth : end.mouth
   }
-  // Stop lines cover only the lanes arriving at each end.
-  const startIn = axis === 'x' ? -1 : 1
-  out.push([s - 0.5, s, Math.min(0, startIn * EDGE), Math.max(0, startIn * EDGE), WHITE])
-  out.push([e, e + 0.5, Math.min(0, -startIn * EDGE), Math.max(0, -startIn * EDGE), WHITE])
-  return out
+  return [at(true), segLength(c.net.segments[seg]) - at(false)]
 }
 
-function quadsFor(road: Road, cross: number[]): Quad[] {
-  const stops = cross.filter((c) => c > road.from && c < road.to)
-  const out: Quad[] = []
-  for (let i = 0; i + 1 < stops.length; i++) {
-    out.push(...segment(stops[i] + ROAD_HALF, stops[i + 1] - ROAD_HALF, road.axis))
-  }
-  return out
-}
-
-/** Paint on an x-road over the canal's hump, cut into meter pieces so it follows the rise. */
-function onHumps(quads: { road: Road; q: Quad }[], canal: Rect) {
-  const span = humpSpan(canal)
-  return quads.flatMap(({ road, q }) => {
-    const [u0, u1, v0, v1, color] = q
-    if (road.axis !== 'x' || u1 <= span.x0 || u0 >= span.x1) return [{ road, q }]
-    const n = Math.ceil(u1 - u0)
-    return Array.from({ length: n }, (_, i) => ({
-      road,
-      q: [u0 + ((u1 - u0) * i) / n, u0 + ((u1 - u0) * (i + 1)) / n, v0, v1, color] as Quad,
-    }))
-  })
-}
-
-function toGeometry(quads: { road: Road; q: Quad }[], canal: Rect): THREE.BufferGeometry {
-  const pos = new Float32Array(quads.length * 12)
-  const col = new Float32Array(quads.length * 12)
-  const idx: number[] = []
-  quads.forEach(({ road, q: [u0, u1, v0, v1, color] }, i) => {
-    const corners = [
-      [u0, v0],
-      [u1, v0],
-      [u1, v1],
-      [u0, v1],
-    ]
-    corners.forEach(([u, v], k) => {
-      const [x, z] = road.axis === 'x' ? [u, road.at + v] : [road.at + v, u]
-      const rise = road.axis === 'x' ? humpRise(canal, x) : 0
-      pos.set([x, 0.004 + rise, z], (i * 4 + k) * 3)
-      color.toArray(col, (i * 4 + k) * 3)
-    })
-    const o = i * 4
-    // Wind counter-clockwise seen from above whichever way u and v map to x and z.
-    if (road.axis === 'x') idx.push(o, o + 2, o + 1, o, o + 3, o + 2)
-    else idx.push(o, o + 1, o + 2, o, o + 2, o + 3)
-  })
-  const geo = new THREE.BufferGeometry()
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  geo.setIndex(idx)
-  geo.computeVertexNormals()
-  return geo
-}
-
-/** Lane lines, center lines, crosswalks, and stop lines for every road, in one draw call. */
-export function buildMarkings(ctx: WorldCtx, c: CityLayout): void {
-  const quads = c.roads.flatMap((road) =>
-    quadsFor(road, road.axis === 'x' ? c.xRoads : c.zRoads).map((q) => ({ road, q })),
+/** Zebra bars across the street and the stop bar over the lanes arriving, at one end. */
+function crossing(
+  p: Paint,
+  c: CityLayout,
+  seg: number,
+  start: boolean,
+  line: Segment['pts'],
+  len: number,
+) {
+  const s = c.net.segments[seg]
+  const half = SECTION[s.kind].half - 0.6
+  const m = endOf(c.junctions, c.net, seg, start).mouth
+  // u runs a to b; at the start the crosswalk lies at small u, at the end near len.
+  const u = (d: number) => (start ? d : len - d)
+  const [c0, c1] = [u(m + CROSSWALK.from), u(m + CROSSWALK.to)].sort((a, b) => a - b)
+  for (let v = -half; v + 0.5 <= half; v += 1.1) p.band(line, c0, c1, v, v + 0.55, WHITE)
+  const [b0, b1] = [u(m + CROSSWALK.bar), u(m + CROSSWALK.bar + CROSSWALK.barWidth)].sort(
+    (a, b) => a - b,
   )
+  // Arriving traffic at the end drives a to b (driver's right is +v); at the start, b to a.
+  const inner = s.kind === 'avenue' ? AVENUE.turn - 1.65 : 0
+  if (start) p.band(line, b0, b1, -half, -inner, WHITE)
+  else p.band(line, b0, b1, inner, half, WHITE)
+}
+
+/** Center line, lane lines, and turn lanes of an avenue segment. */
+function avenue(
+  p: Paint,
+  c: City,
+  seg: number,
+  line: Segment['pts'],
+  u0: number,
+  u1: number,
+  step: number,
+) {
+  const median = c.medians.find((m) => m.seg === seg)
+  for (const s of [1, -1]) p.dashes(line, u0, u1, s * 5.3, LINE, 3, 9, WHITE)
+  const bayA = median ? median.s0 : (u0 + u1) / 2
+  const bayB = median ? median.s1 : (u0 + u1) / 2
+  const s = c.net.segments[seg]
+  // Near the end the a-to-b traffic has the turn lane (v from -1.3 to 2); near the start, b-to-a.
+  const ends: [boolean, number, number, 1 | -1][] = [
+    [held(c.junctions[s.b]), bayB, u1, 1],
+    [held(c.junctions[s.a]), u0, bayA, -1],
+  ]
+  for (const [stops, from, to, k] of ends) {
+    if (to - from < 0.5) continue
+    if (!stops) {
+      p.band(line, from, to, -0.18, -0.06, YELLOW, step)
+      p.band(line, from, to, 0.06, 0.18, YELLOW, step)
+      continue
+    }
+    p.band(line, from, to, k * -1.36, k * -1.24, YELLOW, step)
+    p.band(line, from, to, k * 2.0, k * 2.12, WHITE, step)
+    if (to - from < 8) continue
+    const u = k > 0 ? to - 6 : from + 6
+    p.glyph(line, u, k * AVENUE.turn, k > 0 ? LEFT : turned(LEFT), WHITE)
+    p.glyph(line, u, k * AVENUE.lanes[1], k > 0 ? AHEAD : turned(AHEAD), WHITE)
+  }
+}
+
+/** A glyph turned round, for traffic going the other way. */
+const turned = (g: [number, number][][]) =>
+  g.map((t) => t.map(([du, dv]) => [-du, -dv] as [number, number]))
+
+/** Double yellow, the parking lanes' lines, and a tick at each end of every bay. */
+function street(
+  p: Paint,
+  c: City,
+  seg: number,
+  line: Segment['pts'],
+  u0: number,
+  u1: number,
+  step: number,
+) {
+  p.band(line, u0, u1, -0.18, -0.06, YELLOW, step)
+  p.band(line, u0, u1, 0.06, 0.18, YELLOW, step)
+  for (const side of [1, -1] as const) {
+    const bays = curbBays(c, seg, side)
+    if (!bays.length) continue
+    const v = side * (STREET.lane * 2 + 0.05)
+    const curb = side * (SECTION.street.half - 0.5)
+    const us = bays.map((b) => closest(line, b).s).sort((a, b) => a - b)
+    p.band(
+      line,
+      us[0] - BAY_LENGTH / 2,
+      us[us.length - 1] + BAY_LENGTH / 2,
+      v - LINE / 2,
+      v + LINE / 2,
+      WHITE,
+      step,
+    )
+    const ticks = [
+      us[0] - BAY_LENGTH / 2,
+      ...us.slice(1).map((u, k) => (u + us[k]) / 2),
+      us[us.length - 1] + BAY_LENGTH / 2,
+    ]
+    for (const u of ticks)
+      p.band(line, u - LINE / 2, u + LINE / 2, Math.min(v, curb), Math.max(v, curb), WHITE)
+  }
+}
+
+/** Paint for every street segment and every parking lot. */
+function paintAll(c: City): THREE.BufferGeometry {
+  const p = new Paint(c)
+  c.net.segments.forEach((s, seg) => {
+    if (s.kind !== 'avenue' && s.kind !== 'street') return
+    const len = segLength(s)
+    const [u0, u1] = paintSpan(c, seg)
+    const onCanal = (j: number) =>
+      c.net.junctions[j].segs.some((k) => c.net.segments[k].kind === 'canal')
+    // Over a canal hump the paint must follow the rise closely.
+    const step = onCanal(s.a) || onCanal(s.b) ? 1 : 4
+    if (u1 > u0) (s.kind === 'avenue' ? avenue : street)(p, c, seg, s.pts, u0, u1, step)
+    if (held(c.junctions[s.a])) crossing(p, c, seg, true, s.pts, len)
+    if (held(c.junctions[s.b])) crossing(p, c, seg, false, s.pts, len)
+  })
+  // Lots stand on the block, at the curb's height and a hair over their asphalt.
+  p.base = CURB_H + 0.004
+  for (const lot of c.blocks.flatMap((b) => b.parking)) {
+    for (const [a, b] of bayLines(lot))
+      p.band([a, b], 0, Math.hypot(b.x - a.x, b.z - a.z), -0.06, 0.06, WHITE)
+  }
+  return p.geometry()
+}
+
+/** Every painted line in the city, in one draw call. */
+export function buildMarkings(ctx: WorldCtx, c: City): void {
   const material = wornPaint(
     new THREE.MeshStandardMaterial({
       vertexColors: true,
@@ -105,7 +175,8 @@ export function buildMarkings(ctx: WorldCtx, c: CityLayout): void {
       polygonOffsetUnits: -2,
     }),
   )
-  const mesh = new THREE.Mesh(toGeometry(onHumps(quads, c.canal), c.canal), material)
+  const mesh = new THREE.Mesh(paintAll(c), material)
   mesh.receiveShadow = true
+  mesh.matrixAutoUpdate = false
   ctx.scene.add(mesh)
 }

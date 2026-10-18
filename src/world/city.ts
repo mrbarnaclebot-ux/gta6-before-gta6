@@ -29,6 +29,7 @@ import { buildGround } from './ground'
 import { buildHospitalSigns } from './hospital-signs'
 import { ROOM_LIGHT } from './interior'
 import { buildMarkings } from './markings'
+import { buildSignals } from './signals'
 import { buildBillboards } from './billboards'
 import { buildFurniture } from './furniture'
 import { buildNeon } from './neon'
@@ -67,7 +68,8 @@ export interface City {
 
 function landmarks(c: Land): Record<string, Point> {
   const at = (x: number, z: number, lift = 0) => ({ x, y: surfaceAt(c, x, z) + lift, z })
-  const mid = c.zRoads[Math.floor(c.zRoads.length / 2)]
+  // The city's middle street is at z = 0.
+  const mid = 0
   const tall = c.blocks
     .filter((b) => b.district === 'beachfront')
     .flatMap((b) => b.buildings)
@@ -76,7 +78,8 @@ function landmarks(c: Land): Record<string, Point> {
     ...outerLandmarks(c),
     beach: at(c.land.x1 + 30, mid + 20),
     canal: at(c.canal.x0 - 1.5, mid + 30),
-    downtown: at(c.xRoads[1] + 3, mid + 40),
+    // On the sidewalk east of the street at x = -410, looking north at the downtown superblock.
+    downtown: at(-401, mid + 40),
     // The roof's north-west corner: clear of the stair core, and the city lies west.
     ocean: { x: c.land.x1 + 140, y: SEA_LEVEL - FLOAT_DEPTH, z: mid + 20 },
     canalWater: { x: (c.canal.x0 + c.canal.x1) / 2, y: SEA_LEVEL - FLOAT_DEPTH, z: mid + 30 },
@@ -141,15 +144,17 @@ function spawnPoint(c: Land): THREE.Vector3 {
   return new THREE.Vector3(x, surfaceAt(c, x, z) + 0.05, z)
 }
 
-/** The city grid: streets, canal, buildings, shopfronts, furniture, and billboards. */
+/** The city: streets, signals, canal, buildings, shopfronts, furniture, and billboards. Returns the lights' update. */
 function buildStreets(ctx: WorldCtx, layout: Land) {
   buildGround(ctx, layout)
   buildMarkings(ctx, layout)
+  const signals = buildSignals(ctx, layout)
   buildCanal(ctx, layout)
   buildBuildings(ctx, layout)
   buildShopfronts(ctx, layout)
   buildFurniture(ctx, layout)
   buildBillboards(ctx, layout)
+  return signals
 }
 
 /** Generates the seeded city and builds every visual and collider for it. */
@@ -161,7 +166,7 @@ export async function buildCity(
 ): Promise<City> {
   const plan = await planWorld()
   const { land: layout, flora } = plan
-  buildStreets(ctx, layout)
+  const signals = buildStreets(ctx, layout)
   const night = buildNightLights(ctx, layout)
   const seaPlan = await buildScenery(ctx, plan)
   const sea = await buildSea(ctx, layout, light, load, seaPlan)
@@ -183,6 +188,7 @@ export async function buildCity(
     update(dt, camera, swimmer = null) {
       WIND.value = performance.now() / 1000
       night(light.night, light.day, camera.position)
+      signals()
       plants(camera.position, reach)
       sea.update(dt, camera, swimmer)
     },
