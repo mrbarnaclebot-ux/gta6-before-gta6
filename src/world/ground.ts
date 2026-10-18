@@ -50,13 +50,9 @@ function raised(c: Land): Raised[] {
   ]
 }
 
-export function buildGround(ctx: WorldCtx, c: Land): void {
+/** The streets: the paved city less the canal, which its humped bridges cross. Returns the bridges' stone. */
+function streets(ctx: WorldCtx, c: Land): THREE.BufferGeometry[] {
   const asphalt = wornAsphalt(pbr('asphalt_02', 0.25, { color: 0xb8b4ae }))
-  const paving = wornPaving(pbr('concrete_pavement_02', 0.5, { color: 0xf6f0e6 }))
-  const curb = pbr('white_stucco', 0.5, { color: 0xc4bfb6, roughness: 0.9 })
-  const grass = pbr('aerial_grass_rock', 0.2, { color: 0xc0d098 })
-
-  // The streets: the paved city less the canal, which its humped bridges cross.
   const halves = [
     { ...c.land, x1: c.canal.x0 },
     { ...c.land, x0: c.canal.x1 },
@@ -67,7 +63,25 @@ export function buildGround(ctx: WorldCtx, c: Land): void {
     receive: true,
   })
   for (const r of halves) rectCollider(ctx, r, UNDER_CITY, 0)
+  return humps.stone
+}
 
+/** Lawns a step above the paving, with their colliders. */
+function lawns(ctx: WorldCtx, c: Land): void {
+  const grass = pbr('aerial_grass_rock', 0.2, { color: 0xb4cc8c })
+  const list = lawnsOf(c)
+  addMerged(
+    ctx,
+    list.flatMap((l) => [flatRing(l, PARK_TOP), skirt(l, CURB_H - 0.01, PARK_TOP)]),
+    grass,
+  )
+  for (const l of list) prismCollider(ctx, l, CURB_H, PARK_TOP)
+}
+
+export function buildGround(ctx: WorldCtx, c: Land): void {
+  const paving = wornPaving(pbr('concrete_pavement_02', 0.5, { color: 0xf6f0e6 }))
+  const curb = pbr('white_stucco', 0.5, { color: 0xc4bfb6, roughness: 0.9 })
+  const bridgeStone = streets(ctx, c)
   const faces = raised(c)
   addMerged(
     ctx,
@@ -79,15 +93,8 @@ export function buildGround(ctx: WorldCtx, c: Land): void {
     faces.flatMap((f) => curbGeometry(f.ring, f.sides, f.drives)),
     curb,
   )
-  addMerged(ctx, humps.stone, curb)
+  addMerged(ctx, bridgeStone, curb)
   buildLots(ctx, c, curb)
   for (const f of faces) prismCollider(ctx, f.ring, UNDER_CITY, CURB_H)
-
-  const lawns = lawnsOf(c)
-  addMerged(
-    ctx,
-    lawns.flatMap((l) => [flatRing(l, PARK_TOP), skirt(l, CURB_H - 0.01, PARK_TOP)]),
-    grass,
-  )
-  for (const l of lawns) prismCollider(ctx, l, CURB_H, PARK_TOP)
+  lawns(ctx, c)
 }

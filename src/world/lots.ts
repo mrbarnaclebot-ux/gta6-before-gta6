@@ -66,19 +66,24 @@ function coping(p: Rect): THREE.BufferGeometry[] {
   ].map((r) => rectBox(r, CURB_H, CURB_H + 0.09))
 }
 
-/** Plazas, parking lots, pools, planters, and driveway aprons for every block. */
-export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
-  const plazas = c.blocks.flatMap((b) => b.plazas)
-  const pools = c.blocks
+const FLAT = { cast: false, receive: true }
+
+/** The hotels' pools, on the beachfront's pool decks. */
+const poolsOf = (c: Land) =>
+  c.blocks
     .filter((b) => b.district === 'beachfront')
     .flatMap((b) => b.plazas.map(poolIn))
     .filter((p): p is Rect => p !== null)
+
+/** Paved plazas, parking lots' asphalt, and pool water: one flat mesh each. */
+function flats(ctx: WorldCtx, c: Land, pools: Rect[]): void {
   const tiles = pbr('concrete_pavement_02', 0.3, { color: 0xeadcc4, ...OVER })
+  const plazas = c.blocks.flatMap((b) => b.plazas)
   addMerged(
     ctx,
     plazas.map((p) => flatRing(p, CURB_H + 0.003)),
     tiles,
-    { cast: false, receive: true },
+    FLAT,
   )
   const tarmac = wornAsphalt(pbr('asphalt_02', 0.25, { color: 0xaaa69f, ...OVER }))
   const lots = c.blocks.flatMap((b) => b.parking)
@@ -86,39 +91,33 @@ export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
     ctx,
     lots.map((p) => flatRing(p, CURB_H + 0.004)),
     tarmac,
-    { cast: false, receive: true },
+    FLAT,
   )
-  const water = new THREE.MeshStandardMaterial({
-    color: 0x3cc4d4,
-    roughness: 0.04,
-    metalness: 0.1,
-    ...OVER,
-  })
+  const water = new THREE.MeshStandardMaterial({ color: 0x1f8ea3, roughness: 0.12, ...OVER })
   addMerged(
     ctx,
     pools.map((p) => flatRing(rectRing(p), CURB_H + 0.05)),
     water,
-    { cast: false, receive: true },
+    FLAT,
   )
+}
+
+/** Plazas, parking lots, pools, planters, and driveway aprons for every block. */
+export function buildLots(ctx: WorldCtx, c: Land, stone: THREE.Material): void {
+  const pools = poolsOf(c)
+  flats(ctx, c, pools)
   // Round the palms greenery.ts plants in the plazas (not the hotels' pool decks).
   const planters = c.blocks
     .filter((b) => b.district !== 'beachfront')
     .flatMap((b) => b.plazas.flatMap(plazaTrees))
-  addMerged(
-    ctx,
-    [
-      ...pools.flatMap(coping),
-      ...c.driveways.map((d) => flatRing(apron(d), CURB_H + 0.002)),
-      ...planters.map((p) =>
-        new THREE.CylinderGeometry(PLANTER.r, PLANTER.r + 0.1, PLANTER.h, 16).translate(
-          p.x,
-          CURB_H + PLANTER.h / 2,
-          p.z,
-        ),
-      ),
-    ],
-    stone,
-  )
+  const pot = (p: { x: number; z: number }) =>
+    new THREE.CylinderGeometry(PLANTER.r, PLANTER.r + 0.1, PLANTER.h, 16).translate(
+      p.x,
+      CURB_H + PLANTER.h / 2,
+      p.z,
+    )
+  const aprons = c.driveways.map((d) => flatRing(apron(d), CURB_H + 0.002))
+  addMerged(ctx, [...pools.flatMap(coping), ...aprons, ...planters.map(pot)], stone)
   for (const p of planters) {
     const desc = RAPIER.ColliderDesc.cylinder(PLANTER.h / 2, PLANTER.r)
     ctx.colliders.add(desc.setTranslation(p.x, CURB_H + PLANTER.h / 2, p.z))

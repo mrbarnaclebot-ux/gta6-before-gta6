@@ -150,9 +150,12 @@ function settleCity(c: CityLayout, surface: Surface) {
   }
 }
 
-/** Generates the city and everything around it, and bakes the terrain. Same seed, same world. */
+/**
+ * Generates the city and everything around it, and bakes the terrain. Same seed, same world.
+ * The city's street plan runs Hill Road and Palm Avenue out of its west edge at HILL_ROAD_Z and
+ * AVENUE_Z, where the roads outside pick them up.
+ */
 export function generateLand(seed = 7, size = 1000): Land {
-  // The city's street plan runs Hill Road and Palm Avenue out of its west edge at these z.
   const city = generateCity(seed, size)
   const frame = frameOf(city)
   const waterways = planWaterways(city, frame.coast)

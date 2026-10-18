@@ -134,6 +134,26 @@ function canalRect(land: Rect, k: number): Rect {
   return { x0: cx - CANAL_HALF, x1: cx + CANAL_HALF, z0: land.z0, z1: land.z1 }
 }
 
+/** Blocks with their lots built on, a few of them parks. */
+function buildOn(plain: Plain[], size: number, r: () => number): Block[] {
+  const parkable = plain.filter(
+    (b) => !b.sides.includes('canal') && b.district !== 'beachfront' && area(b.lot) < 9000,
+  )
+  // Duplicate picks collapse, so this makes at most round(size / 350) parks.
+  const parks = new Set(Array.from({ length: Math.round(size / 350) }, () => pick(r, parkable)))
+  return plain.map((b) => {
+    const park = parks.has(b)
+    const lots = park ? { buildings: [], gardens: [], plazas: [], parking: [] } : buildingsFor(b, r)
+    return { ...b, park, ...lots }
+  })
+}
+
+/** The player's start: on the promenade beside the coast road, at z. */
+function spawnBeside(coast: { x: number; z: number }[], z: number) {
+  const near = coast.reduce((a, p) => (Math.abs(p.z - z) < Math.abs(a.z - z) ? p : a))
+  return { x: near.x + SECTION.avenue.half + 3, z }
+}
+
 export function generateCity(seed = 7, size = 1000): CityLayout {
   const r = rng(seed)
   const half = size / 2
@@ -143,42 +163,24 @@ export function generateCity(seed = 7, size = 1000): CityLayout {
   const canal = canalRect(land, k)
   const net = buildNetwork(streetPlan(half, land, canal, beachX))
   const sorted = sortFaces(net)
-  const parkable = sorted.blocks.filter(
-    (b) => !b.sides.includes('canal') && b.district !== 'beachfront' && area(b.lot) < 9000,
-  )
-  // Duplicate picks collapse, so this makes at most round(size / 350) parks.
-  const parks = new Set(Array.from({ length: Math.round(size / 350) }, () => pick(r, parkable)))
-  const blocks: Block[] = sorted.blocks.map((b) => {
-    const park = parks.has(b)
-    const lots = park ? { buildings: [], gardens: [], plazas: [], parking: [] } : buildingsFor(b, r)
-    return { ...b, park, ...lots }
-  })
+  const blocks = buildOn(sorted.blocks, size, r)
   const coast = net.lines.find((l) => l.name === 'coast road')!.pts
-  const promenade = promenadeLawns(coast, land)
   const junctions = junctionPlans(net)
-  const medians = mediansOf(net, junctions)
-  const plan = {
-    blocks,
-    walks: sorted.walks,
-    islands: sorted.islands,
-    promenade,
-    medians,
-    land,
-    net,
-  }
+  const { walks, islands } = sorted
+  const plan = { blocks, walks, islands, land, net }
+  const extra = { promenade: promenadeLawns(coast, land), medians: mediansOf(net, junctions) }
   const driveways = blocks.flatMap(drivewaysOf)
-  const spawnZ = 40 * k
-  const coastX = coast.reduce((a, p) => (Math.abs(p.z - spawnZ) < Math.abs(a.z - spawnZ) ? p : a)).x
   return {
     seed,
     size,
     ...plan,
+    ...extra,
     junctions,
     canal,
     bridges: canalBridges(net, canal),
-    ...clearOfDriveways(greenery(plan, r), driveways),
+    ...clearOfDriveways(greenery({ ...plan, ...extra }, r), driveways),
     driveways,
-    spawn: { x: coastX + SECTION.avenue.half + 3, z: spawnZ },
+    spawn: spawnBeside(coast, 40 * k),
   }
 }
 

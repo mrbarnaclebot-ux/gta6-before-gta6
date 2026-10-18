@@ -9,7 +9,7 @@ import type { StreetKind } from './streets'
  * superblock; two short streets split blocks. Avenues: Hill Road and Palm Avenue run in
  * from the west (they continue outside the city), Central Avenue runs north to south, a
  * diagonal boulevard cuts from the south edge to the canal, and the coast road curves
- * along the beach. An alley runs behind the beachfront hotels. Coordinates are for a
+ * along the beach. Service alleys run behind the beachfront hotels and through a few deco and downtown blocks. Coordinates are for a
  * 1000 m city and scale with `half`.
  */
 
@@ -27,10 +27,12 @@ const CROSS: Cross[] = [
   [-300, 'avenue', 'exit', null],
   [-255, 'street', 100, 200],
   [-210, 'street', -500, null],
+  [-165, 'alley', 100, 200],
   [-120, 'street', -500, null],
   [0, 'street', -500, null],
   [50, 'street', -200, -110],
   [100, 'street', -500, null],
+  [150, 'alley', 100, 200],
   [200, 'street', -500, null],
   [300, 'avenue', 'exit', null],
   [410, 'street', -500, null],
@@ -56,6 +58,7 @@ const LONG: Long[] = [
   [100, 'street', [[-500, 500]]],
   [200, 'street', [[-500, 500]]],
   [255, 'alley', [[-500, 500]]],
+  [-355, 'alley', [[100, 200]]],
 ]
 
 /** The diagonal boulevard: from the south edge street to the canal-side street. */
