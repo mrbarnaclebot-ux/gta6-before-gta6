@@ -47,13 +47,22 @@ const palm = (r: Rand, p: { x: number; z: number }, lo = 8, hi = 13): Spot => ({
 export const PLAZA_PALM = 150
 const PLAZA_GRID = 9
 
-/** Where the palms in planters stand in a plaza: a grid clear of its edges. */
+/** A big plaza's fountain: its middle, if the plaza is big enough to hold one. */
+export const FOUNTAIN = { area: 900, r: 4 }
+export const plazaFountain = (plaza: Ring) =>
+  area(plaza) >= FOUNTAIN.area && contains(insetRing(plaza, FOUNTAIN.r + 2), centroid(plaza))
+    ? centroid(plaza)
+    : null
+
+/** Where the palms in planters stand in a plaza: an even grid of at most 16, clear of its edges and fountain. */
 export function plazaTrees(plaza: Ring): { x: number; z: number }[] {
   if (area(plaza) < PLAZA_PALM) return []
   const inner = insetRing(plaza, 2.5)
   const b = bounds(plaza)
-  const nx = Math.max(1, Math.floor((b.x1 - b.x0) / PLAZA_GRID))
-  const nz = Math.max(1, Math.floor((b.z1 - b.z0) / PLAZA_GRID))
+  const step = Math.max(PLAZA_GRID, Math.sqrt(area(plaza) / 16))
+  const nx = Math.max(1, Math.floor((b.x1 - b.x0) / step))
+  const nz = Math.max(1, Math.floor((b.z1 - b.z0) / step))
+  const fountain = plazaFountain(plaza)
   const out: { x: number; z: number }[] = []
   for (let i = 0; i < nx; i++) {
     for (let j = 0; j < nz; j++) {
@@ -61,10 +70,11 @@ export function plazaTrees(plaza: Ring): { x: number; z: number }[] {
         x: b.x0 + ((i + 0.5) * (b.x1 - b.x0)) / nx,
         z: b.z0 + ((j + 0.5) * (b.z1 - b.z0)) / nz,
       }
-      if (contains(inner, p)) out.push(p)
+      const clear = !fountain || Math.hypot(p.x - fountain.x, p.z - fountain.z) > FOUNTAIN.r + 3
+      if (clear && contains(inner, p)) out.push(p)
     }
   }
-  return out.length ? out.slice(0, 12) : [centroid(plaza)]
+  return out.length || fountain ? out : [centroid(plaza)]
 }
 
 /** `n` random spots inside a ring. */
