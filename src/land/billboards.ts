@@ -3,6 +3,7 @@ import { FLOOR_H } from '../city/lots'
 import { surfaceAt } from '../city/terrain'
 import type { Land } from './plan'
 import { closest, tangent } from './polyline'
+import { runs } from '../city/curbs'
 
 /*
  * Where the two parody billboards stand: on the roofs of some low-rise buildings, facing the
@@ -30,6 +31,18 @@ const CLEAR = 6
 /** One building in this many low-rise ones carries a billboard. */
 const ROOF_SHARE = 9
 
+/** The axis direction (0 east, 1 west, 2 south, 3 north) from a point to the block's nearest street. */
+function streetSide(block: Land['blocks'][number], p: { x: number; z: number }): number {
+  let best = { d: Infinity, x: 0, z: 0 }
+  for (const run of runs(block)) {
+    if (run.kind !== 'street' && run.kind !== 'avenue') continue
+    const c = closest(run.pts, p)
+    if (c.d < best.d) best = { d: c.d, x: c.at.x - p.x, z: c.at.z - p.z }
+  }
+  if (Math.abs(best.x) > Math.abs(best.z)) return best.x > 0 ? 0 : 1
+  return best.z > 0 ? 2 : 3
+}
+
 function onRoofs(land: Land): Billboard[] {
   const out: Billboard[] = []
   for (const block of land.blocks) {
@@ -37,10 +50,7 @@ function onRoofs(land: Land): Billboard[] {
     for (const b of block.buildings) {
       // Deco roofs only: glass and residential roofs keep a stair core or plant room at the center.
       if (b.style !== 'deco' || b.floors > 7 || b.seed % ROOF_SHARE !== 0) continue
-      const { lot } = block
-      const gaps = [lot.x1 - b.x - b.w / 2, b.x - b.w / 2 - lot.x0, lot.z1 - b.z - b.d / 2]
-      gaps.push(b.z - b.d / 2 - lot.z0)
-      const side = gaps.indexOf(Math.min(...gaps))
+      const side = streetSide(block, b)
       const r = [Math.PI / 2, -Math.PI / 2, 0, Math.PI][side]
       if ((side < 2 ? b.d : b.w) < 11) continue
       const y = b.floors * FLOOR_H[b.style]

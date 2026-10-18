@@ -24,7 +24,7 @@ function signTexture(): THREE.Texture {
 /** A lightbox sign at each hospital's respawn point; returns the panel material for night glow. */
 export function buildHospitalSigns(
   ctx: WorldCtx,
-  spots: { x: number; z: number }[],
+  spots: { x: number; z: number; yaw: number }[],
 ): THREE.MeshStandardMaterial {
   const map = signTexture()
   const panel = new THREE.MeshStandardMaterial({
@@ -38,14 +38,20 @@ export function buildHospitalSigns(
   const postGeo = new THREE.CylinderGeometry(0.06, 0.06, POST_H, 8).translate(0, POST_H / 2, 0)
   const panelGeo = new THREE.BoxGeometry(PANEL, PANEL, 0.16).translate(0, POST_H + PANEL / 2, 0)
   for (const s of spots) {
-    // On the curb side of the respawn point, facing the street.
-    const at = new THREE.Vector3(s.x + 2, CURB_H, s.z + 0.7)
+    // On the curb side of the respawn point, a little along the street, facing it.
+    const out = { x: Math.sin(s.yaw), z: Math.cos(s.yaw) }
+    const at = new THREE.Vector3(
+      s.x + out.x * 0.7 + out.z * 2,
+      CURB_H,
+      s.z + out.z * 0.7 - out.x * 2,
+    )
     for (const [geo, mat] of [
       [postGeo, post],
       [panelGeo, panel],
     ] as const) {
       const mesh = new THREE.Mesh(geo, mat)
       mesh.position.copy(at)
+      mesh.rotation.y = s.yaw
       mesh.castShadow = true
       ctx.scene.add(mesh)
     }

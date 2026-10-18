@@ -5,8 +5,15 @@ import type { Start, Waypoint } from './lanes'
 /** Through traffic stays on the highway three times in four; the rest take the exit. */
 const STAY = 3
 
+/** An edge's waypoints from point `from` on; the last carries the edge's stop bar, if any. */
 const points = (e: LaneEdge, from: number): Waypoint[] =>
-  e.pts.slice(from).map((p) => ({ x: p.x, y: p.y, z: p.z, limit: e.limit }))
+  e.pts.slice(from).map((p, i, list) => ({
+    x: p.x,
+    y: p.y,
+    z: p.z,
+    limit: e.limit,
+    ...(e.stop && i === list.length - 1 ? { stop: e.stop } : {}),
+  }))
 
 /** Picks the next edge: the first listed (straight on) is STAY times as likely as each other. */
 function choose(e: LaneEdge, r: Rand): number {
@@ -16,8 +23,8 @@ function choose(e: LaneEdge, r: Rand): number {
   return e.next[e.next.length - 1]
 }
 
-/** A random spot on the highway's lanes (longer edges more likely), driving on from there. */
-export function highwayStart(edges: LaneEdge[], r: Rand): Start {
+/** A random spot on a lane graph (longer edges more likely), driving on from there. */
+export function laneStart(edges: LaneEdge[], r: Rand): Start {
   const total = edges.reduce((s, e) => s + e.pts.length, 0)
   let pick = Math.floor(r() * total)
   let id = 0

@@ -1,5 +1,15 @@
-import type { District, Rect } from './layout'
-import { range, type Rand } from './rng'
+import type { District } from './layout'
+import { area, clipRect, insetRing, rectRing, type Ring } from './polygon'
+import type { Rand } from './rng'
+import { massing, type Cell } from './massing'
+import { cells, fit, hotel, site, snap } from './cells'
+
+/*
+ * What stands on a block's lot. The lot's bounds are split into a grid of cells sized per
+ * district; each cell gets a building set back from the street (fitted inside the lot where
+ * a diagonal or the curving coast road cuts it), a garden, a paved plaza, or a parking lot.
+ * Remnants too small to build on become plazas. massing.ts then shapes the skyline.
+ */
 
 export type Style = 'glass' | 'residential' | 'deco'
 
@@ -9,12 +19,29 @@ export interface Building {
   z: number
   w: number
   d: number
+  /** Floors counted from the ground: the roof is at floors x floor height. */
   floors: number
+  /** Floors below this part that a podium fills (a tower standing on one); 0 on the ground. */
+  base: number
   style: Style
   /** Palette index; the renderer maps it to a color per style. */
   tint: number
   /** Per-building variation (setback tower, crown, fin) without re-running the generator. */
   seed: number
+  /** Balconies along the east and west faces: a beachfront hotel's sea view. */
+  seaward?: boolean
+  /** A podium with a tower (the next building) standing on it: its roof is a terrace. */
+  podium?: boolean
+}
+
+export interface Parcels {
+  buildings: Building[]
+  /** Small lawns with palms. */
+  gardens: Ring[]
+  /** Paved squares with planters. */
+  plazas: Ring[]
+  /** Surface parking lots with painted bays. */
+  parking: Ring[]
 }
 
 export const BAY = 3
@@ -23,97 +50,129 @@ export const FLOOR_H: Record<Style, number> = { glass: 3.8, residential: 3.2, de
 export const buildingHeight = (b: Building) => b.floors * FLOOR_H[b.style]
 
 /** [chance, style, min floors, max floors]; chances in a row sum to 1. */
-type Mix = [number, Style, number, number][]
+export type Mix = [number, Style, number, number][]
 
-const PROFILE: Record<District, { lot: number; empty: number; setback: number; mix: Mix }> = {
-  // Central: dense and tall, mostly glass towers.
+export interface Profile {
+  /** Target cell size, meters. */
+  cell: number
+  /** Setback from the street, and the gap between neighbours. */
+  front: [number, number]
+  gap: number
+  /** Chances a cell is a garden, a plaza, or a parking lot. */
+  garden: number
+  plaza: number
+  parking: number
+  /** Chance an inner cell (no street front) is a courtyard. */
+  courtyard: number
+  /** Chance two cells side by side make one building. */
+  merge: number
+  /** Chance a tall building stands on a podium. */
+  podium: number
+  mix: Mix
+}
+
+export const PROFILE: Record<District, Profile> = {
+  // Central: dense and tall, glass towers on podiums, the tallest on the corners.
   downtown: {
-    lot: 30,
-    empty: 0.04,
-    setback: 3,
+    cell: 38,
+    front: [2, 6],
+    gap: 3,
+    garden: 0.03,
+    plaza: 0.08,
+    parking: 0,
+    courtyard: 0.5,
+    merge: 0.3,
+    podium: 0.65,
     mix: [
-      [0.78, 'glass', 22, 72],
-      [0.22, 'residential', 16, 44],
+      [0.45, 'glass', 18, 66],
+      [0.55, 'residential', 14, 44],
     ],
   },
   midtown: {
-    lot: 28,
-    empty: 0.14,
-    setback: 3,
+    cell: 30,
+    front: [1.5, 4],
+    gap: 2,
+    garden: 0.08,
+    plaza: 0.04,
+    parking: 0.08,
+    courtyard: 0.55,
+    merge: 0.25,
+    podium: 0.35,
     mix: [
-      [0.6, 'residential', 5, 16],
-      [0.2, 'glass', 8, 22],
+      [0.55, 'residential', 5, 18],
+      [0.25, 'glass', 8, 26],
       [0.2, 'deco', 3, 6],
     ],
   },
+  // Low and pastel: a near-continuous street wall of two to five floors, few lots between.
   deco: {
-    lot: 21,
-    empty: 0.12,
-    setback: 2.5,
+    cell: 22,
+    front: [0.4, 1.6],
+    gap: 0.3,
+    garden: 0.04,
+    plaza: 0.02,
+    parking: 0.04,
+    courtyard: 0.7,
+    merge: 0.35,
+    podium: 0,
     mix: [
-      [0.8, 'deco', 2, 5],
-      [0.2, 'residential', 6, 14],
+      [0.85, 'deco', 2, 5],
+      [0.15, 'residential', 4, 8],
     ],
   },
+  // Hotels facing the sea across the coast road, behind terraces.
   beachfront: {
-    lot: 24,
-    empty: 0.05,
-    setback: 2,
+    cell: 44,
+    front: [5, 8],
+    gap: 3,
+    garden: 0.04,
+    plaza: 0,
+    parking: 0,
+    courtyard: 0,
+    merge: 0,
+    podium: 0.25,
     mix: [
-      [0.65, 'deco', 3, 6],
-      [0.35, 'residential', 10, 24],
+      [0.55, 'deco', 3, 7],
+      [0.45, 'residential', 10, 26],
     ],
   },
 }
 
-function choose(mix: Mix, r: Rand): { style: Style; floors: number } {
-  let x = r()
-  for (const [chance, style, lo, hi] of mix) {
-    x -= chance
-    // Squared roll: most buildings are short, a few are much taller, like a real skyline.
-    if (x <= 0) return { style, floors: Math.round(lo + (hi - lo) * r() ** 2) }
-  }
-  const [, style, lo] = mix[mix.length - 1]
-  return { style, floors: lo }
-}
-
-const bays = (meters: number) => Math.floor(meters / BAY) * BAY
-
-/** Splits a lot into a grid of cells: most get one building, the rest become small gardens. */
-export function buildingsFor(lot: Rect, district: District, r: Rand) {
-  const p = PROFILE[district]
-  const lw = lot.x1 - lot.x0
-  const ld = lot.z1 - lot.z0
-  const nx = Math.max(1, Math.round(lw / p.lot))
-  const nz = Math.max(1, Math.round(ld / p.lot))
-  const cw = lw / nx
-  const cd = ld / nz
-  const buildings: Building[] = []
-  const gardens: Rect[] = []
-  for (let i = 0; i < nx; i++) {
-    for (let j = 0; j < nz; j++) {
-      const cell = {
-        x0: lot.x0 + cw * i,
-        x1: lot.x0 + cw * (i + 1),
-        z0: lot.z0 + cd * j,
-        z1: lot.z0 + cd * (j + 1),
-      }
-      const w = bays(cw - 2 * range(r, 0.5, p.setback))
-      const d = bays(cd - 2 * range(r, 0.5, p.setback))
-      if (r() < p.empty || w < BAY * 3 || d < BAY * 3) {
-        gardens.push(cell)
-        continue
-      }
-      buildings.push({
-        x: lot.x0 + cw * (i + 0.5) + range(r, -0.5, 0.5) * (cw - w),
-        z: lot.z0 + cd * (j + 0.5) + range(r, -0.5, 0.5) * (cd - d),
-        w,
-        d,
-        ...choose(p.mix, r),
-        tint: Math.floor(r() * 64),
-        seed: Math.floor(r() * 2 ** 31),
+/** Splits a block's lot into buildings, gardens, plazas, and parking. */
+export function buildingsFor(block: { lot: Ring; district: District }, r: Rand): Parcels {
+  const p = PROFILE[block.district]
+  const out: Parcels = { buildings: [], gardens: [], plazas: [], parking: [] }
+  const built: Cell[] = []
+  for (const c of cells(block.lot, p, block.district, r)) {
+    const region = clipRect(block.lot, c.rect)
+    const share = area(region) / ((c.rect.x1 - c.rect.x0) * (c.rect.z1 - c.rect.z0))
+    const fitted = share > 0.35 ? fit(site(c, p, block.district, r), block.lot) : null
+    const use = fitted ? pickUse(c, p, r) : 'plaza'
+    if (use === 'garden' && area(region) > 60) out.gardens.push(insetRing(region, 0.5))
+    else if (use === 'plaza' && area(region) > 60) out.plazas.push(insetRing(region, 0.5))
+    else if (use === 'parking') out.parking.push(rectRing(fitted!))
+    else if (use === 'building') {
+      const slab = block.district === 'beachfront' ? hotel(fitted!, r, out) : fitted!
+      const rect = snap(slab, block.district === 'beachfront' ? { ...c, i: 1 } : c)
+      built.push({
+        rect,
+        corner: c.i !== 0 && c.j !== 0,
+        i: Math.sign(c.i % 2),
+        j: Math.sign(c.j % 2),
       })
     }
   }
-  return { buildings, gardens }
+  out.buildings = massing(built, block.district, p, r)
+  return out
+}
+
+/** What a cell becomes. Inner cells, with no street front, are mostly courtyards. */
+function pickUse(c: { i: number; j: number }, p: Profile, r: Rand) {
+  const roll = r()
+  const inner = c.i === 0 && c.j === 0
+  if (inner && roll < p.courtyard) return roll < p.courtyard * 0.4 ? 'garden' : 'plaza'
+  if (roll < p.garden) return 'garden'
+  if (roll < p.garden + p.plaza) return 'plaza'
+  if (!inner && roll < p.garden + p.plaza + p.parking) return 'parking'
+  return 'building'
 }

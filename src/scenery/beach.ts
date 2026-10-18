@@ -12,7 +12,7 @@ import { groupByChunk } from '../world/chunks'
  * Simple procedural models merged per chunk with vertex colors: one material.
  */
 
-const PASTELS = [0xf29bb2, 0x5fc6c0, 0xf6d06b, 0xf2a35e, 0x9fc3f0, 0xc7a6e8]
+export const PASTELS = [0xf29bb2, 0x5fc6c0, 0xf6d06b, 0xf2a35e, 0x9fc3f0, 0xc7a6e8]
 const WHITE = 0xe2ded4
 
 function tower(color: number): THREE.BufferGeometry[] {
@@ -44,7 +44,8 @@ function canopy(color: number): THREE.BufferGeometry {
   return geo.translate(0, 2.35, 0)
 }
 
-function umbrella(color: number, r: Rand): THREE.BufferGeometry[] {
+/** A striped umbrella over two loungers facing +z, non-indexed with vertex colors. */
+export function umbrella(color: number, r: Rand): THREE.BufferGeometry[] {
   const tilt = range(r, -0.12, 0.12)
   const pole = tinted(
     new THREE.CylinderGeometry(0.035, 0.035, 2.5, 6).translate(0, 1.15, 0).toNonIndexed(),

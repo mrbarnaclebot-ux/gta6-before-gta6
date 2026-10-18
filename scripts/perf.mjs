@@ -85,6 +85,10 @@ for (const [name, yaw, at] of [
   ['riverMouth', Math.PI],
   ['lake', Math.PI / 2],
   ['canalMouth', 0],
+  // Phase 13c's streets: up the diagonal boulevard to the north-east, and north up the coast
+  // road from the promenade, hotels on the left and the park strip on the right.
+  ['boulevard', 2.36],
+  ['oceanDrive', Math.PI],
 ]) {
   if (!wanted(name)) continue
   await g(

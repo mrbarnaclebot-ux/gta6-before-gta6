@@ -96,7 +96,7 @@ describe('waterways', () => {
   it('leaves room for a boat under every bridge over the canal and its mouths', () => {
     // The humped streets: deck underside over still water.
     expect(HUMP.top - DECK - SEA_LEVEL).toBeGreaterThan(2.2)
-    expect(roadRise(land, mid, land.zRoads[3])).toBeCloseTo(HUMP.top)
+    for (const b of land.bridges) expect(roadRise(land, mid, b.z)).toBeCloseTo(HUMP.top)
     // The highway where it crosses each walled channel.
     const hw = land.paths.find((p) => p.name === 'highway')!
     for (const q of land.waterways.channels.quays) {

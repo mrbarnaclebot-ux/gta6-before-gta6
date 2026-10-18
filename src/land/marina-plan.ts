@@ -57,7 +57,8 @@ export function planMarina(land: Land): MarinaPlan {
   for (const x of [478, 512]) for (const s of [-1, 1]) tie(x, PIER_Z + s * ALONGSIDE, Math.PI / 2)
   for (const s of [-1, 1]) tie(head.x1 + OFF_EDGE, PIER_Z + s * 12, s > 0 ? 0 : Math.PI)
   // One anchored off the spawn beach, one in the canal between its bridges.
-  const mid = land.zRoads[Math.floor(land.zRoads.length / 2)]
+  // Off the city's middle street (z = 0), and in the canal between its bridges at z = 0 and 100.
+  const mid = 0
   tie(472, mid + 22, -2.2)
   tie((land.canal.x0 + land.canal.x1) / 2 + 6, mid + 45, 0)
   return {

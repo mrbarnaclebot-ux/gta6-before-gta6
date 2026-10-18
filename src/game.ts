@@ -33,6 +33,7 @@ import { StaticColliders } from './world/static-colliders'
 import { modelLoader } from './world/load-model'
 import { initKtx2 } from './render/ktx2'
 import { loadLateTextures } from './world/late-textures'
+import { poolsOf, poolWaterAt } from './city/pools'
 
 const MAX_FRAME = 0.1
 
@@ -97,7 +98,10 @@ function spawnPlayer(world: Awaited<ReturnType<typeof loadWorld>>) {
   const avatar = new Avatar(figures.male)
   underwaterLightAll(avatar.root)
   scene.add(avatar.root)
-  const player = new Player(physics, avatar, city.spawn, city.water, city.current)
+  // The hotel pools are water to wade in, though not to the sea's sky and sound.
+  const pools = poolsOf(city.layout)
+  const wet = (x: number, z: number) => poolWaterAt(pools, x, z) ?? city.water(x, z)
+  const player = new Player(physics, avatar, city.spawn, wet, city.current)
   const harbor = buildHarbor(ctx, city.layout, city.water)
   const cars = [...parkCars(ctx, city, world.carModels.make), ...harbor.boats]
   return { player, cars, harbor, driving: new Driving(physics, cars, player, scene, city.water) }

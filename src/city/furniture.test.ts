@@ -1,24 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { walkLoops } from '../life/places'
+import { generateLand } from '../land/plan'
 import { FURNITURE_HALF } from '../world/furniture-models'
 import { furnitureFor } from './furniture'
-import { generateCity } from './layout'
+import { CURB_H } from './layout'
+import { contains, edgeDist } from './polygon'
+import { surfaceAt } from './terrain'
 
 describe('furnitureFor', () => {
-  const city = generateCity(7, 1000)
+  const city = generateLand(7, 1000)
   const avoid = [...city.palms, ...city.lights]
   const items = furnitureFor(city, avoid)
 
   it('puts every kind on a sidewalk, clear of palms and lights', () => {
     expect(new Set(items.map((f) => f.kind)).size).toBe(7)
     for (const f of items) {
-      const block = city.blocks.find(
-        (b) => f.x >= b.rect.x0 && f.x <= b.rect.x1 && f.z >= b.rect.z0 && f.z <= b.rect.z1,
-      )
-      expect(block).toBeDefined()
-      const inLot =
-        f.x > block!.lot.x0 && f.x < block!.lot.x1 && f.z > block!.lot.z0 && f.z < block!.lot.z1
-      expect(inLot).toBe(false)
+      expect(surfaceAt(city, f.x, f.z)).toBeCloseTo(CURB_H)
+      expect(city.blocks.some((b) => contains(b.lot, f))).toBe(false)
     }
     const nearest = Math.min(
       ...items.map((f) => Math.min(...avoid.map((a) => Math.hypot(a.x - f.x, a.z - f.z)))),
@@ -30,18 +28,7 @@ describe('furnitureFor', () => {
     const loops = walkLoops(city)
     for (const f of items) {
       // Distance from the item's center to the nearest walking line, less its depth.
-      const gap = Math.min(
-        ...loops.map((l) =>
-          f.x > l.x0 - 4 && f.x < l.x1 + 4 && f.z > l.z0 - 4 && f.z < l.z1 + 4
-            ? Math.min(
-                Math.abs(f.x - l.x0),
-                Math.abs(f.x - l.x1),
-                Math.abs(f.z - l.z0),
-                Math.abs(f.z - l.z1),
-              )
-            : Infinity,
-        ),
-      )
+      const gap = Math.min(...loops.map((l) => edgeDist(l.pts, f)))
       expect(gap - FURNITURE_HALF[f.kind][2], f.kind).toBeGreaterThan(0.35)
     }
   })

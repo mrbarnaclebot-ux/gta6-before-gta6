@@ -1,4 +1,4 @@
-import { PARK_TOP } from '../city/terrain'
+import { PARK_TOP, surfaceAt } from '../city/terrain'
 import type { Rect } from '../city/layout'
 import type { Land } from '../land/plan'
 import { closest } from '../land/polyline'
@@ -29,10 +29,7 @@ const within = (r: Rect, x: number, z: number) => x >= r.x0 && x <= r.x1 && z >=
 /** Reads the land plan for groundOf. Cheap enough for a few footsteps a second. */
 export function footingAt(land: Land, x: number, z: number, y: number): Footing {
   const city = within(land.land, x, z)
-  const lawn =
-    city &&
-    y >= PARK_TOP - 0.03 &&
-    land.blocks.some((b) => (b.park ? within(b.lot, x, z) : b.gardens.some((g) => within(g, x, z))))
+  const lawn = city && y >= PARK_TOP - 0.03 && surfaceAt(land, x, z) >= PARK_TOP - 1e-3
   const p = { x, z }
   const road =
     !city &&

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { CURB_H, ROAD_HALF, SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
+import { CURB_H, SEA_LEVEL, type CityLayout, type Rect } from '../city/layout'
 import { CANAL_FLOOR } from '../city/terrain'
 import { RAPIER } from '../physics'
 import { addMerged, metricBox, rectBox, rectCollider, type WorldCtx } from './blocks'
@@ -91,9 +91,9 @@ function buildBanks(ctx: WorldCtx, c: CityLayout, stone: THREE.Material, metal: 
   const k = c.canal
   const rails: THREE.BufferGeometry[] = []
   const steps: Step[] = []
-  for (let i = 0; i + 1 < c.zRoads.length; i++) {
-    const z0 = c.zRoads[i] + ROAD_HALF + 0.3
-    const z1 = c.zRoads[i + 1] - ROAD_HALF - 0.3
+  for (let i = 0; i + 1 < c.bridges.length; i++) {
+    const z0 = c.bridges[i].z + c.bridges[i].half + 0.3
+    const z1 = c.bridges[i + 1].z - c.bridges[i + 1].half - 0.3
     // One flight per stretch between bridges, alternating banks.
     const west = i % 2 === 0
     const flight = stairs(west ? k.x0 : k.x1, west ? 1 : -1, (z0 + z1) / 2)

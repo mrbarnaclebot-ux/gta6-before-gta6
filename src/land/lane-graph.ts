@@ -16,6 +16,8 @@ export interface LaneEdge {
   /** Speed limit, m/s. */
   limit: number
   next: number[]
+  /** City lanes end at a stop bar: lights (by phase) or a stop sign at this junction. */
+  stop?: { junction: number; phase: 0 | 1; signal: boolean }
 }
 
 const SPEED = { main: 24, ramp: 14, cross: 6, loop: 8 }

@@ -1,14 +1,18 @@
 import * as THREE from 'three'
-import { CURB_H, type CityLayout, type Rect } from '../city/layout'
+import { CURB_H, type Rect } from '../city/layout'
+import { surfaceAt } from '../city/terrain'
+import type { Land } from '../land/plan'
 import type { PhysicsWorld } from '../physics'
 import { ACTOR_SHADOW_RANGE, castShadows } from '../render/actor-shadows'
 import type { Figure } from '../player/figure'
 import { DYES, outfit } from './outfit'
 import { Pedestrian } from './pedestrian'
-import { loopPoint, perimeter, walkLoops } from './places'
+import { loopPoint, walkLoops, type Loop } from './places'
+import { crossings, type Crossing } from './crossings'
+import { mayCross, signalClock } from './signals'
 
-// ponytail: a fixed pool of 24 people kept within 130 m of the player; a density
-// map per district and real crossings at intersections can come later.
+// ponytail: a fixed pool of 24 people kept within 130 m of the player; a density map per
+// district can come later.
 const COUNT = 24
 const NEAR = 30
 const FAR = 130
@@ -16,6 +20,10 @@ const DESPAWN = 170
 const DEAD_FOR = 25
 const SCARE_RADIUS = 45
 const IMPACT_RADIUS = 15
+/** Share of people reaching a crosswalk who take it, and the red they need left to start. */
+const CROSS_CHANCE = 0.4
+const CROSS_NEED = 10
+const GIVE_UP = 45
 
 /** Shares one dyed copy of each source material per outfit across the whole crowd. */
 function wardrobe(): (dye: number) => (m: THREE.Material) => THREE.Material {
@@ -36,24 +44,30 @@ type RunOver = { position: THREE.Vector3; quaternion: THREE.Quaternion; speed: n
 /** The people on the sidewalks around the player, recycled as the player moves. */
 export class Crowd {
   readonly people: Pedestrian[]
-  private readonly loops: Rect[]
+  private readonly loops: Loop[]
+  /** Crosswalks starting on each loop. */
+  private readonly ways: Crossing[][]
   private readonly local = new THREE.Vector3()
   private readonly inverse = new THREE.Quaternion()
 
   constructor(
     scene: THREE.Scene,
     physics: PhysicsWorld,
-    layout: CityLayout,
+    layout: Land,
     people: Figure[],
     onShot: (killed: boolean) => void,
   ) {
     this.loops = walkLoops(layout)
+    this.ways = this.loops.map(() => [])
+    for (const c of crossings(layout, this.loops)) this.ways[c.from].push(c)
+    const ground = (x: number, z: number) => surfaceAt(layout, x, z)
     const dress = wardrobe()
     this.people = Array.from({ length: COUNT }, (_, i) => {
       // Outfit 0 is the player's own clothes: never on the street.
       const dye = 1 + ((Math.floor(i / people.length) + i) % (DYES.length - 1))
       const p = new Pedestrian(people[i % people.length], dress(dye), physics)
       p.onShot = onShot
+      p.ground = ground
       p.root.visible = false
       p.state = 'dead'
       p.timer = Infinity
@@ -68,7 +82,9 @@ export class Crowd {
       const far = p.position.distanceTo(focus) > DESPAWN
       if (far || (!p.alive && p.timer > DEAD_FOR)) this.respawn(p, focus, firstFill ? 4 : NEAR)
       if (!p.root.visible) continue
+      const before = p.station
       p.update(dt)
+      this.atCurb(p, before)
       castShadows(p.root, p.position.distanceTo(focus) < ACTOR_SHADOW_RANGE)
     }
   }
@@ -114,18 +130,52 @@ export class Crowd {
     return hits
   }
 
+  /** At a crosswalk: some people cross, waiting for the lights where there are any. */
+  private atCurb(p: Pedestrian, before: number): void {
+    if (p.state === 'wait') {
+      const c = p.waiting!
+      if (clear(c)) p.cross(c, this.loops[c.to], c.to)
+      else if (p.timer > GIVE_UP) Object.assign(p, { state: 'walk', waiting: null })
+      return
+    }
+    if (p.state !== 'walk' || p.onCrosswalk) return
+    const c = this.reached(p, before)
+    if (!c || Math.random() > CROSS_CHANCE) return
+    if (clear(c)) p.cross(c, this.loops[c.to], c.to)
+    else p.wait(c)
+  }
+
+  /** The crossing a walker passed since station `before`, if any. A loop, not find(): it runs per person per frame. */
+  private reached(p: Pedestrian, before: number): Crossing | null {
+    const length = this.loops[p.loopId].length
+    for (const w of this.ways[p.loopId] ?? []) if (passed(before, p.station, w.s, length)) return w
+    return null
+  }
+
   private respawn(p: Pedestrian, focus: THREE.Vector3, near: number): void {
-    const nearby = this.loops.filter((l) => gap(l, focus) < FAR)
+    const nearby = this.loops.map((_, i) => i).filter((i) => gap(this.loops[i].box, focus) < FAR)
     for (let tries = 0; tries < 12 && nearby.length; tries++) {
-      const loop = nearby[Math.floor(Math.random() * nearby.length)]
-      const s = Math.random() * perimeter(loop)
+      const id = nearby[Math.floor(Math.random() * nearby.length)]
+      const loop = this.loops[id]
+      const s = Math.random() * loop.length
       const at = loopPoint(loop, s)
       const d = Math.hypot(at.x - focus.x, at.z - focus.z)
       if (d < near || d > FAR) continue
-      p.place(loop, s, Math.random() < 0.5 ? 1 : -1, CURB_H)
+      p.place(loop, id, s, Math.random() < 0.5 ? 1 : -1, CURB_H)
       p.body.setTranslation(p.position, true)
       return
     }
     p.root.visible = false
   }
+}
+
+/** True if a person may step out now: no lights, or the cars' red has long enough left. */
+const clear = (c: Crossing) => !c.signal || mayCross(c.junction, c.phase, signalClock.t, CROSS_NEED)
+
+/** True if walking from station a to b (either way, round a loop of length l) passed x. */
+function passed(a: number, b: number, x: number, l: number): boolean {
+  const m = (v: number) => ((v % l) + l) % l
+  const [lo, hi] = b >= a ? [m(a), m(b)] : [m(b), m(a)]
+  const t = m(x)
+  return lo <= hi ? t > lo && t <= hi : t > lo || t <= hi
 }
