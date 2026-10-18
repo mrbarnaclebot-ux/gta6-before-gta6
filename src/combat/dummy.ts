@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { clone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { Land } from '../land/plan'
 import { surfaceAt } from '../city/terrain'
+import { segDist } from '../city/polygon'
 import { RAPIER, type PhysicsWorld } from '../physics'
 import type { Figure } from '../player/figure'
 import { damageAt, hurt, type Health } from './damage'
@@ -108,7 +109,10 @@ export function placeDummies(
   const x = layout.land.x1 + 12
   return [-5, 0, 5].map((dz) => {
     let z = spawn.z + dz
-    while (layout.palms.some((p) => Math.hypot(p.x - x, p.z - z) < 1.6)) z += 0.5
+    // Clear of the palms, and with none in the line of fire from the spawn.
+    const blocked = (p: { x: number; z: number }) =>
+      Math.hypot(p.x - x, p.z - z) < 1.6 || segDist(p, spawn, { x, z }) < 1.2
+    while (layout.palms.some(blocked)) z += 0.5
     const feet = new THREE.Vector3(x, surfaceAt(layout, x, z), z)
     return new Dummy(source, mats, physics, feet, Math.atan2(spawn.x - x, spawn.z - z))
   })
