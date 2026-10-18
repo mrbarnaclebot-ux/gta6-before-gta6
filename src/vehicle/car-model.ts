@@ -1,10 +1,11 @@
 import * as THREE from 'three'
 import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { carBodyMaterial } from './car-paint'
-import { bodyBounds, bodyScale, CAR_SPECS, type CarKind, type CarSpec } from './car-specs'
-import { WheelBatch } from './wheel-batch'
+import { bakeParts, type Baked } from '../world/bake-parts'
+import { CAR_CODES, carGlass, carMaterial } from './car-paint'
+import { bodyBounds, CAR_SPECS, paintOf, type CarKind, type CarSpec } from './car-specs'
+import { CAR_LOD, WheelBatch } from './wheel-batch'
+import { wheelParts } from './wheel-model'
 
-export { PAINT_COUNT } from './car-specs'
 export type { CarKind } from './car-specs'
 
 /** One car's visuals. Wheels are pivots at the hubs: x spins, y steers. */
@@ -22,30 +23,42 @@ export interface CarVisual {
   kind: CarKind
 }
 
-export type CarFactory = (variant: number, kind?: CarKind) => CarVisual
+export type CarFactory = (variant: number, kind: CarKind) => CarVisual
 
 type Made = { visual: CarVisual; kind: CarKind; variant: number; body: THREE.Object3D }
 
+/** A loaded body: baked levels of detail, nearest first, and its wheel at each level. */
+interface CarModel {
+  levels: Baked[]
+  wheels: THREE.BufferGeometry[]
+}
+
+const NO_LAMPS = new THREE.Vector4()
+let wheelMaterial: THREE.Material | undefined
+let glass: THREE.Material | undefined
+
 /**
- * Hands out cars right away with a plain box body, then swaps in the generated bodies
- * once they load (after the first frame), so a slow or missing glb never blocks play.
- * Every car already has its real wheels and physics size from `CAR_SPECS`.
+ * Hands out cars right away with a plain box body, then swaps in the Blender bodies once
+ * they load (after the first frame), so a slow or missing glb never blocks play. Every car
+ * already has its real wheels and physics size from `CAR_SPECS`.
  */
 export class CarModels {
   private readonly made: Made[] = []
   private readonly wheels = new Map<CarKind, WheelBatch>()
   /** Bodies loaded so far: cars made after that (traffic replacing a stolen car) get them at once. */
-  private readonly loaded = new Map<CarKind, THREE.Mesh>()
+  private readonly loaded = new Map<CarKind, CarModel>()
+  private readonly eye = new THREE.Vector3()
 
   private stale = true
 
   constructor(private readonly scene: THREE.Scene) {
     // This class owns the scene-wide hook; another assignment would freeze every wheel.
     // The frame's first scene render (main pass) syncs; the mirror and AO reuse it.
-    scene.onBeforeRender = () => {
+    scene.onBeforeRender = (_renderer, _scene, camera) => {
       if (!this.stale) return
       this.stale = false
-      this.wheels.forEach((b) => b.sync())
+      this.eye.setFromMatrixPosition(camera.matrixWorld)
+      this.wheels.forEach((b) => b.sync(this.eye))
     }
   }
 
@@ -54,17 +67,15 @@ export class CarModels {
     this.stale = true
   }
 
-  readonly make: CarFactory = (variant, kind = 'sports') => {
+  readonly make: CarFactory = (variant, kind) => {
     const spec = CAR_SPECS[kind]
-    const lamps = new THREE.Vector4(0, 0, 0, spec.roofLamps)
     const root = new THREE.Group()
-    const body = boxBody(spec, kind, variant)
+    const body = boxBody(spec, variant)
     root.add(body)
-    const wheels = this.addWheels(root, kind)
     const visual = {
       root,
-      wheels,
-      lamps,
+      wheels: this.addWheels(root, kind),
+      lamps: new THREE.Vector4(),
       bounds: bodyBounds(spec),
       seat: spec.seat,
       police: kind === 'police',
@@ -72,17 +83,17 @@ export class CarModels {
     }
     const made = { visual, kind, variant, body }
     this.made.push(made)
-    const source = this.loaded.get(kind)
-    if (source) this.dress(made, source)
+    const model = this.loaded.get(kind)
+    if (model) this.dress(made, model)
     return visual
   }
 
-  /** Loads both bodies and swaps them into every car made so far. */
+  /** Loads every body and swaps it into every car made so far. */
   async upgrade(load: (url: string) => Promise<GLTF>): Promise<void> {
     await Promise.all(
       (Object.keys(CAR_SPECS) as CarKind[]).map(async (kind) => {
         try {
-          this.swap(kind, findMesh((await load(CAR_SPECS[kind].url)).scene))
+          this.swap(kind, carModel((await load(CAR_SPECS[kind].url)).scene, kind))
         } catch (err) {
           console.warn(`The ${kind} car body failed to load; keeping the box body`, err)
         }
@@ -90,25 +101,32 @@ export class CarModels {
     )
   }
 
-  private swap(kind: CarKind, source: THREE.Mesh): void {
-    this.loaded.set(kind, source)
-    for (const m of this.made) if (m.kind === kind) this.dress(m, source)
+  private swap(kind: CarKind, model: CarModel): void {
+    this.loaded.set(kind, model)
+    wheelMaterial ??= carMaterial(0, NO_LAMPS)
+    const batch = this.wheels.get(kind)
+    if (batch) {
+      const levels = model.wheels.map((geometry) => [{ geometry, material: wheelMaterial! }])
+      this.scene.remove(...batch.setLevels(levels))
+      this.scene.add(...batch.meshes)
+    }
+    for (const m of this.made) if (m.kind === kind) this.dress(m, model)
   }
 
-  private dress(m: Made, source: THREE.Mesh): void {
-    const spec = CAR_SPECS[m.kind]
-    const base = source.material as THREE.MeshStandardMaterial
-    const paint = spec.paints[m.variant % spec.paints.length]
-    const body = new THREE.Mesh(
-      source.geometry,
-      carBodyMaterial(base, paint, m.visual.lamps, spec.belt),
-    )
-    body.scale.copy(bodyScale(spec))
-    body.position.y = spec.clearance + (spec.size[1] / 2) * spec.length
-    body.castShadow = body.receiveShadow = true
+  private dress(m: Made, model: CarModel): void {
+    const paint = carMaterial(paintOf(CAR_SPECS[m.kind], m.variant), m.visual.lamps)
+    glass ??= carGlass()
+    const lod = new THREE.LOD()
+    model.levels.forEach((baked, i) => {
+      const level = new THREE.Group()
+      level.add(new THREE.Mesh(baked.solid, paint))
+      if (baked.clear) level.add(new THREE.Mesh(baked.clear, glass))
+      level.traverse((o) => (o.castShadow = o.receiveShadow = true))
+      lod.addLevel(level, i * CAR_LOD)
+    })
     m.visual.root.remove(m.body)
-    m.visual.root.add(body)
-    m.body = body
+    m.visual.root.add(lod)
+    m.body = lod
     delete m.visual.root.userData.castShadow
   }
 
@@ -116,7 +134,7 @@ export class CarModels {
     const { wheel: w } = CAR_SPECS[kind]
     let batch = this.wheels.get(kind)
     if (!batch) {
-      batch = new WheelBatch(w.radius, w.width)
+      batch = new WheelBatch([wheelParts(w.radius, w.width)])
       this.wheels.set(kind, batch)
       this.scene.add(...batch.meshes)
     }
@@ -134,16 +152,27 @@ export class CarModels {
 }
 
 /**
- * The body's mesh, its node transform baked into the geometry: Meshopt quantization moves
- * part of the scale onto the node (0.5 on our cars), and `dress` uses the geometry alone.
+ * A car glb baked for drawing: per level, the body (everything but the wheels) in car space,
+ * and the front-left wheel about its hub. Node transforms are baked in, which matters:
+ * Meshopt quantization moves part of each mesh's scale onto its node.
  */
-export function findMesh(root: THREE.Object3D): THREE.Mesh {
-  let mesh: THREE.Mesh | undefined
-  root.traverse((o) => (mesh ??= (o as THREE.Mesh).isMesh ? (o as THREE.Mesh) : undefined))
-  if (!mesh) throw new Error('No mesh in car body')
-  root.updateMatrixWorld(true)
-  mesh.geometry.applyMatrix4(mesh.matrixWorld)
-  return mesh
+export function carModel(scene: THREE.Object3D, kind: CarKind): CarModel {
+  scene.updateMatrixWorld(true)
+  const level = (name: string) => {
+    const root = scene.getObjectByName(name)
+    if (!root) throw new Error(`No ${name} in the car glb`)
+    const toCar = root.matrixWorld.clone().invert()
+    const wheel = root.children.find((c) => c.name.startsWith('wheel_fl'))!
+    const hub = new THREE.Matrix4().makeTranslation(wheel.position.clone().negate())
+    const body = root.children.filter((c) => !c.name.startsWith('wheel'))
+    return {
+      body: bakeParts(body, toCar, (name) => CAR_CODES[name] ?? 0),
+      wheel: bakeParts([wheel], hub.multiply(toCar)),
+    }
+  }
+  const near = level(kind)
+  const far = level(`${kind}_lod1`)
+  return { levels: [near.body, far.body], wheels: [near.wheel.solid, far.wheel.solid] }
 }
 
 const boxPaints = new Map<number, THREE.Material>()
@@ -152,20 +181,18 @@ const dark = new THREE.MeshStandardMaterial({ color: 0x15181b, roughness: 0.25, 
 const cube = new THREE.BoxGeometry()
 
 /** Stand-in body until the glb arrives: a lower box and a glassy cabin, in the car's size. */
-function boxBody(spec: CarSpec, kind: CarKind, variant: number): THREE.Object3D {
-  const color =
-    kind === 'police'
-      ? 0x111111
-      : [0xe0623a, 0xa90a12, 0x0f9fa3, 0xd9346e, 0xeeebe4, 0x0b0c0e][variant % 6]
+function boxBody(spec: CarSpec, variant: number): THREE.Object3D {
+  const color = paintOf(spec, variant)
   if (!boxPaints.has(color))
     boxPaints.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 }))
   const b = bodyBounds(spec)
   const size = b.getSize(new THREE.Vector3())
+  const center = b.getCenter(new THREE.Vector3())
   const group = new THREE.Group()
   const box = (w: number, h: number, d: number, y: number, mat: THREE.Material) => {
     const mesh = new THREE.Mesh(cube, mat)
     mesh.scale.set(w, h, d)
-    mesh.position.y = y
+    mesh.position.set(0, y, center.z)
     mesh.castShadow = true
     group.add(mesh)
   }

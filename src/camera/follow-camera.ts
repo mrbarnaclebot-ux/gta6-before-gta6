@@ -25,12 +25,19 @@ const RIGS = {
 const AIM_ZOOM = 13
 const AIM_RATE = 10
 
-/** Something to chase: its facing (yaw 0 is +Z), forward speed in m/s, and whether it is a boat. */
+/**
+ * Something to chase: its facing (yaw 0 is +Z), forward speed in m/s, whether it is a boat,
+ * and its roof height in meters (a van needs the camera higher and farther back).
+ */
 export interface ChaseTarget {
   heading: number
   speed: number
   boat?: boolean
+  roof?: number
 }
+
+/** The sports car's roof: the car rig is framed for it. */
+const LOW_ROOF = 1.24
 
 /** Third-person orbit camera that sweeps a sphere toward its ideal spot so walls never clip the view. */
 export class FollowCamera {
@@ -91,7 +98,7 @@ export class FollowCamera {
     const rig = chase
       ? chase.boat
         ? RIGS.boat
-        : RIGS.car
+        : carRig(chase.roof ?? LOW_ROOF)
       : mixRig(mixRig(RIGS.foot, RIGS.ready, ready), RIGS.aim, aim)
     this.focus.copy(focus)
     this.place(focus, rig)
@@ -167,6 +174,16 @@ export class FollowCamera {
 }
 
 type Rig = (typeof RIGS)['foot']
+
+/** The chase rig raised and pulled back for a taller car, so its roof does not fill the view. */
+function carRig(roof: number): Rig {
+  const rise = Math.max(0, roof - LOW_ROOF)
+  return {
+    ...RIGS.car,
+    height: RIGS.car.height + rise * 0.8,
+    distance: RIGS.car.distance + rise * 2.5,
+  }
+}
 
 function mixRig(a: Rig, b: Rig, t: number): Rig {
   const mix = (k: keyof typeof a) => a[k] + (b[k] - a[k]) * t
