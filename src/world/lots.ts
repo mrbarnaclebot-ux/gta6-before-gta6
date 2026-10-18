@@ -50,7 +50,6 @@ const waterMaterial = () =>
   new THREE.MeshStandardMaterial({
     color: 0x13788a,
     roughness: 0.3,
-    envMapIntensity: 0.5,
     ...OVER,
   })
 

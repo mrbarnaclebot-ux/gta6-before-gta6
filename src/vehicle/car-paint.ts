@@ -107,6 +107,5 @@ export function carGlass(): THREE.MeshPhysicalMaterial {
     opacity: 0.72,
     depthWrite: false,
     side: THREE.DoubleSide,
-    envMapIntensity: 1.5,
   })
 }

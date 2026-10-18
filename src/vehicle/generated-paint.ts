@@ -80,7 +80,6 @@ export function carBodyMaterial(
   mat.clearcoat = 1
   // On a light paint a mirror-sharp coat turns lamp highlights into pixel sparkles at night.
   mat.clearcoatRoughness = paint[2] > 1.2 ? 0.16 : 0.05
-  mat.envMapIntensity = 1.2
   mat.customProgramCacheKey = () => 'car-body'
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uPaint = { value: new THREE.Vector3(...paint) }

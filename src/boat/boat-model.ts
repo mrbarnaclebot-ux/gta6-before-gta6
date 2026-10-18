@@ -77,7 +77,6 @@ function normalize(scene: THREE.Object3D): THREE.Object3D {
     const m = mesh.material as THREE.MeshStandardMaterial
     // Gelcoat is glossy; the generated roughness map reads chalky under the sky light.
     m.roughness = 0.75
-    m.envMapIntensity = 1.2
   })
   underwaterLightAll(holder)
   return holder
