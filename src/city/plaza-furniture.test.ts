@@ -1,10 +1,10 @@
 import { expect, test } from 'vitest'
 import { generateLand } from '../land/plan'
 import { FOUNTAIN, PLANTER, plazaFountain, plazaTrees } from './greenery'
-import { plazaFurniture } from './plaza-furniture'
+import { KIOSK_CLEAR, plazaFurniture } from './plaza-furniture'
 import { contains } from './polygon'
 
-test('plaza benches, bins, and kiosks stand inside a plaza, clear of planters and fountains', () => {
+test('plaza benches, bins, and kiosks stand inside a plaza, clear of planters, fountains, and kiosks', () => {
   const city = generateLand(7, 1000)
   const items = plazaFurniture(city)
   const kinds = new Set(items.map((f) => f.kind))
@@ -18,5 +18,8 @@ test('plaza benches, bins, and kiosks stand inside a plaza, clear of planters an
     const fountain = plazaFountain(plaza)
     if (fountain)
       expect(Math.hypot(fountain.x - f.x, fountain.z - f.z)).toBeGreaterThan(FOUNTAIN.r + 1)
+    if (f.kind !== 'bench') continue
+    for (const k of items.filter((q) => q.kind === 'kiosk' && contains(plaza, q)))
+      expect(Math.hypot(k.x - f.x, k.z - f.z)).toBeGreaterThan(KIOSK_CLEAR)
   }
 })

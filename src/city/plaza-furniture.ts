@@ -13,19 +13,22 @@ import { area, centroid, contains, insetRing, type Ring } from './polygon'
 const KIOSK_AREA = 300
 /** Meters kept between a bench or kiosk and any planter or the fountain's rim. */
 const GAP = 1.2
+/** Benches face the plaza's middle, so one closer than this to a kiosk would face its wall. */
+export const KIOSK_CLEAR = 4
 
 type P = { x: number; z: number }
 
 /** Facing from `p` toward `to`: the item's front (+z) points that way. */
 const facing = (p: P, to: P) => Math.atan2(to.x - p.x, to.z - p.z)
 
-function seats(plaza: Ring, trees: P[], fountain: P | null): Furniture[] {
+function seats(plaza: Ring, trees: P[], fountain: P | null, kiosk: P | null): Furniture[] {
   const mid = centroid(plaza)
   const inner = insetRing(plaza, 1.2)
   const clear = (p: P, keep: P) =>
     contains(inner, p) &&
     trees.every((t) => t === keep || Math.hypot(t.x - p.x, t.z - p.z) > PLANTER.r + GAP) &&
-    (!fountain || Math.hypot(fountain.x - p.x, fountain.z - p.z) > FOUNTAIN.r + 1.5)
+    (!fountain || Math.hypot(fountain.x - p.x, fountain.z - p.z) > FOUNTAIN.r + 1.5) &&
+    (!kiosk || Math.hypot(kiosk.x - p.x, kiosk.z - p.z) > KIOSK_CLEAR)
   const out: Furniture[] = []
   let benches = 0
   const bench = (p: P, look: P, keep: P) => {
@@ -52,6 +55,14 @@ function seats(plaza: Ring, trees: P[], fountain: P | null): Furniture[] {
   return out
 }
 
+/** The plaza's middle, if the plaza is big, has no fountain, and the middle is clear. */
+function kioskSpot(plaza: Ring, trees: P[], fountain: P | null): P | null {
+  const mid = centroid(plaza)
+  const open = trees.every((t) => Math.hypot(t.x - mid.x, t.z - mid.z) > PLANTER.r + 3)
+  const fits = area(plaza) > KIOSK_AREA && contains(insetRing(plaza, 3), mid)
+  return !fountain && open && fits ? mid : null
+}
+
 /** Benches, bins, and kiosks in every plaza off the beachfront (the hotels' decks have loungers). */
 export function plazaFurniture(c: CityLayout): Furniture[] {
   const out: Furniture[] = []
@@ -60,13 +71,11 @@ export function plazaFurniture(c: CityLayout): Furniture[] {
     for (const plaza of b.plazas) {
       const trees = plazaTrees(plaza)
       const fountain = plazaFountain(plaza)
-      out.push(...seats(plaza, trees, fountain))
-      const mid = centroid(plaza)
-      const open = trees.every((t) => Math.hypot(t.x - mid.x, t.z - mid.z) > PLANTER.r + 3)
-      if (!fountain && area(plaza) > KIOSK_AREA && open && contains(insetRing(plaza, 3), mid)) {
-        const r = (Math.round(mid.x + mid.z) % 4) * (Math.PI / 2)
-        out.push({ kind: 'kiosk', x: mid.x, y: CURB_H, z: mid.z, r, v: 0 })
-      }
+      const kiosk = kioskSpot(plaza, trees, fountain)
+      out.push(...seats(plaza, trees, fountain, kiosk))
+      if (!kiosk) continue
+      const r = (Math.round(kiosk.x + kiosk.z) % 4) * (Math.PI / 2)
+      out.push({ kind: 'kiosk', ...kiosk, y: CURB_H, r, v: 0 })
     }
   }
   return out
