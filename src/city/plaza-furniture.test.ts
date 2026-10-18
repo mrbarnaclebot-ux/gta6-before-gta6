@@ -1,0 +1,22 @@
+import { expect, test } from 'vitest'
+import { generateLand } from '../land/plan'
+import { FOUNTAIN, PLANTER, plazaFountain, plazaTrees } from './greenery'
+import { plazaFurniture } from './plaza-furniture'
+import { contains } from './polygon'
+
+test('plaza benches, bins, and kiosks stand inside a plaza, clear of planters and fountains', () => {
+  const city = generateLand(7, 1000)
+  const items = plazaFurniture(city)
+  const kinds = new Set(items.map((f) => f.kind))
+  expect([...kinds].sort()).toEqual(['bench', 'bin', 'kiosk'])
+  const plazas = city.blocks.flatMap((b) => b.plazas)
+  for (const f of items) {
+    const plaza = plazas.find((p) => contains(p, f))!
+    expect(plaza).toBeDefined()
+    for (const t of plazaTrees(plaza))
+      expect(Math.hypot(t.x - f.x, t.z - f.z)).toBeGreaterThan(PLANTER.r)
+    const fountain = plazaFountain(plaza)
+    if (fountain)
+      expect(Math.hypot(fountain.x - f.x, fountain.z - f.z)).toBeGreaterThan(FOUNTAIN.r + 1)
+  }
+})
