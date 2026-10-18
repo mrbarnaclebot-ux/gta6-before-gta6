@@ -10,8 +10,10 @@ import type { Land } from './plan'
 import { LOOKOUT_R } from './hillside'
 import { poissonOver } from './poisson'
 import { dist } from './polyline'
-import { coastX } from './shape'
+import { seaward } from './coast'
+import { LAKE, pastShore } from './lake'
 import { avenuePalms, hedges } from './flora-rows'
+import { shoreRocks } from './shore-rocks'
 import { GARDEN_TRUNK, ROCK_RIM, ROCK_SPREAD, SINK, tint, TRUNK, upright } from './plant'
 
 /*
@@ -41,6 +43,8 @@ export interface Site {
   coast: number
   /** Copses in the open fields. */
   grove: number
+  /** Meters past the lake's shore: negative over its water. */
+  lake: number
   clear: number
 }
 
@@ -52,13 +56,14 @@ export function siteAt(land: Land, c: Clearance, x: number, z: number): Site {
     forest,
     hill: smoothstep(16, 48, y),
     slope: slopeAt(land.ground, x, z),
-    coast: x - coastX(land.frame, z),
+    coast: seaward(land.frame.coast, x, z),
     grove: smoothstep(0.12, 0.42, fbm(x / 260, z / 260, 71, 3)) * (1 - forest),
     clear: clearAt(c, x, z),
+    lake: pastShore(LAKE, x, z),
   }
 }
 
-const wet = (s: Site) => s.y < SEA_LEVEL + 0.6
+const wet = (s: Site) => s.y < SEA_LEVEL + 0.6 || s.lake < 3
 
 /** Forest, hill, and grove trees: firs where it is wild, broadleaves mixed in, copses in the fields. */
 function trees(land: Land, c: Clearance, surface: Surface, out: Flora) {
@@ -144,6 +149,7 @@ export function generateFlora(land: Land): Flora {
   coastPalms(land, c, surface, out)
   bushes(land, c, surface, out)
   rocks(land, c, surface, out)
+  out.rocks.push(...shoreRocks(land, c, surface))
   // Roadside rows keep only a narrow verge clear: the full one would empty them.
   const tight = clearance(land, 1.5)
   out.palms.push(...avenuePalms(land, tight, surface))

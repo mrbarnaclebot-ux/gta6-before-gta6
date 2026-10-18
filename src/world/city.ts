@@ -10,6 +10,8 @@ import type { Ambient } from '../render/sky'
 import { WIND } from '../render/foliage'
 import { buildBeach } from '../scenery/beach'
 import { plantDuneGrass } from '../scenery/dune-grass'
+import { plantReeds } from '../scenery/reeds'
+import { plantWrack } from '../scenery/wrack'
 import { buildHouses } from '../scenery/houses'
 import { buildRoads } from '../scenery/roads'
 import { buildTerrain } from '../scenery/terrain'
@@ -36,6 +38,8 @@ import { buildStreetGlow } from './street-glow'
 import { plantVegetation } from './vegetation'
 import type { V3 } from '../sea/boids'
 import { buildSea, planSea, type SeaPlan } from '../sea/sea'
+import { offshoreCurrent, type Current } from '../sea/offshore'
+import { buildQuays } from '../scenery/quays'
 
 type Point = { x: number; y: number; z: number }
 type Load = (url: string) => Promise<GLTF>
@@ -47,6 +51,8 @@ export interface City {
   landmarks: Record<string, Point>
   /** Water surface height at (x, z), or null on land. */
   water: (x: number, z: number) => number | null
+  /** The offshore current that carries swimmers and boats back toward the island. */
+  current: Current
   /** True while the camera is below the water surface. */
   readonly underwater: boolean
   /** How far the camera is below the surface, 0 above it. */
@@ -105,6 +111,7 @@ async function buildScenery(ctx: WorldCtx, plan: WorldPlan): Promise<SeaPlan> {
   buildHouses(ctx, layout)
   buildVillas(ctx, layout)
   buildBeach(ctx, layout)
+  buildQuays(ctx, layout)
   return sea
 }
 
@@ -120,6 +127,8 @@ async function buildPlants(
     await plantVegetation(ctx, layout, flora.palms, load, gl),
     await buildForest(ctx, gl, load, layout, flora),
     plantDuneGrass(ctx, layout),
+    plantReeds(ctx, layout),
+    plantWrack(ctx, layout),
     plantGrass(ctx, layout, flora.clear),
     plantLawn(ctx, layout, flora.clear),
   ]
@@ -163,6 +172,7 @@ export async function buildCity(
     spawn: spawnPoint(layout),
     landmarks: landmarks(layout),
     water: sea.surfaceAt,
+    current: offshoreCurrent(layout.frame.coast),
     sea,
     get underwater() {
       return sea.underwater.active

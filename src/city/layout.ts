@@ -150,29 +150,36 @@ function split(r: Rect, axis: 'x' | 'z', cuts: number[]): Rect[] {
   return out
 }
 
-function walksFor(land: Rect, xRoads: number[], zRoads: number[], exits: Exits): Rect[] {
+/** The strip with the canal's width taken out where the canal runs through it. */
+const pastCanal = (r: Rect, canal: Rect): Rect[] =>
+  r.x0 < canal.x0 && r.x1 > canal.x1
+    ? [
+        { ...r, x1: canal.x0 },
+        { ...r, x0: canal.x1 },
+      ]
+    : [r]
+
+function walksFor(land: Rect, xRoads: number[], zRoads: number[], exits: Exits, canal: Rect) {
   const west = xRoads[0] - ROAD_HALF
   const east = xRoads[xRoads.length - 1] + ROAD_HALF
   const north = zRoads[0] - ROAD_HALF
   const south = zRoads[zRoads.length - 1] + ROAD_HALF
   const beach = exits.beach ? [xRoads[xRoads.length - 1]] : []
-  return [
-    ...split({ ...land, x1: west }, 'z', exits.west),
-    { ...land, x0: east },
+  const edges = [
     ...split({ x0: west, x1: east, z0: land.z0, z1: north }, 'x', beach),
     ...split({ x0: west, x1: east, z0: south, z1: land.z1 }, 'x', beach),
   ]
+  return [
+    ...split({ ...land, x1: west }, 'z', exits.west),
+    { ...land, x0: east },
+    ...edges.flatMap((r) => pastCanal(r, canal)),
+  ]
 }
 
-/** The canal runs north-south down the middle of the second block column. */
-function canalRect(zRoads: number[]): Rect {
+/** The canal runs north-south down the middle of the second block column, out through both city edges. */
+function canalRect(land: Rect): Rect {
   const cx = PITCH / 2
-  return {
-    x0: cx - CANAL_HALF,
-    x1: cx + CANAL_HALF,
-    z0: zRoads[0] + ROAD_HALF,
-    z1: zRoads[zRoads.length - 1] - ROAD_HALF,
-  }
+  return { x0: cx - CANAL_HALF, x1: cx + CANAL_HALF, z0: land.z0, z1: land.z1 }
 }
 
 export function generateCity(
@@ -191,7 +198,7 @@ export function generateCity(
     z0: zRoads[0] - ROAD_HALF - EDGE_WALK,
     z1: zRoads[zRoads.length - 1] + ROAD_HALF + EDGE_WALK,
   }
-  const canal = canalRect(zRoads)
+  const canal = canalRect(land)
   const plain = gridBlocks(xRoads, zRoads, canal, size)
   const parkable = plain.filter((b) => !b.canalSide && b.district !== 'beachfront')
   // Duplicate picks collapse, so this makes at most round(size / 350) parks.
@@ -201,7 +208,7 @@ export function generateCity(
     const lots = park ? { buildings: [], gardens: [] } : buildingsFor(b.lot, b.district, r)
     return { ...b, park, ...lots }
   })
-  const walks = walksFor(land, xRoads, zRoads, exits)
+  const walks = walksFor(land, xRoads, zRoads, exits, canal)
   const roads = roadsFor(xRoads, zRoads, land, exits)
   const layout = { seed, size, xRoads, zRoads, roads, blocks, walks }
   return {

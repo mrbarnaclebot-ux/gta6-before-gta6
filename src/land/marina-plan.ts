@@ -2,7 +2,6 @@ import type { Rect } from '../city/layout'
 import { SEA_LEVEL } from '../city/layout'
 import { heightAt } from '../city/terrain'
 import type { Land } from './plan'
-import { coastX } from './shape'
 
 /** A boat's mooring: its waterline spot and heading (yaw 0 faces +z). */
 export interface BoatSpot {
@@ -44,7 +43,7 @@ const PILE_GAP = 4
 export function planMarina(land: Land): MarinaPlan {
   const ground = (x: number, z: number) => heightAt(land, x, z)
   // The deck starts where the sand falls below it, so one walks straight on from the beach.
-  let start = coastX(land.frame, PIER_Z)
+  let start = land.land.x1
   while (ground(start, PIER_Z) > DECK_Y - 0.15) start += 1
   const pier: Rect = { x0: start, x1: END, z0: PIER_Z - PIER_HALF, z1: PIER_Z + PIER_HALF }
   const head: Rect = {
@@ -74,7 +73,7 @@ export function planMarina(land: Land): MarinaPlan {
 }
 
 /** Piles along both long edges of a deck, every few meters. */
-function edgePiles(r: Rect, along: 'x' | 'z'): { x: number; z: number }[] {
+export function edgePiles(r: Rect, along: 'x' | 'z'): { x: number; z: number }[] {
   const out: { x: number; z: number }[] = []
   const [a0, a1] = along === 'x' ? [r.x0, r.x1] : [r.z0, r.z1]
   for (let a = a0 + 1; a <= a1; a += PILE_GAP) {

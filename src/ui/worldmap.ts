@@ -81,18 +81,9 @@ export class WorldMap {
     g.translate(width / 2, height / 2)
     g.scale(v.scale, v.scale)
     g.translate(-v.x, -v.z)
-    this.beyond()
     g.drawImage(this.base.canvas, this.base.x0, this.base.z0)
     g.restore()
     this.marks()
-  }
-
-  /** Past the grid the world is ridge to the west and sea to the east, as it is in game. */
-  private beyond(): void {
-    const { x0, z0, coast, canvas } = this.base
-    const far = 4000
-    this.g.fillStyle = MAP_COLORS.ridge
-    this.g.fillRect(x0 - far, z0 - far, coast - x0 + far, canvas.height + 2 * far)
   }
 
   private marks(): void {

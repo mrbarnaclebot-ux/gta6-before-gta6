@@ -10,6 +10,7 @@ import { CELL } from './grid'
 import { generateLand } from './plan'
 import { GARDEN_TRUNK, ROCK_RIM, ROCK_SPREAD, SINK, TRUNK } from './plant'
 import { rng } from '../city/rng'
+import { BEDROCK_SINK } from './shore-rocks'
 
 /*
  * Nothing floats: every placed instance is checked against the ground under its footprint.
@@ -97,7 +98,7 @@ describe('grounding', () => {
         const base = s.y! - (ux * (px - s.x) + uz * (pz - s.z)) / uy
         expect(base - surface(px, pz)).toBeLessThanOrEqual(FLOAT)
       }
-      expect(surface(s.x, s.z) - s.y!).toBeLessThanOrEqual(SINK.rock * s.s + s.s * 0.5)
+      expect(surface(s.x, s.z) - s.y!).toBeLessThanOrEqual(BEDROCK_SINK * s.s + s.s * 0.5)
     }
   })
 

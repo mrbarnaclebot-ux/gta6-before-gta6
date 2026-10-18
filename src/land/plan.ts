@@ -1,26 +1,31 @@
 import { generateCity, inset, type CityLayout, type Grounded, type Rect } from '../city/layout'
-import { emptyGrid, CELL, type HeightGrid } from './grid'
+import { emptyGrid, CELL, sampleGrid, type HeightGrid } from './grid'
 import { buildHighway, EAST_X } from './highway'
 import { buildHillside, HILL_ROAD_Z, LOOKOUT_R, type Villa } from './hillside'
-import type { Path } from './path'
+import { DECK_FROM, type Path } from './path'
 import { closest, type P2, type P3 } from './polyline'
 import { AVENUE_Z, buildResidential, type House } from './residential'
+import { bakeCoast, coastLine } from './coast'
+import { carveWaterways, CANAL_FLOOR, planWaterways, type Waterways } from './waterways'
 import { natural, type Frame } from './shape'
 import { Shaper } from './stamp'
 import { surfaceAt } from '../city/terrain'
 import { stand, type Surface } from './footing'
 import { SINK } from './plant'
+import { OFFSHORE } from '../sea/offshore'
 
 /*
- * The whole 2 x 2 km map as plain data: the city plan, every road outside it with its
+ * The whole island as plain data: the city plan, every road outside it with its
  * height, houses and villas, and the baked terrain heightmap they are cut into.
  */
 
 /** Ground under the paved city: below every slab and road, so it never shows through. */
 export const UNDER_CITY = -0.6
-export const CANAL_FLOOR = -4
-// How far the terrain reaches past the city: west and north/south over land, east over the sea.
-const REACH = { west: 1280, side: 640, sea: 700 }
+export { CANAL_FLOOR } from './waterways'
+/** Meters the terrain reaches over the sea east of the city. */
+const EAST_SEA = 700
+/** Seabed past the outermost coast on every side: the offshore current turns everyone back before its end. */
+const SEA_MARGIN = OFFSHORE.full + 60
 
 export interface Land extends CityLayout {
   frame: Frame
@@ -35,17 +40,24 @@ export interface Land extends CityLayout {
   palms: Grounded[]
   bushes: Grounded[]
   lights: Grounded[]
+  waterways: Waterways
 }
 
 function frameOf(c: CityLayout): Frame {
   const { land } = c
+  const coast = coastLine()
+  const { line } = coast
+  // Whole cells out from the city, so grid vertices keep lining up with its edges.
+  const out = (from: number, to: number) => Math.ceil(Math.max(0, to - from) / CELL) * CELL
+  const xs = line.map((p) => p.x)
+  const zs = line.map((p) => p.z)
   const grid: Rect = {
-    x0: land.x0 - REACH.west,
-    x1: land.x1 + REACH.sea,
-    z0: land.z0 - REACH.side,
-    z1: land.z1 + REACH.side,
+    x0: land.x0 - out(Math.min(...xs) - SEA_MARGIN, land.x0),
+    x1: land.x1 + Math.max(EAST_SEA, out(land.x1, Math.max(...xs) + SEA_MARGIN)),
+    z0: land.z0 - out(Math.min(...zs) - SEA_MARGIN, land.z0),
+    z1: land.z1 + out(land.z1, Math.max(...zs) + SEA_MARGIN),
   }
-  return { city: land, grid }
+  return { city: land, grid, coast: bakeCoast(grid, coast) }
 }
 
 /** Stamps every road and pad into the natural ground. */
@@ -102,6 +114,23 @@ function underCity(g: HeightGrid, c: CityLayout): void {
   }
 }
 
+/**
+ * Where a waterway's valley was cut under a road, earth ramps rebuild the road's approaches,
+ * tapering off where it stands high: there it spans the water on a bridge.
+ */
+function abutments(g: HeightGrid, paths: Path[]): void {
+  const crossing = paths.filter(
+    (p) =>
+      p.kind !== 'highway' &&
+      p.kind !== 'ramp' &&
+      p.pts.some((q) => q.y - sampleGrid(g, q.x, q.z) > DECK_FROM),
+  )
+  if (!crossing.length) return
+  const s = new Shaper(g, g.h.slice())
+  for (const p of crossing) s.road(p.pts, p.width / 2 + 3.5, 5, 0, true)
+  s.apply()
+}
+
 /** Height of the nearest of these roads at p. */
 const heightOn = (roads: Path[], p: P2) => {
   const best = roads.map((r) => ({ r, c: closest(r.pts, p) })).sort((a, b) => a.c.d - b.c.d)[0]
@@ -125,8 +154,9 @@ function settleCity(c: CityLayout, surface: Surface) {
 export function generateLand(seed = 7, size = 1000): Land {
   const city = generateCity(seed, size, { west: [HILL_ROAD_Z, AVENUE_Z], beach: true })
   const frame = frameOf(city)
+  const waterways = planWaterways(city, frame.coast)
   const ground = (x: number, z: number) => natural(frame, x, z)
-  const home = buildResidential(ground, city.land.x0)
+  const home = buildResidential(ground, city.land.x0, waterways.river)
   const hills = buildHillside(ground, city.land.x0, home.trailhead)
   const boulevards = [hills.roads[0], home.roads[0]]
   const crossings = [HILL_ROAD_Z, AVENUE_Z].map((z) => {
@@ -140,11 +170,14 @@ export function generateLand(seed = 7, size = 1000): Land {
     (p) => heightOn(boulevards, p),
     beachRoad,
     city.land.z1,
+    waterways.channels.quays.filter((q) => q.z1 - q.z0 > q.x1 - q.x0),
   )
   const paths = [...highway, ...hills.roads, ...home.roads]
   const grid = emptyGrid(frame.grid)
   const dirt = shape(grid, frame, paths, home.houses, hills.villas, hills.lookout)
   underCity(grid, city)
+  carveWaterways(grid, waterways)
+  abutments(grid, paths)
   return {
     ...city,
     ...settleCity(city, (x, z) => surfaceAt({ ...city, ground: grid }, x, z)),
@@ -155,5 +188,6 @@ export function generateLand(seed = 7, size = 1000): Land {
     houses: home.houses,
     villas: hills.villas,
     lookout: hills.lookout,
+    waterways,
   }
 }

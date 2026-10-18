@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { ROAD_HALF, type CityLayout, type Road } from '../city/layout'
+import { humpRise, humpSpan } from '../city/canal-bridge'
+import { ROAD_HALF, type CityLayout, type Rect, type Road } from '../city/layout'
 import { wornPaint } from '../render/road-wear'
 import type { WorldCtx } from './blocks'
 
@@ -46,7 +47,21 @@ function quadsFor(road: Road, cross: number[]): Quad[] {
   return out
 }
 
-function toGeometry(quads: { road: Road; q: Quad }[]): THREE.BufferGeometry {
+/** Paint on an x-road over the canal's hump, cut into meter pieces so it follows the rise. */
+function onHumps(quads: { road: Road; q: Quad }[], canal: Rect) {
+  const span = humpSpan(canal)
+  return quads.flatMap(({ road, q }) => {
+    const [u0, u1, v0, v1, color] = q
+    if (road.axis !== 'x' || u1 <= span.x0 || u0 >= span.x1) return [{ road, q }]
+    const n = Math.ceil(u1 - u0)
+    return Array.from({ length: n }, (_, i) => ({
+      road,
+      q: [u0 + ((u1 - u0) * i) / n, u0 + ((u1 - u0) * (i + 1)) / n, v0, v1, color] as Quad,
+    }))
+  })
+}
+
+function toGeometry(quads: { road: Road; q: Quad }[], canal: Rect): THREE.BufferGeometry {
   const pos = new Float32Array(quads.length * 12)
   const col = new Float32Array(quads.length * 12)
   const idx: number[] = []
@@ -59,7 +74,8 @@ function toGeometry(quads: { road: Road; q: Quad }[]): THREE.BufferGeometry {
     ]
     corners.forEach(([u, v], k) => {
       const [x, z] = road.axis === 'x' ? [u, road.at + v] : [road.at + v, u]
-      pos.set([x, 0.004, z], (i * 4 + k) * 3)
+      const rise = road.axis === 'x' ? humpRise(canal, x) : 0
+      pos.set([x, 0.004 + rise, z], (i * 4 + k) * 3)
       color.toArray(col, (i * 4 + k) * 3)
     })
     const o = i * 4
@@ -89,7 +105,7 @@ export function buildMarkings(ctx: WorldCtx, c: CityLayout): void {
       polygonOffsetUnits: -2,
     }),
   )
-  const mesh = new THREE.Mesh(toGeometry(quads), material)
+  const mesh = new THREE.Mesh(toGeometry(onHumps(quads, c.canal), c.canal), material)
   mesh.receiveShadow = true
   ctx.scene.add(mesh)
 }

@@ -5,9 +5,9 @@ import { rng, range } from '../city/rng'
 import type { Grounded } from '../city/layout'
 import { stand } from '../land/footing'
 import { gridRect } from '../land/grid'
-import { fbm } from '../land/noise'
 import type { Land } from '../land/plan'
-import { beachHeight, coastX } from '../land/shape'
+import { seaward } from '../land/coast'
+import { duneGrassAt } from '../land/shape'
 import { keepCardNormals } from '../render/card-normals'
 import type { WorldCtx } from '../world/blocks'
 import { instanceByDistance } from '../world/lod-instances'
@@ -46,39 +46,43 @@ function bladeTexture(): THREE.CanvasTexture {
   return t
 }
 
-/** Three crossed cards, 1 m tall, normals leaning up so the clump lights like a tuft. */
-function clump(): THREE.BufferGeometry {
-  const cards = [0, 1, 2].map((k) => {
-    const q = new THREE.PlaneGeometry(1.1, 1).translate(0, 0.5, 0).rotateY((k * Math.PI) / 3)
+/** Crossed cards, normals leaning up so the clump lights like a tuft. */
+export function clump(cards = 3, width = 1.1, height = 1): THREE.BufferGeometry {
+  const planes = Array.from({ length: cards }, (_, k) => {
+    const q = new THREE.PlaneGeometry(width, height)
+      .translate(0, height / 2, 0)
+      .rotateY((k * Math.PI) / cards)
     const n = q.attributes.normal as THREE.BufferAttribute
     for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.4, 0.9, n.getZ(i) * 0.4)
     return q
   })
-  return mergeGeometries(cards)
+  return mergeGeometries(planes)
 }
 
-/** Spots on the dune crests, where the dunes stand proud of the plain beach slope. */
+/** Spots on the dune crests of every sandy shore, where the dunes stand proud of the plain beach slope. */
 export function duneGrassSpots(land: Land): Grounded[] {
   const g = gridRect(land.ground)
   const r = rng(13)
   const sand = (x: number, z: number) => heightAt(land, x, z)
+  const { coast } = land.frame
   const out: Grounded[] = []
   for (let z = g.z0 + 20; z < g.z1 - 20; z += STEP) {
-    const coast = coastX(land.frame, z)
-    for (let d = 6; d < 44; d += STEP) {
-      const dune = beachHeight(d, z) - plainBeach(d)
-      if (dune < 0.3 || fbm(z / 18, d / 9, 61, 2) < -0.1 || r() < 0.4) continue
-      const x = coast + d + range(r, -1, 1)
-      const zz = z + range(r, -1, 1)
+    for (let x = g.x0 + 20; x < g.x1 - 20; x += STEP) {
+      const d = seaward(coast, x, z)
+      if (d < 4 || d > 36) {
+        // The distance grows no faster than the step, so skip what cannot reach the band.
+        x += Math.max(0, Math.floor((0.9 * Math.max(4 - d, d - 36)) / STEP) - 1) * STEP
+        continue
+      }
+      if (!duneGrassAt(land.frame, x, z, d) || r() < 0.4) continue
+      const px = x + range(r, -1, 1)
+      const pz = z + range(r, -1, 1)
       const s = range(r, 0.55, 1.1)
-      out.push({ x, y: stand(sand, x, zz, CLUMP_FOOT * s), z: zz, s, r: r() * Math.PI * 2 })
+      out.push({ x: px, y: stand(sand, px, pz, CLUMP_FOOT * s), z: pz, s, r: r() * Math.PI * 2 })
     }
   }
   return out
 }
-
-/** The beach's slope without its dunes, for telling where a dune stands. */
-const plainBeach = (d: number) => 0.05 - (0.75 * d) / 50
 
 /** Dune grass on the crests, drawn near the camera only (no shadows, not in the water's mirror). */
 export function plantDuneGrass(

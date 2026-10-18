@@ -74,8 +74,7 @@ export class Driving {
 
   /** Move whatever the player controls: the vehicle while driving, otherwise the player. */
   teleport(at: THREE.Vector3, heading?: number): void {
-    if (this.car instanceof Car) this.car.place(at, heading)
-    else if (this.car) this.car.place(at)
+    if (this.car) this.car.place(at, heading)
     else this.player.teleport(at)
   }
 

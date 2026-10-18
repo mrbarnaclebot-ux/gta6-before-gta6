@@ -2,7 +2,7 @@ import { PARK_TOP } from '../city/terrain'
 import type { Rect } from '../city/layout'
 import type { Land } from '../land/plan'
 import { closest } from '../land/polyline'
-import { coastX } from '../land/shape'
+import { seaward } from '../land/coast'
 
 /** What the feet sound like. Trails and dirt pass as grass: there are three recordings. */
 export type Ground = 'concrete' | 'sand' | 'grass'
@@ -39,5 +39,5 @@ export function footingAt(land: Land, x: number, z: number, y: number): Footing 
     land.paths.some(
       (path) => path.kind !== 'trail' && closest(path.pts, p).d < path.width / 2 + 0.5,
     )
-  return { city, lawn, road, inland: coastX(land.frame, z) - x }
+  return { city, lawn, road, inland: -seaward(land.frame.coast, x, z) }
 }

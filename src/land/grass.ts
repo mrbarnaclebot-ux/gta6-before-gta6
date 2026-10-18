@@ -6,7 +6,8 @@ import { stand } from './footing'
 import { CELL, index, slopeAt } from './grid'
 import { fbm } from './noise'
 import type { Land } from './plan'
-import { coastX } from './shape'
+import { seaward } from './coast'
+import { LAKE, pastShore } from './lake'
 
 /*
  * Grass clumps on a fixed world grid: one candidate per cell, kept or dropped by a hash of the
@@ -38,7 +39,8 @@ function hash4(i: number, j: number): void {
 }
 /** 0 to 1: how grassy the ground is, the inverse of the terrain's bare-dirt weight. */
 export function grassiness(land: Land, clear: Clearance, x: number, z: number): number {
-  if (clearAt(clear, x, z) === BLOCKED || x - coastX(land.frame, z) > -8) return 0
+  if (clearAt(clear, x, z) === BLOCKED || seaward(land.frame.coast, x, z) > -8) return 0
+  if (pastShore(LAKE, x, z) < 1) return 0
   const g = land.ground
   const i = Math.round((x - g.x0) / CELL)
   const j = Math.round((z - g.z0) / CELL)

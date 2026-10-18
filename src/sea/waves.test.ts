@@ -46,7 +46,7 @@ describe('bakeSeaField', () => {
     (x) => -x / 10,
     0,
     { x0: -40, z0: -10, x1: 60, z1: 10 },
-    { x0: 0, x1: 0, z0: 0, z1: 0 },
+    () => 1,
   )
 
   it('gives signed shore distance: positive at sea, negative inland', () => {

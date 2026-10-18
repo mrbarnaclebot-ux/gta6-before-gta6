@@ -2,7 +2,8 @@ import { SEA_LEVEL } from '../city/layout'
 import { forestAt } from '../land/districts'
 import { CELL, index } from '../land/grid'
 import type { Land } from '../land/plan'
-import { coastX } from '../land/shape'
+import { sandAt, seaward } from '../land/coast'
+import { LAKE, lakeSurfaceAt } from '../land/lake'
 
 type RGB = [number, number, number]
 
@@ -24,13 +25,22 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
   a[2] + (b[2] - a[2]) * t,
 ]
 
-/** Ground color before shading: sea by depth, sand, grass, forest, rock on slopes, dirt. */
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v))
+
+/**
+ * Ground color before shading: sea by depth, sand, grass, forest, rock on slopes, dirt. The
+ * waterline and the sand's edge blend over about a pixel, so the scaled-up map draws them smooth.
+ */
 function groundColor(land: Land, k: number, x: number, z: number, h: number, slope: number): RGB {
-  if (h < SEA_LEVEL) return mix(SHALLOWS, SEA, Math.min(1, (SEA_LEVEL - h) / 6))
-  if (x > coastX(land.frame, z) - 4) return SAND
+  const water = mix(SHALLOWS, SEA, clamp01((SEA_LEVEL - h) / 6))
+  const wet = clamp01((SEA_LEVEL - h) / 0.5 + 0.5)
+  if (lakeSurfaceAt(LAKE, x, z) !== null) return mix(SHALLOWS, SEA, 0.35)
+  const { coast } = land.frame
   let c = mix(GRASS, FOREST, forestAt(x, z))
   c = mix(c, DIRT, land.dirt[k] / 255)
-  return mix(c, ROCK, Math.min(1, Math.max(0, (slope - 0.35) * 2.5)))
+  c = mix(c, ROCK, clamp01((slope - 0.35) * 2.5))
+  const sand = clamp01((seaward(coast, x, z) + 6) / 4) * clamp01((sandAt(coast, x, z) - 0.3) * 4)
+  return mix(mix(c, SAND, sand), water, wet)
 }
 
 /**
@@ -53,7 +63,8 @@ export function paintTerrain(land: Land): HTMLCanvasElement {
       const dz = (h(i, j + 1) - h(i, j - 1)) / (2 * CELL)
       const len = Math.hypot(dx, 1, dz)
       const light = (-dx * LIGHT[0] + LIGHT[1] - dz * LIGHT[2]) / len
-      const shade = g.h[k] < SEA_LEVEL ? 1 : 0.62 + 0.5 * light
+      const wet = clamp01((SEA_LEVEL - g.h[k]) / 0.5 + 0.5)
+      const shade = 0.62 + 0.5 * light + (0.38 - 0.5 * light) * wet
       const c = groundColor(land, k, g.x0 + i * CELL, g.z0 + j * CELL, g.h[k], Math.hypot(dx, dz))
       const line =
         g.h[k] > 2 && Math.floor(g.h[k] / CONTOUR) !== Math.floor(h(i + 1, j) / CONTOUR) ? 0.85 : 1

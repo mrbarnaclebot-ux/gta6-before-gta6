@@ -8,12 +8,14 @@ import {
   HULL_POINTS,
   keelDrag,
   lift,
+  MASS,
   PITCH_STIFFNESS,
   ROLL_STIFFNESS,
   RUDDER,
   thrust,
   trim,
 } from './hull'
+import { setOnHull, type Current } from '../sea/offshore'
 
 type Body = InstanceType<typeof RAPIER.RigidBody>
 type WaterQuery = (x: number, z: number) => number | null
@@ -31,6 +33,7 @@ const ang = new THREE.Vector3()
 const fwd = new THREE.Vector3()
 const side = new THREE.Vector3()
 const push = new THREE.Vector3()
+const toShore = { x: 0, z: 0 }
 
 /** Applies the water's forces to one hull each fixed step, as impulses (Rapier forces persist). */
 export class BoatForces {
@@ -40,6 +43,7 @@ export class BoatForces {
   constructor(
     private readonly body: Body,
     private readonly water: WaterQuery,
+    private readonly current: Current,
   ) {}
 
   /** Returns the forward speed in m/s. */
@@ -52,6 +56,12 @@ export class BoatForces {
       for (const k of KEEL) this.keel(k, wet, dt)
       this.impulse(push.set(0, lift(speed) * wet, 0), this.origin, dt)
       this.attitude(speed, helm.steer, wet, dt)
+      // Far offshore the sea carries the boat back, a little faster than the outboard can push out.
+      const k = this.current(this.origin.x, this.origin.z, toShore)
+      if (k > 0) {
+        const a = setOnHull(k, lin.x * toShore.x + lin.z * toShore.z) * MASS * wet
+        this.impulse(push.set(toShore.x * a, 0, toShore.z * a), this.origin, dt)
+      }
     }
     this.propel(helm, speed, dead, dt)
     return speed

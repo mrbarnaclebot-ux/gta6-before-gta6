@@ -1,5 +1,6 @@
 import { ROAD_HALF, type CityLayout } from '../city/layout'
 import type { Rand } from '../city/rng'
+import { humpRise, humpSpan } from '../city/canal-bridge'
 
 /*
  * Traffic routes on the road grid as pure data. A car drives in the right-hand
@@ -14,7 +15,7 @@ export const TURN_SPEED = 5
 const CURVE_STEPS = 6
 
 type Axis = 'x' | 'z'
-type Grid = Pick<CityLayout, 'xRoads' | 'zRoads'>
+type Grid = Pick<CityLayout, 'xRoads' | 'zRoads' | 'canal'>
 
 /** On the road running along `axis` that sits at `at` on the other axis, `u` meters along, heading `dir`. */
 export interface Heading {
@@ -56,7 +57,8 @@ export function gridStart(g: Grid, h: Heading, r: Rand): Start {
       return leg.points
     },
   }
-  return { ...lanePoint(h, h.u), y: 0, yaw: yawOf(h), driver }
+  const y = h.axis === 'x' ? humpRise(g.canal, h.u) : 0
+  return { ...lanePoint(h, h.u), y, yaw: yawOf(h), driver }
 }
 
 const other = (a: Axis): Axis => (a === 'x' ? 'z' : 'x')
@@ -116,6 +118,19 @@ function turn(from: Heading, to: Heading, entryU: number): Waypoint[] {
   return out
 }
 
+/** Waypoints over the canal hump on the way from `h` to `toU` along its road, if it lies between. */
+function overHump(g: Grid, h: Heading, toU: number): Waypoint[] {
+  if (h.axis !== 'x') return []
+  const span = humpSpan(g.canal)
+  const out: Waypoint[] = []
+  for (let x = span.x0; x <= span.x1; x += 2) {
+    if ((x - h.u) * h.dir > 0 && (toU - x) * h.dir > 0) {
+      out.push({ ...lanePoint(h, x), y: humpRise(g.canal, x), limit: CRUISE })
+    }
+  }
+  return h.dir > 0 ? out : out.reverse()
+}
+
 /**
  * Drive to the next intersection and through it. Returns the waypoints and the
  * heading on the far side. The caller must be on a road with an intersection ahead.
@@ -124,9 +139,13 @@ export function nextLeg(g: Grid, h: Heading, r: Rand): { points: Waypoint[]; nex
   const at = beyond(crossings(g, h.axis), h.u, h.dir)[0]
   const next = choose(exits(g, h, at), h.axis, r)
   if (next.axis === h.axis) {
-    return { points: [{ ...lanePoint(next, next.u), limit: CRUISE }], next }
+    return {
+      points: [...overHump(g, h, next.u), { ...lanePoint(next, next.u), limit: CRUISE }],
+      next,
+    }
   }
-  return { points: turn(h, next, at - h.dir * ROAD_HALF), next }
+  const entry = at - h.dir * ROAD_HALF
+  return { points: [...overHump(g, h, entry), ...turn(h, next, entry)], next }
 }
 
 /** A random spot mid-block on a random road, facing a way that has an intersection ahead. */

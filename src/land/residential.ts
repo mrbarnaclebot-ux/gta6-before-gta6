@@ -3,6 +3,10 @@ import { smoothstep } from './noise'
 import { lift, path, WIDTH, type Path } from './path'
 import { arc, closest, resample, stations, tangent, type P2, type P3 } from './polyline'
 import { profile } from './profile'
+import type { River } from './river'
+
+/** Houses keep this far back from the river's channel: its banks and valley sides. */
+const RIVER_VALLEY = 26
 
 /*
  * Residential: Palm Avenue runs west from the city under the highway, swaying gently,
@@ -12,7 +16,7 @@ import { profile } from './profile'
  */
 
 export const AVENUE_Z = 300
-const AVENUE_END = -1330
+const AVENUE_END = -1440
 const CURVE_FROM = -700
 const STREETS_X = [-790, -930, -1070, -1210]
 const NORTH_LEN = 200
@@ -115,12 +119,14 @@ function lotsAlong(road: Path, r: Rand): House[] {
   return out
 }
 
-/** Drops houses that would sit on another road or crowd a house already kept. */
-function clear(houses: House[], roads: Path[]): House[] {
+/** Drops houses that would sit on another road, in the river's valley, or crowd a house already kept. */
+function clear(houses: House[], roads: Path[], river: River): House[] {
   const kept: House[] = []
   for (const h of houses) {
     const reach = Math.hypot(h.w, h.d) / 2 + 2
-    const onRoad = roads.some((rd) => closest(rd.pts, h).d < rd.width / 2 + reach - 1)
+    const near = closest(river.pts, h)
+    const wet = near.d < river.half[near.i] + RIVER_VALLEY + reach
+    const onRoad = wet || roads.some((rd) => closest(rd.pts, h).d < rd.width / 2 + reach - 1)
     const crowded = kept.some((k) => Math.hypot(k.x - h.x, k.z - h.z) < 17)
     if (!onRoad && !crowded) kept.push(h)
   }
@@ -135,7 +141,7 @@ export interface Residential {
 }
 
 /** Palm Avenue from the city edge at `cityX`, its side streets, and the houses. */
-export function buildResidential(ground: Ground, cityX: number): Residential {
+export function buildResidential(ground: Ground, cityX: number, river: River): Residential {
   const line = resample(
     Array.from({ length: 81 }, (_, k) => {
       const x = cityX + ((AVENUE_END - cityX) * k) / 80
@@ -162,5 +168,5 @@ export function buildResidential(ground: Ground, cityX: number): Residential {
   // The trail comes in from the north and meets the westmost north circle's ring there.
   const ring = roads.find((rd) => rd.name === `Street ${STREETS_X.length} North circle`)!
   const trailhead = ring.pts.reduce((a, b) => (b.z < a.z ? b : a))
-  return { roads, houses: clear(all, roads), trailhead }
+  return { roads, houses: clear(all, roads, river), trailhead }
 }

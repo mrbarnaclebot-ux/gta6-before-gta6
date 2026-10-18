@@ -8,8 +8,6 @@ import { OPEN_SEA, type SeaSample } from './waves'
  */
 
 export const FIELD_CELL = 2
-// Waves in the walled canal are a ripple of the open sea's.
-const CANAL_CALM = 0.15
 
 export interface SeaField {
   x0: number
@@ -63,12 +61,12 @@ const smoothstep = (a: number, b: number, x: number) => {
 export const waveScale = (depth: number, calm: number) =>
   calm * (0.2 + 0.8 * smoothstep(0, 3, depth))
 
-/** Bakes the field over `r` from the ground height; `canal` is the walled, calm water. */
+/** Bakes the field over `r` from the ground height; `calm` scales the waves (1 open sea, less in sheltered water). */
 export function bakeSeaField(
   height: (x: number, z: number) => number,
   seaLevel: number,
   r: Rect,
-  canal: Rect,
+  calm: (x: number, z: number) => number,
 ): SeaField {
   const w = Math.ceil((r.x1 - r.x0) / FIELD_CELL) + 1
   const h = Math.ceil((r.z1 - r.z0) / FIELD_CELL) + 1
@@ -93,9 +91,7 @@ export function bakeSeaField(
   for (let k = 0; k < w * h; k++) {
     shore[k] = wet[k] ? toLand[k] * FIELD_CELL - half : half - toWater[k] * FIELD_CELL
     const x = r.x0 + (k % w) * FIELD_CELL
-    const z = r.z0 + Math.floor(k / w) * FIELD_CELL
-    const inCanal = x > canal.x0 && x < canal.x1 && z > canal.z0 && z < canal.z1
-    scale[k] = waveScale(depth[k], inCanal ? CANAL_CALM : 1)
+    scale[k] = waveScale(depth[k], calm(x, r.z0 + Math.floor(k / w) * FIELD_CELL))
   }
   return { x0: r.x0, z0: r.z0, w, h, depth, shore, scale }
 }

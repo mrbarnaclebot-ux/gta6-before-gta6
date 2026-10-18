@@ -53,7 +53,7 @@ export class Traffic {
   readonly cars: TrafficCar[]
   private readonly stuck: number[]
   private readonly ignoring: number[]
-  private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads'>
+  private readonly grid: Pick<CityLayout, 'xRoads' | 'zRoads' | 'canal'>
   private readonly highway: LaneEdge[]
   private readonly r = rng(4242)
   private readonly others: Obstacle[] = []

@@ -27,7 +27,7 @@ export interface Vehicle {
   /** One fixed physics step. Null controls: nobody at the wheel. */
   fixedUpdate(dt: number, controls: Controls | null): void
   update(alpha: number, driven?: boolean): void
-  place(at: THREE.Vector3): void
+  place(at: THREE.Vector3, heading?: number): void
   hit(distance: number): Surface
   /** Where engine smoke rises, in world space. */
   hood(out: THREE.Vector3): THREE.Vector3

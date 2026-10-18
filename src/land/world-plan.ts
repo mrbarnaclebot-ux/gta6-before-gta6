@@ -2,7 +2,7 @@ import type { Flora } from './flora'
 import type { Land } from './plan'
 import type { SeaData } from '../sea/sea-plan'
 
-// The city core is 1 km square; the land plan grows the world around it to about 2 x 2 km.
+// The city core is 1 km square on the east coast of an island about 2.2 km across.
 export const WORLD_SEED = 7
 export const WORLD_SIZE = 1000
 
