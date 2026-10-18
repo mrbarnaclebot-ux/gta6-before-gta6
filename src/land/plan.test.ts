@@ -12,9 +12,10 @@ const land = generateLand(7, 1000)
 const g = land.ground
 
 describe('terrain', () => {
+  // The island's grid takes over 5 s to generate on CI's 2-core runner.
   it('is the same every load', () => {
     expect(generateLand(7, 1000).ground.h).toEqual(g.h)
-  })
+  }, 30_000)
 
   it('lies flat under the city and meets its edge just below the sidewalk', () => {
     const { land: c, canal } = land
